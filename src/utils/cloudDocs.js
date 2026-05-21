@@ -197,14 +197,13 @@ export async function cloudLoadDoc(userId, entry) {
 // Callers (e.g. ChapterReview modal) pass the full overrides object;
 // any prior value is replaced. Row must already exist (created by
 // cloudSaveDoc on first upload) — update-only is correct here.
-export async function cloudSaveChapterOverrides(docId, overrides) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
+export async function cloudSaveChapterOverrides(userId, docId, overrides) {
+  requireUserId(userId);
   const { error } = await supabase
     .from("recent_docs")
     .update({ chapter_overrides: overrides })
     .eq("id", docId)
-    .eq("user_id", user.id);
+    .eq("user_id", userId);
   if (error) throw error;
 }
 

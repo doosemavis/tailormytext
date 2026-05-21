@@ -223,7 +223,7 @@ describe("cloudSaveChapterOverrides — persists overrides to recent_docs", () =
   });
 
   it("calls update({ chapter_overrides }) on recent_docs with id + user_id guards", async () => {
-    await cloudSaveChapterOverrides("doc-id-1", { breaks: [5, 12, 30] });
+    await cloudSaveChapterOverrides("test-user-id", "doc-id-1", { breaks: [5, 12, 30] });
 
     expect(capturedUpdates).toHaveLength(1);
     const call = capturedUpdates[0];
@@ -236,15 +236,11 @@ describe("cloudSaveChapterOverrides — persists overrides to recent_docs", () =
     const idFilter = call.eqs.find((e) => e.col === "id");
     expect(idFilter.val).toBe("doc-id-1");
     const userFilter = call.eqs.find((e) => e.col === "user_id");
-    expect(userFilter.val).toBe("user-test-1");
+    expect(userFilter.val).toBe("test-user-id");
   });
 
-  it("throws when not authenticated (getUser returns null user)", async () => {
-    // Temporarily override getUser to return no user.
-    const { supabase } = await import("../../src/utils/supabase.js");
-    supabase.auth.getUser.mockResolvedValueOnce({ data: { user: null } });
-
-    await expect(cloudSaveChapterOverrides("doc-id-1", {})).rejects.toThrow(/authenticated/i);
+  it("throws when called without a userId (requireUserId guard)", async () => {
+    await expect(cloudSaveChapterOverrides(undefined, "doc-id-1", {})).rejects.toThrow(/authenticated/i);
   });
 });
 
