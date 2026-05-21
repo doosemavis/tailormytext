@@ -39,7 +39,7 @@ export async function cloudListRecent(userId) {
   requireUserId(userId);
   const { data, error } = await supabase
     .from("recent_docs")
-    .select("id, name, timestamp, chunks, source, book_id")
+    .select("id, name, timestamp, chunks, source, book_id, chapter_overrides")
     .eq("user_id", userId)
     .or("source.is.null,source.neq.library")
     .order("timestamp", { ascending: false })
@@ -57,7 +57,7 @@ export async function cloudListBookshelf(userId) {
   requireUserId(userId);
   const { data, error } = await supabase
     .from("recent_docs")
-    .select("id, name, timestamp, chunks, source, book_id")
+    .select("id, name, timestamp, chunks, source, book_id, chapter_overrides")
     .eq("user_id", userId)
     .eq("source", "library")
     .order("timestamp", { ascending: false });
@@ -185,7 +185,27 @@ export async function cloudLoadDoc(userId, entry) {
   if (!d || typeof d !== "object") {
     return { error: "corrupted", name: entry.name };
   }
-  return { sections: d.sections, text: d.text, name: entry.name };
+  return {
+    sections: d.sections,
+    text: d.text,
+    name: entry.name,
+    chapterOverrides: entry.chapter_overrides ?? null,
+  };
+}
+
+// Persist user-defined chapter break overrides for an uploaded doc.
+// Callers (e.g. ChapterReview modal) pass the full overrides object;
+// any prior value is replaced. Row must already exist (created by
+// cloudSaveDoc on first upload) — update-only is correct here.
+export async function cloudSaveChapterOverrides(docId, overrides) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+  const { error } = await supabase
+    .from("recent_docs")
+    .update({ chapter_overrides: overrides })
+    .eq("id", docId)
+    .eq("user_id", user.id);
+  if (error) throw error;
 }
 
 // Remove a recent-docs entry. Source-aware:
