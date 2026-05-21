@@ -761,14 +761,17 @@ export default function App() {
       // polyfill — Phase 3 territory if we want it moved).
       else if (ext === "md") { setLoadMsg("Parsing Markdown…"); sections = await parseInWorker("parse-md", await file.text()); }
       else { sections = await parseInWorker("parse-text", await file.text()); }
-      // Normalize the parser result shape (Task C2-3):
+      // Normalize the parser result shape (Task D2):
       // - Binary parsers (PDF, EPUB, DOCX) return Section[] directly.
-      // - Text parsers (HTML, MD, TXT) return { sections, depthFallback }.
+      // - Text parsers (HTML, MD, TXT) return { sections, confidence }.
       //   parseInWorker passes the worker postMessage payload through unchanged.
       const parserResult = sections;
       const normalizedSections = Array.isArray(parserResult) ? parserResult : parserResult.sections;
-      const depthFallback = Array.isArray(parserResult) ? false : Boolean(parserResult.depthFallback);
+      const confidence = Array.isArray(parserResult) ? undefined : parserResult.confidence;
       sections = normalizedSections;
+      // Derive the legacy depthFallback boolean from confidence.reasons so the
+      // parse_outcomes telemetry row schema is unchanged (no ALTER TABLE needed).
+      const depthFallback = confidence?.reasons?.includes("no_repeating_depth") ?? false;
       // Fire-and-forget telemetry — never block the UI render path on a DB insert.
       void trackParseOutcome({
         format: ext === "htm" ? "html" : ext,

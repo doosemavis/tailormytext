@@ -1,6 +1,6 @@
-// CONTRACT (Task C2-3): posts back { id, sections, depthFallback? } per
+// CONTRACT (Task D2): posts back { id, sections, confidence? } per
 // docs/architecture/PARSER_CONTRACT.md. Text parsers (parse-text, parse-md)
-// now return { sections, depthFallback }; binary parsers (parse-pdf) return
+// now return { sections, confidence }; binary parsers (parse-pdf) return
 // Section[]. The worker normalizes both shapes into a consistent postMessage
 // payload so the main-thread wrapper (parserWorker.js) can pass through the
 // full shape without knowing which parser ran.
@@ -35,18 +35,18 @@ self.onmessage = (e) => {
   try {
     switch (type) {
       case "parse-text": {
-        // detectTextStructure returns { sections, depthFallback } (Task C2-3).
+        // detectTextStructure returns { sections, confidence } (Task D2).
         const result = detectTextStructure(payload);
-        self.postMessage({ id, sections: result.sections, depthFallback: result.depthFallback });
+        self.postMessage({ id, sections: result.sections, confidence: result.confidence });
         break;
       }
       case "parse-md": {
         // Phase 3: flag selects between marked.lexer + adapter (default)
-        // and the legacy regex preprocessor. Both now return { sections, depthFallback }.
+        // and the legacy regex preprocessor. Both now return { sections, confidence }.
         const result = USE_MARKDOWN_TOKEN_PARSER
           ? parseMarkdownTokens(payload)
           : parseMarkdownStructured(payload);
-        self.postMessage({ id, sections: result.sections, depthFallback: result.depthFallback });
+        self.postMessage({ id, sections: result.sections, confidence: result.confidence });
         break;
       }
       case "parse-pdf":
