@@ -10,7 +10,7 @@ const UncertaintyBadge = memo(function UncertaintyBadge({ score, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="tmt-pill--warning"
+      className="tmt-pill tmt-pill--warning"
       aria-label={`Detection uncertain (score ${score.toFixed(2)}). Click to edit chapters.`}
     >
       Detection uncertain · Edit chapters

@@ -853,6 +853,7 @@ export default function App() {
     if (!user?.id) { setShowAuth(true); return; }
     const bookId = typeof bookOrId === "string" ? bookOrId : bookOrId?.id;
     if (!bookId) return;
+    setConfidence(null);
     setLoading(true); setLoadMsg("Fetching from the library…");
     try {
       const result = await cloudOpenLibraryBook(user.id, bookId, sub.isPro);
@@ -900,6 +901,7 @@ export default function App() {
     if (entry?.source === "library" && entry?.book_id) {
       return openLibraryBook(entry.book_id);
     }
+    setConfidence(null);
     setLoading(true); setLoadMsg("Loading saved document…");
     try {
       const data = await recentDocs.loadDoc(entry);
