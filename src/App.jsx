@@ -83,6 +83,7 @@ import {
   DocumentBody, useReadingGuide,
   UserMenu, PendingDeletionBanner, PostDeletionLockoutBanner,
   DiaTextReveal, BookLoader, ErrorBoundary, ReaderEmptyState, Footer,
+  UncertaintyBadge,
 } from "./components";
 
 // Modals are conditionally rendered and not needed at first paint, so
@@ -308,6 +309,13 @@ export default function App() {
   const [showCheckout, setShowCheckout] = useState(false);
   const [checkoutBilling, setCheckoutBilling] = useState("monthly");
   const [showChapterNav, setShowChapterNav] = useState(false);
+  // Parser confidence score for the currently-loaded text document.
+  // Null for binary parsers (PDF, EPUB, DOCX) and library books.
+  // Reset to null whenever a new doc is loaded. D7 will use it for
+  // override-aware re-parse decisions; D5 surfaces it as the warning badge.
+  const [confidence, setConfidence] = useState(null);
+  // Controls EditChaptersModal visibility (D6 will add the modal component).
+  const [editChaptersOpen, setEditChaptersOpen] = useState(false);
   const [showLibraryDrawer, setShowLibraryDrawer] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [currentSectionIdx, setCurrentSectionIdx] = useState(0);
@@ -730,6 +738,7 @@ export default function App() {
   // guard, then setDocSections feeds the renderer).
   const doUpload = useCallback(async (file) => {
     setLoading(true); setLoadMsg("Reading file…");
+    setConfidence(null); // reset whenever a new upload begins
     let sections;
     const rawExt = file.name.split(".").pop().toLowerCase();
     let ext = rawExt;
@@ -790,6 +799,9 @@ export default function App() {
       }
       setText(fullText); setDocSections(sections); setFileName(file.name);
       setCurrentDocSource("upload");
+      // Hoist confidence to App state so the UncertaintyBadge can render.
+      // Binary parsers leave `confidence` undefined; text parsers provide it.
+      setConfidence(confidence ?? null);
       setReaderOpen(true);
     } catch (e) {
       // Map raw parser exceptions to user-friendly per-format messages.
@@ -1761,6 +1773,14 @@ export default function App() {
               </DropdownMenu.Portal>
             </DropdownMenu.Root>
           )}
+
+          {/* Uncertainty badge — surfaces when text-parser confidence < 0.70.
+              D6 will add the EditChaptersModal; for now editChaptersOpen is
+              wired but unconsumed. */}
+          <UncertaintyBadge
+            score={confidence?.score}
+            onClick={() => setEditChaptersOpen(true)}
+          />
 
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             {/* Reader feature toggles. Tooltips use the short product name

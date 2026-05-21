@@ -552,6 +552,36 @@ a.rf-link-btn:active {
   padding: 6px 12px;
 }
 
+/* Warning pill — shown in the reader top bar when text-parser confidence < 0.70.
+   Solid amber background + white text satisfies WCAG AA contrast (~4.6:1).
+   Inset highlight gives the "vibrant solid" look consistent with internal
+   status badges (see feedback_status_badges_solid.md). */
+.tmt-pill--warning {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--tmt-mono, 'IBM Plex Mono', ui-monospace, monospace);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #fff;
+  background: #B45309;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  border: none;
+  border-radius: 999px;
+  padding: 5px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1;
+  outline-offset: 2px;
+}
+.tmt-pill--warning:hover {
+  background: #92400E;
+}
+.tmt-pill--warning:focus-visible {
+  outline: 2px solid #B45309;
+}
+
 /* Card surface — used by hero copy panels, condition tiles, plan cards. */
 .tmt-marketing .tmt-card {
   background: var(--tmt-paper-card);

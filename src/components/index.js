@@ -13,6 +13,7 @@ export { default as PulsatingButton } from "./PulsatingButton";
 export { default as PendingDeletionBanner } from "./PendingDeletionBanner";
 export { default as PostDeletionLockoutBanner } from "./PostDeletionLockoutBanner";
 export { default as ErrorBoundary } from "./ErrorBoundary";
+export { default as UncertaintyBadge } from "./UncertaintyBadge";
 export { default as ReaderEmptyState } from "./ReaderEmptyState";
 export { default as Footer } from "./Footer";
 export { default as LegalLayout } from "./LegalLayout";
