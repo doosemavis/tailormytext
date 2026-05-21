@@ -53,7 +53,7 @@ self.onmessage = (e) => {
         // payload: { rawPages, resolvedOutline, debug }
         // pdf.js calls (load, getDocument, getTextContent, outline resolution)
         // happen on main thread; this branch runs the heuristics-heavy analysis.
-        // analyzePDF is a binary parser — returns Section[] with no depthFallback.
+        // analyzePDF is a binary parser — returns Section[] with no confidence.
         self.postMessage({ id, sections: analyzePDF(payload) });
         break;
       default:

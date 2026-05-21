@@ -23,6 +23,9 @@ export function scoreConfidence(sections, { depthFallback }) {
     reasons.push("size_outlier");
   }
 
+  // Penalties stack intentionally: a document with no repeating depth AND only
+  // one section is unambiguously uncertain. The combined −0.70 (−0.50 + −0.20)
+  // pushes the score well below the 0.55 uncertain threshold.
   if (sections.length === 1) {
     score -= 0.20;
     reasons.push("single_section");

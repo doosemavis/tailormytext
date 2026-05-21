@@ -183,6 +183,8 @@ describe("parseHTMLStructured — confidence signal", () => {
     expect(result.confidence).toHaveProperty("score");
     expect(result.confidence).toHaveProperty("reasons");
     expect(result.confidence.reasons).not.toContain("no_repeating_depth");
+    // PARSER_CONTRACT.md §8: ≥ 0.70 = high confidence band
+    expect(result.confidence.score).toBeGreaterThanOrEqual(0.70);
   });
 
   it("returns confidence.reasons containing no_repeating_depth when only a single unique heading depth exists", () => {
@@ -191,6 +193,8 @@ describe("parseHTMLStructured — confidence signal", () => {
     </body></html>`;
     const result = parseHTMLStructured(html);
     expect(result.confidence.reasons).toContain("no_repeating_depth");
+    // PARSER_CONTRACT.md §8: < 0.70 (no repeating depth penalty −0.50 applied)
+    expect(result.confidence.score).toBeLessThan(0.70);
   });
 
   it("returns confidence without no_repeating_depth for no-headings doc (fallback doesn't apply)", () => {

@@ -170,11 +170,15 @@ describe("parseMarkdownTokens — confidence signal", () => {
     expect(result.confidence).toHaveProperty("score");
     expect(result.confidence).toHaveProperty("reasons");
     expect(result.confidence.reasons).not.toContain("no_repeating_depth");
+    // PARSER_CONTRACT.md §8: ≥ 0.70 = high confidence band
+    expect(result.confidence.score).toBeGreaterThanOrEqual(0.70);
   });
   it("returns confidence.reasons containing no_repeating_depth when no repeating depth exists (only one heading)", () => {
     const md = "# Solo Chapter\n\nProse.";
     const result = parseMarkdownTokens(md);
     expect(result.confidence.reasons).toContain("no_repeating_depth");
+    // PARSER_CONTRACT.md §8: < 0.70 (no repeating depth penalty −0.50 applied)
+    expect(result.confidence.score).toBeLessThan(0.70);
   });
   it("returns confidence without no_repeating_depth for a no-headings doc (fallback doesn't apply)", () => {
     // No headings means pickSectionDepth returns Infinity and never fires
