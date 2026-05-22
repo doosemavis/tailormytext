@@ -63,7 +63,7 @@ const SUPPORTED_EXTS = new Set(FILE_ACCEPT.split(",").map(s => s.replace(/^\./, 
 // in two visual columns. Add new themes to the appropriate array — order within each is the row order.
 const LIGHT_THEME_KEYS = ["warm", "cool", "sepia", "forest", "crimson"];
 const DARK_THEME_KEYS = ["phosphor", "jungle", "dark", "midnight", "obsidian"];
-import { parsePDF, parseEPUB, parseDOCX, parseHTMLStructured, parseMarkdownStructured, detectTextStructure, parseInWorker, runThemeTransition, sniffDocumentType } from "./utils";
+import { parsePDF, parseEPUB, parseDOCX, parseHTMLStructured, parseMarkdownStructured, detectTextStructure, parseInWorker, runThemeTransition, sniffDocumentType, applyChapterOverrides } from "./utils";
 import { storageGet, storageSet, storageDel } from "./utils/storage";
 import { supabase } from "./utils/supabase";
 import { track, trackParseOutcome } from "./utils/track";
@@ -338,6 +338,12 @@ export default function App() {
   const t = useMemo(() => ({ ...THEMES[theme], key: theme }), [theme]);
   const currentFont = useMemo(() => FONTS.find(f => f.name === fontFamily), [fontFamily]);
   const hasSections = docSections && docSections.length > 0 && (docSections.length > 1 || docSections[0]?.title);
+  // Override-aware sections for the renderer. docSections (raw parser output)
+  // stays untouched so EditChaptersModal paragraph indices remain stable.
+  const displaySections = useMemo(
+    () => (docSections && chapterOverrides ? applyChapterOverrides(docSections, chapterOverrides) : docSections),
+    [docSections, chapterOverrides],
+  );
 
   // Sync favicon + browser-chrome theme-color to the active theme. SVG is
   // regenerated as a data URI on each theme change; the `<link rel="icon">`
@@ -1033,7 +1039,7 @@ export default function App() {
           docSections={docSections}
           initialBreaks={chapterOverrides?.breaks ?? null}
           initialTitles={chapterOverrides?.titles ?? null}
-          onSaved={() => {}} // D7 wires re-parse logic here.
+          onSaved={(next) => setChapterOverrides(next)}
         />
       )}
     </Suspense>
@@ -1837,7 +1843,7 @@ export default function App() {
           >
             {text ? (
               <DocumentBody
-                text={text} docSections={docSections} hasSections={hasSections}
+                text={text} docSections={displaySections} hasSections={hasSections}
                 wrapperRef={handleDocWrapperRef} featureClassRef={handleFeatureClassRef}
                 settings={settings} focusModeRef={focusModeRef}
                 setFocusPara={setFocusPara} sectionRefs={sectionRefs} titleRefs={titleRefs}

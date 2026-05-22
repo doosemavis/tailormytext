@@ -5,3 +5,5 @@ export { detectTextStructure, parseHTMLStructured, parseMarkdownStructured } fro
 export { sniffDocumentType } from "./sniffDocumentType";
 export { parseInWorker } from "./parserWorker";
 export { runThemeTransition } from "./themeTransition";
+export { applyChapterOverrides } from "./applyChapterOverrides";
+export { buildParagraphs } from "./paragraphStream";
