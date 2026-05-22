@@ -256,7 +256,10 @@ export function parseMarkdownTokens(md) {
     const noHeadingSections = [{ type: "document", title: null, number: 1, content: stripped.trim() }];
     return {
       sections: noHeadingSections,
-      confidence: scoreConfidence(noHeadingSections, { depthFallback: false }),
+      confidence: scoreConfidence(noHeadingSections, {
+        depthFallback: false,
+        textLength: stripped.length,
+      }),
     };
   }
 
@@ -265,6 +268,9 @@ export function parseMarkdownTokens(md) {
   const renumbered = sections.map((s, i) => ({ ...s, number: i + 1 }));
   return {
     sections: renumbered,
-    confidence: scoreConfidence(renumbered, { depthFallback }),
+    confidence: scoreConfidence(renumbered, {
+      depthFallback,
+      textLength: stripped.length,
+    }),
   };
 }
