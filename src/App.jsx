@@ -97,6 +97,7 @@ const AvatarSettingsModal  = lazy(() => import("./components/AvatarSettingsModal
 const SubscriptionModal    = lazy(() => import("./components/SubscriptionModal"));
 const DeleteAccountModal   = lazy(() => import("./components/DeleteAccountModal"));
 const LibraryDrawer        = lazy(() => import("./components/LibraryDrawer"));
+const EditChaptersModal    = lazy(() => import("./components/EditChaptersModal"));
 
 export default function App() {
   // ── Document state ──
@@ -314,7 +315,12 @@ export default function App() {
   // Reset to null whenever a new doc is loaded. D7 will use it for
   // override-aware re-parse decisions; D5 surfaces it as the warning badge.
   const [confidence, setConfidence] = useState(null);
-  // Controls EditChaptersModal visibility (D6 will add the modal component).
+  // Persisted chapter break overrides for the currently-loaded upload doc.
+  // Set when cloudLoadDoc returns chapterOverrides; null for fresh uploads,
+  // library books, and when the user hasn't saved overrides yet.
+  // D7 will consume this to seed the re-parse after EditChaptersModal saves.
+  const [chapterOverrides, setChapterOverrides] = useState(null);
+  // Controls EditChaptersModal visibility (D6).
   const [editChaptersOpen, setEditChaptersOpen] = useState(false);
   const [showLibraryDrawer, setShowLibraryDrawer] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
@@ -739,6 +745,7 @@ export default function App() {
   const doUpload = useCallback(async (file) => {
     setLoading(true); setLoadMsg("Reading file…");
     setConfidence(null); // reset whenever a new upload begins
+    setChapterOverrides(null);
     let sections;
     const rawExt = file.name.split(".").pop().toLowerCase();
     let ext = rawExt;
@@ -854,6 +861,7 @@ export default function App() {
     const bookId = typeof bookOrId === "string" ? bookOrId : bookOrId?.id;
     if (!bookId) return;
     setConfidence(null);
+    setChapterOverrides(null);
     setLoading(true); setLoadMsg("Fetching from the library…");
     try {
       const result = await cloudOpenLibraryBook(user.id, bookId, sub.isPro);
@@ -902,6 +910,7 @@ export default function App() {
       return openLibraryBook(entry.book_id);
     }
     setConfidence(null);
+    setChapterOverrides(null);
     setLoading(true); setLoadMsg("Loading saved document…");
     try {
       const data = await recentDocs.loadDoc(entry);
@@ -909,6 +918,7 @@ export default function App() {
         setText(data.text); setDocSections(data.sections); setFileName(data.name);
         setCurrentDocId(entry.id);
         setCurrentDocSource("upload");
+        setChapterOverrides(data.chapterOverrides ?? null);
         setReaderOpen(true);
       } else if (data?.error === "corrupted") {
         setText("This document file is damaged and can't be opened. Please re-upload the original.");
@@ -1013,6 +1023,19 @@ export default function App() {
       {showSubscription && <SubscriptionModal open={showSubscription} onOpenChange={setShowSubscription} sub={sub} onShowPricing={() => setShowPricing(true)} t={t} />}
       {showDeleteAccount && <DeleteAccountModal open={showDeleteAccount} onOpenChange={setShowDeleteAccount} sub={sub} t={t} />}
       {showLibraryDrawer && <LibraryDrawer open={showLibraryDrawer} onOpenChange={setShowLibraryDrawer} books={library.books} isPro={sub.isPro} onOpen={openLibraryBook} t={t} />}
+      {editChaptersOpen && (
+        <EditChaptersModal
+          open={editChaptersOpen}
+          onClose={() => setEditChaptersOpen(false)}
+          t={t}
+          userId={user?.id}
+          docId={currentDocId}
+          docSections={docSections}
+          initialBreaks={chapterOverrides?.breaks ?? null}
+          initialTitles={chapterOverrides?.titles ?? null}
+          onSaved={() => {}} // D7 wires re-parse logic here.
+        />
+      )}
     </Suspense>
   );
 

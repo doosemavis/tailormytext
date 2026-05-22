@@ -18,7 +18,7 @@ export { default as ReaderEmptyState } from "./ReaderEmptyState";
 export { default as Footer } from "./Footer";
 export { default as LegalLayout } from "./LegalLayout";
 // Modals (PricingModal, PaywallModal, CheckoutModal, AuthModal,
-// AvatarSettingsModal) are intentionally NOT re-exported here. They're
-// loaded lazily via React.lazy in App.jsx — re-exporting them through this
-// barrel would pull them back into the static dependency graph and defeat
-// the code-split. Import them directly from their files when needed.
+// AvatarSettingsModal, EditChaptersModal) are intentionally NOT re-exported
+// here. They're loaded lazily via React.lazy in App.jsx — re-exporting them
+// through this barrel would pull them back into the static dependency graph
+// and defeat the code-split. Import them directly from their files when needed.
