@@ -76,6 +76,7 @@ import { useThemePreference } from "./hooks/useThemePreference";
 import { useAuth } from "./contexts/AuthContext";
 import { useToast } from "./components/Toast";
 import HeroFeatureFlip from "./components/HeroFeatureFlip";
+import ChapterDropdownItem from "./components/ChapterDropdownItem";
 import {
   Toggle, Slider, Segment, Section, FontPicker, Tip,
   UploadBadge, SidebarRecentDocs, LandingRecentDocs, LibrarySection, LibraryTeaseSection,
@@ -1792,20 +1793,17 @@ export default function App() {
                     <span style={{ fontSize: 11, fontWeight: 650, color: t.fgSoft, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.05em", textTransform: "uppercase" }}>Table of Contents</span>
                     <span style={{ fontSize: 11, color: t.fgSoft, fontFamily: "'IBM Plex Mono', ui-monospace, monospace", letterSpacing: "0.04em", flexShrink: 0 }}>{currentSectionIdx + 1} of {docSections.length}</span>
                   </div>
-                  {docSections.map((sec, si) => {
-                    const active = si === currentSectionIdx;
-                    return (
-                      <DropdownMenu.Item
-                        key={si}
-                        onSelect={() => scrollToSection(si)}
-                        onMouseEnter={e => e.currentTarget.style.background = active ? t.accentSoft : t.surfaceHover}
-                        onMouseLeave={e => e.currentTarget.style.background = active ? t.accentSoft : "transparent"}
-                        style={{ padding: "10px 14px", cursor: "pointer", color: active ? t.accent : t.fg, fontWeight: active ? 650 : 550, background: active ? t.accentSoft : "transparent", display: "flex", alignItems: "center", gap: 10, borderBottom: si < docSections.length - 1 ? `1px solid ${t.borderSoft}` : "none", outline: "none", userSelect: "none" }}
-                      >
-                        <span style={{ fontSize: 13, fontFamily: "'DM Sans', sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sec.title || (sec.type === "page" ? `Page ${sec.number || si + 1}` : `Chapter ${sec.number || si + 1}`)}</span>
-                      </DropdownMenu.Item>
-                    );
-                  })}
+                  {docSections.map((sec, si) => (
+                    <ChapterDropdownItem
+                      key={si}
+                      index={si}
+                      label={sec.title || (sec.type === "page" ? `Page ${sec.number || si + 1}` : `Chapter ${sec.number || si + 1}`)}
+                      active={si === currentSectionIdx}
+                      isLast={si === docSections.length - 1}
+                      theme={t}
+                      onSelect={scrollToSection}
+                    />
+                  ))}
                 </DropdownMenu.Content>
               </DropdownMenu.Portal>
             </DropdownMenu.Root>
