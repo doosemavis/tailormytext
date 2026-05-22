@@ -1039,7 +1039,13 @@ export default function App() {
           docSections={docSections}
           initialBreaks={chapterOverrides?.breaks ?? null}
           initialTitles={chapterOverrides?.titles ?? null}
-          onSaved={(next) => setChapterOverrides(next)}
+          onSaved={(next) => {
+            setChapterOverrides(next);
+            // useRecentDocs caches chapter_overrides from the SELECT; without
+            // this refresh, closing + reopening the doc from Recent before
+            // the next mount would re-read the stale entry and lose the save.
+            recentDocs.refreshLists?.();
+          }}
         />
       )}
     </Suspense>
