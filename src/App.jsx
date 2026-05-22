@@ -63,7 +63,7 @@ const SUPPORTED_EXTS = new Set(FILE_ACCEPT.split(",").map(s => s.replace(/^\./, 
 // in two visual columns. Add new themes to the appropriate array — order within each is the row order.
 const LIGHT_THEME_KEYS = ["warm", "cool", "sepia", "forest", "crimson"];
 const DARK_THEME_KEYS = ["phosphor", "jungle", "dark", "midnight", "obsidian"];
-import { parsePDF, parseEPUB, parseDOCX, parseHTMLStructured, parseMarkdownStructured, detectTextStructure, parseInWorker, runThemeTransition, sniffDocumentType } from "./utils";
+import { parsePDF, parseEPUB, parseDOCX, parseHTMLStructured, parseMarkdownStructured, detectTextStructure, parseInWorker, runThemeTransition, sniffDocumentType, applyChapterOverrides } from "./utils";
 import { storageGet, storageSet, storageDel } from "./utils/storage";
 import { supabase } from "./utils/supabase";
 import { track, trackParseOutcome } from "./utils/track";
@@ -83,6 +83,7 @@ import {
   DocumentBody, useReadingGuide,
   UserMenu, PendingDeletionBanner, PostDeletionLockoutBanner,
   DiaTextReveal, BookLoader, ErrorBoundary, ReaderEmptyState, Footer,
+  UncertaintyBadge,
 } from "./components";
 
 // Modals are conditionally rendered and not needed at first paint, so
@@ -96,6 +97,7 @@ const AvatarSettingsModal  = lazy(() => import("./components/AvatarSettingsModal
 const SubscriptionModal    = lazy(() => import("./components/SubscriptionModal"));
 const DeleteAccountModal   = lazy(() => import("./components/DeleteAccountModal"));
 const LibraryDrawer        = lazy(() => import("./components/LibraryDrawer"));
+const EditChaptersModal    = lazy(() => import("./components/EditChaptersModal"));
 
 export default function App() {
   // ── Document state ──
@@ -308,6 +310,18 @@ export default function App() {
   const [showCheckout, setShowCheckout] = useState(false);
   const [checkoutBilling, setCheckoutBilling] = useState("monthly");
   const [showChapterNav, setShowChapterNav] = useState(false);
+  // Parser confidence score for the currently-loaded text document.
+  // Null for binary parsers (PDF, EPUB, DOCX) and library books.
+  // Reset to null whenever a new doc is loaded. D7 will use it for
+  // override-aware re-parse decisions; D5 surfaces it as the warning badge.
+  const [confidence, setConfidence] = useState(null);
+  // Persisted chapter break overrides for the currently-loaded upload doc.
+  // Set when cloudLoadDoc returns chapterOverrides; null for fresh uploads,
+  // library books, and when the user hasn't saved overrides yet.
+  // D7 will consume this to seed the re-parse after EditChaptersModal saves.
+  const [chapterOverrides, setChapterOverrides] = useState(null);
+  // Controls EditChaptersModal visibility (D6).
+  const [editChaptersOpen, setEditChaptersOpen] = useState(false);
   const [showLibraryDrawer, setShowLibraryDrawer] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [currentSectionIdx, setCurrentSectionIdx] = useState(0);
@@ -324,6 +338,12 @@ export default function App() {
   const t = useMemo(() => ({ ...THEMES[theme], key: theme }), [theme]);
   const currentFont = useMemo(() => FONTS.find(f => f.name === fontFamily), [fontFamily]);
   const hasSections = docSections && docSections.length > 0 && (docSections.length > 1 || docSections[0]?.title);
+  // Override-aware sections for the renderer. docSections (raw parser output)
+  // stays untouched so EditChaptersModal paragraph indices remain stable.
+  const displaySections = useMemo(
+    () => (docSections && chapterOverrides ? applyChapterOverrides(docSections, chapterOverrides) : docSections),
+    [docSections, chapterOverrides],
+  );
 
   // Sync favicon + browser-chrome theme-color to the active theme. SVG is
   // regenerated as a data URI on each theme change; the `<link rel="icon">`
@@ -730,6 +750,8 @@ export default function App() {
   // guard, then setDocSections feeds the renderer).
   const doUpload = useCallback(async (file) => {
     setLoading(true); setLoadMsg("Reading file…");
+    setConfidence(null); // reset whenever a new upload begins
+    setChapterOverrides(null);
     let sections;
     const rawExt = file.name.split(".").pop().toLowerCase();
     let ext = rawExt;
@@ -761,14 +783,17 @@ export default function App() {
       // polyfill — Phase 3 territory if we want it moved).
       else if (ext === "md") { setLoadMsg("Parsing Markdown…"); sections = await parseInWorker("parse-md", await file.text()); }
       else { sections = await parseInWorker("parse-text", await file.text()); }
-      // Normalize the parser result shape (Task C2-3):
+      // Normalize the parser result shape (Task D2):
       // - Binary parsers (PDF, EPUB, DOCX) return Section[] directly.
-      // - Text parsers (HTML, MD, TXT) return { sections, depthFallback }.
+      // - Text parsers (HTML, MD, TXT) return { sections, confidence }.
       //   parseInWorker passes the worker postMessage payload through unchanged.
       const parserResult = sections;
       const normalizedSections = Array.isArray(parserResult) ? parserResult : parserResult.sections;
-      const depthFallback = Array.isArray(parserResult) ? false : Boolean(parserResult.depthFallback);
+      const confidence = Array.isArray(parserResult) ? undefined : parserResult.confidence;
       sections = normalizedSections;
+      // Derive the legacy depthFallback boolean from confidence.reasons so the
+      // parse_outcomes telemetry row schema is unchanged (no ALTER TABLE needed).
+      const depthFallback = confidence?.reasons?.includes("no_repeating_depth") ?? false;
       // Fire-and-forget telemetry — never block the UI render path on a DB insert.
       void trackParseOutcome({
         format: ext === "htm" ? "html" : ext,
@@ -787,6 +812,9 @@ export default function App() {
       }
       setText(fullText); setDocSections(sections); setFileName(file.name);
       setCurrentDocSource("upload");
+      // Hoist confidence to App state so the UncertaintyBadge can render.
+      // Binary parsers leave `confidence` undefined; text parsers provide it.
+      setConfidence(confidence ?? null);
       setReaderOpen(true);
     } catch (e) {
       // Map raw parser exceptions to user-friendly per-format messages.
@@ -838,6 +866,8 @@ export default function App() {
     if (!user?.id) { setShowAuth(true); return; }
     const bookId = typeof bookOrId === "string" ? bookOrId : bookOrId?.id;
     if (!bookId) return;
+    setConfidence(null);
+    setChapterOverrides(null);
     setLoading(true); setLoadMsg("Fetching from the library…");
     try {
       const result = await cloudOpenLibraryBook(user.id, bookId, sub.isPro);
@@ -885,6 +915,8 @@ export default function App() {
     if (entry?.source === "library" && entry?.book_id) {
       return openLibraryBook(entry.book_id);
     }
+    setConfidence(null);
+    setChapterOverrides(null);
     setLoading(true); setLoadMsg("Loading saved document…");
     try {
       const data = await recentDocs.loadDoc(entry);
@@ -892,6 +924,7 @@ export default function App() {
         setText(data.text); setDocSections(data.sections); setFileName(data.name);
         setCurrentDocId(entry.id);
         setCurrentDocSource("upload");
+        setChapterOverrides(data.chapterOverrides ?? null);
         setReaderOpen(true);
       } else if (data?.error === "corrupted") {
         setText("This document file is damaged and can't be opened. Please re-upload the original.");
@@ -996,6 +1029,25 @@ export default function App() {
       {showSubscription && <SubscriptionModal open={showSubscription} onOpenChange={setShowSubscription} sub={sub} onShowPricing={() => setShowPricing(true)} t={t} />}
       {showDeleteAccount && <DeleteAccountModal open={showDeleteAccount} onOpenChange={setShowDeleteAccount} sub={sub} t={t} />}
       {showLibraryDrawer && <LibraryDrawer open={showLibraryDrawer} onOpenChange={setShowLibraryDrawer} books={library.books} isPro={sub.isPro} onOpen={openLibraryBook} t={t} />}
+      {editChaptersOpen && (
+        <EditChaptersModal
+          open={editChaptersOpen}
+          onClose={() => setEditChaptersOpen(false)}
+          t={t}
+          userId={user?.id}
+          docId={currentDocId}
+          docSections={docSections}
+          initialBreaks={chapterOverrides?.breaks ?? null}
+          initialTitles={chapterOverrides?.titles ?? null}
+          onSaved={(next) => {
+            setChapterOverrides(next);
+            // useRecentDocs caches chapter_overrides from the SELECT; without
+            // this refresh, closing + reopening the doc from Recent before
+            // the next mount would re-read the stale entry and lose the save.
+            recentDocs.refreshLists?.();
+          }}
+        />
+      )}
     </Suspense>
   );
 
@@ -1759,6 +1811,14 @@ export default function App() {
             </DropdownMenu.Root>
           )}
 
+          {/* Uncertainty badge — surfaces when text-parser confidence < 0.70.
+              D6 will add the EditChaptersModal; for now editChaptersOpen is
+              wired but unconsumed. */}
+          <UncertaintyBadge
+            score={confidence?.score}
+            onClick={() => setEditChaptersOpen(true)}
+          />
+
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             {/* Reader feature toggles. Tooltips use the short product name
                only; longer descriptions live in the sidebar Toggle labels +
@@ -1789,7 +1849,7 @@ export default function App() {
           >
             {text ? (
               <DocumentBody
-                text={text} docSections={docSections} hasSections={hasSections}
+                text={text} docSections={displaySections} hasSections={hasSections}
                 wrapperRef={handleDocWrapperRef} featureClassRef={handleFeatureClassRef}
                 settings={settings} focusModeRef={focusModeRef}
                 setFocusPara={setFocusPara} sectionRefs={sectionRefs} titleRefs={titleRefs}

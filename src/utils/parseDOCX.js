@@ -49,11 +49,8 @@ export async function parseDOCX(file) {
   // script/style/footer stripping, and the type harmonization to
   // "chapter". Keeping one walker means DOCX gets every HTML improvement
   // for free.
-  //
-  // parseHTMLStructured now returns { sections, depthFallback } (Task C2-3).
-  // parseDOCX is a binary parser and must return Section[] per the contract;
-  // we extract sections here and discard depthFallback (binary parser
-  // telemetry is out of scope for Task C2-3).
+  // parseHTMLStructured returns { sections, confidence }; binary parsers
+  // return Section[] per the contract, so we discard confidence here.
   const { sections } = parseHTMLStructured(result.value);
 
   // Treat single-section-with-no-title as "no structure" — that's what

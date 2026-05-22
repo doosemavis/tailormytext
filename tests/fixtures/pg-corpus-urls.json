@@ -1,0 +1,23 @@
+{
+  "_README": "Phase D-8 corpus for parser-confidence calibration. 18 PG books selected for heterogeneous chapter formats. Fetch via scripts/fetch-pg-corpus.mjs (respects PG robot policy: --wait=2). The fetched .txt files land in tests/fixtures/pg-corpus/ (gitignored). expected_band is the heuristic we'll calibrate the 0.70 threshold against in D9.",
+  "books": [
+    { "id": 1342,  "title": "Pride and Prejudice",            "stress_target": "clean CHAPTER I/II/III roman-numeral format",    "expected_band": "high" },
+    { "id": 11,    "title": "Alice in Wonderland",            "stress_target": "clean roman-numeral chapters",                   "expected_band": "high" },
+    { "id": 84,    "title": "Frankenstein",                   "stress_target": "Letters + Chapters mixed front matter",          "expected_band": "high" },
+    { "id": 174,   "title": "The Picture of Dorian Gray",     "stress_target": "clean roman-numeral chapters",                   "expected_band": "high" },
+    { "id": 64317, "title": "The Great Gatsby",               "stress_target": "Arabic-numeral chapters",                        "expected_band": "high" },
+    { "id": 2701,  "title": "Moby Dick",                      "stress_target": "Etymology + Extracts front matter + 135 chapters", "expected_band": "medium" },
+    { "id": 996,   "title": "Don Quixote",                    "stress_target": "Book / Chapter two-level nest",                  "expected_band": "medium" },
+    { "id": 1399,  "title": "Anna Karenina",                  "stress_target": "Part / Chapter two-level nest",                  "expected_band": "medium" },
+    { "id": 135,   "title": "Les Miserables",                 "stress_target": "Volume / Book / Chapter triple nest",            "expected_band": "medium-low" },
+    { "id": 76,    "title": "Adventures of Huckleberry Finn", "stress_target": "Notice + Explanatory + CHAPTERS",                "expected_band": "medium" },
+    { "id": 205,   "title": "Walden",                         "stress_target": "title-only chapters (Economy, Where I Lived)",   "expected_band": "low" },
+    { "id": 1080,  "title": "A Modest Proposal",              "stress_target": "single essay, no chapter structure",             "expected_band": "low" },
+    { "id": 2680,  "title": "Meditations",                    "stress_target": "Books I-XII (very short books, terse text)",     "expected_band": "low" },
+    { "id": 1998,  "title": "Thus Spake Zarathustra",         "stress_target": "Prologue + Parts + named discourses",            "expected_band": "low" },
+    { "id": 16328, "title": "Beowulf",                        "stress_target": "numbered cantos",                                "expected_band": "medium" },
+    { "id": 158,   "title": "Emma",                           "stress_target": "Volume / Chapter nest",                          "expected_band": "medium" },
+    { "id": 1497,  "title": "The Republic",                   "stress_target": "Books only, no chapter sub-divisions",           "expected_band": "low" },
+    { "id": 23,    "title": "Narrative of Frederick Douglass","stress_target": "preface + chapters, short overall",              "expected_band": "medium" }
+  ]
+}

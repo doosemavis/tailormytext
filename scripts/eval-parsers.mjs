@@ -77,8 +77,8 @@ const UPDATE = process.argv.includes("--update");
 
 if (!existsSync(GOLDEN_DIR)) mkdirSync(GOLDEN_DIR, { recursive: true });
 
-// Normalize parser results. Text parsers now return { sections, depthFallback }
-// (Task C2-3); binary parsers return Section[]. The harness scores sections
+// Normalize parser results. Text parsers now return { sections, confidence }
+// (Task D2); binary parsers return Section[]. The harness scores sections
 // only, so we extract the array for uniform downstream classification.
 function normalize(result) {
   return Array.isArray(result) ? result : result.sections;

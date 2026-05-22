@@ -4,10 +4,10 @@ import { parseMarkdownTokens } from "../../src/utils/parseMarkdownTokens.js";
 // Token→Section adapter contract — see docs/architecture/PARSER_CONTRACT.md.
 //
 // marked.lexer() produces a token stream; this adapter walks it into
-// { sections, depthFallback } where sections follows Section[] per the
-// renderer contract. The mapping below is locked by these tests so a
-// future marked version bump (or a misguided refactor) can't silently
-// drift the content shape.
+// { sections, confidence } where sections follows Section[] per the
+// renderer contract and confidence = { score, reasons }. The mapping
+// below is locked by these tests so a future marked version bump (or a
+// misguided refactor) can't silently drift the content shape.
 
 describe("parseMarkdownTokens — section boundaries", () => {
   it("emits a single 'document' section for prose with no headings", () => {
@@ -161,25 +161,31 @@ describe("parseMarkdownTokens — block elements", () => {
   });
 });
 
-describe("parseMarkdownTokens — depthFallback signal", () => {
-  it("returns depthFallback=false when a repeating heading depth exists", () => {
+describe("parseMarkdownTokens — confidence signal", () => {
+  it("returns confidence.score ≥ 0.70 and no no_repeating_depth reason when a repeating heading depth exists", () => {
     const md = "# Chapter 1\n\nProse.\n\n# Chapter 2\n\nMore.";
     const result = parseMarkdownTokens(md);
     expect(result).toHaveProperty("sections");
-    expect(result).toHaveProperty("depthFallback");
-    expect(result.depthFallback).toBe(false);
+    expect(result).toHaveProperty("confidence");
+    expect(result.confidence).toHaveProperty("score");
+    expect(result.confidence).toHaveProperty("reasons");
+    expect(result.confidence.reasons).not.toContain("no_repeating_depth");
+    // PARSER_CONTRACT.md §8: ≥ 0.70 = high confidence band
+    expect(result.confidence.score).toBeGreaterThanOrEqual(0.70);
   });
-  it("returns depthFallback=true when no repeating depth exists (only one heading)", () => {
+  it("returns confidence.reasons containing no_repeating_depth when no repeating depth exists (only one heading)", () => {
     const md = "# Solo Chapter\n\nProse.";
     const result = parseMarkdownTokens(md);
-    expect(result.depthFallback).toBe(true);
+    expect(result.confidence.reasons).toContain("no_repeating_depth");
+    // PARSER_CONTRACT.md §8: < 0.70 (no repeating depth penalty −0.50 applied)
+    expect(result.confidence.score).toBeLessThan(0.70);
   });
-  it("returns depthFallback=false for a no-headings doc (fallback doesn't apply)", () => {
+  it("returns confidence without no_repeating_depth for a no-headings doc (fallback doesn't apply)", () => {
     // No headings means pickSectionDepth returns Infinity and never fires
-    // the fallback path. depthFallback=false: the fallback didn't fire.
+    // the fallback path — no_repeating_depth reason should not appear.
     const md = "Just prose, no headings.";
     const result = parseMarkdownTokens(md);
-    expect(result.depthFallback).toBe(false);
+    expect(result.confidence.reasons).not.toContain("no_repeating_depth");
   });
 });
 

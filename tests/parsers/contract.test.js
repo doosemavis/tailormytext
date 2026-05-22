@@ -93,6 +93,19 @@ describe("Renderer contract — every parser emits the documented Section[] shap
       expect(sections.length).toBe(1);
       sections.forEach(assertSectionShape);
     });
+
+    // D2 contract: legacy path MUST return { sections, confidence } — not bare
+    // Section[] — so the main-thread wrapper (parserWorker.js) never silently
+    // treats it as a binary result with confidence lost.
+    it("returns { sections, confidence } matching the D2 parser contract (legacy path)", () => {
+      const result = parseMarkdownStructured("# Chapter 1\n\nHello.\n\n# Chapter 2\n\nWorld.");
+      expect(result).toHaveProperty("sections");
+      expect(result).toHaveProperty("confidence");
+      expect(result.confidence).toHaveProperty("score");
+      expect(result.confidence).toHaveProperty("reasons");
+      expect(typeof result.confidence.score).toBe("number");
+      expect(Array.isArray(result.confidence.reasons)).toBe(true);
+    });
   });
 
   describe("detectTextStructure", () => {

@@ -20,3 +20,8 @@ TAILORMYTEXT_LAUNCH_PLAN.md
 scripts/.cache/
 scripts/.cache-stripped/
 scripts/validation-report/
+
+# Phase D-8 parser-confidence calibration corpus — fetched PG plain-text files.
+# pg-corpus-urls.json + the fetch/calibrate scripts ARE committed; the heavy
+# .txt files are not. Re-fetch with: node scripts/fetch-pg-corpus.mjs
+tests/fixtures/pg-corpus/

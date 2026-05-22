@@ -1,10 +1,9 @@
-// CONTRACT: emits { sections: Section[], depthFallback: boolean } per
-// docs/architecture/PARSER_CONTRACT.md. depthFallback=true means heading
-// depths exist in the document but none repeat (≥2 times), so the depth
-// pick fell back to "smallest depth at all" — a signal of structural
-// uncertainty for telemetry (Task C2-3). depthFallback=false means either
-// a repeating depth was found (confident pick) or no headings at all
-// (fallback never fired, single-document result).
+// CONTRACT: emits { sections: Section[], confidence: { score, reasons } } per
+// docs/architecture/PARSER_CONTRACT.md (Task D2). confidence.score is a
+// heuristic 0-1 confidence value; confidence.reasons carries string tags such
+// as "no_repeating_depth" when the depth-pick fell back to "smallest depth at
+// all" (structural uncertainty). Callers can derive the legacy depthFallback
+// boolean as: confidence.reasons.includes("no_repeating_depth").
 // Tested in tests/utils/parseMarkdownTokens.test.js.
 //
 // Phase 3 of the parser rewrite. Replaces the regex-based preprocessor
@@ -40,6 +39,7 @@
 //   hr          → drop
 
 import { marked } from "marked";
+import { scoreConfidence } from "./scoreConfidence.js";
 
 // Pick the section-break depth dynamically per document instead of
 // hardcoding h1. Rule: the smallest heading depth that occurs ≥ 2 times
@@ -253,16 +253,24 @@ export function parseMarkdownTokens(md) {
   // pick returned Infinity with fallback=false — no headings means the
   // fallback never fired).
   if (sections.length === 0) {
+    const noHeadingSections = [{ type: "document", title: null, number: 1, content: stripped.trim() }];
     return {
-      sections: [{ type: "document", title: null, number: 1, content: stripped.trim() }],
-      depthFallback: false,
+      sections: noHeadingSections,
+      confidence: scoreConfidence(noHeadingSections, {
+        depthFallback: false,
+        textLength: stripped.length,
+      }),
     };
   }
 
   // Renumber after dropping any empty heading-only sections so the
   // `number` field is contiguous.
+  const renumbered = sections.map((s, i) => ({ ...s, number: i + 1 }));
   return {
-    sections: sections.map((s, i) => ({ ...s, number: i + 1 })),
-    depthFallback,
+    sections: renumbered,
+    confidence: scoreConfidence(renumbered, {
+      depthFallback,
+      textLength: stripped.length,
+    }),
   };
 }

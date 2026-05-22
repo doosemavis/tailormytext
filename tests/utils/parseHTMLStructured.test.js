@@ -171,29 +171,35 @@ describe("parseHTMLStructured — textContent fallback consistency (Task A5)", (
   });
 });
 
-describe("parseHTMLStructured — depthFallback signal", () => {
-  it("returns depthFallback=false when a repeating heading depth exists", () => {
+describe("parseHTMLStructured — confidence signal", () => {
+  it("returns confidence without no_repeating_depth when a repeating heading depth exists", () => {
     const html = `<html><body>
       <h1>Chapter One</h1><p>Body one.</p>
       <h1>Chapter Two</h1><p>Body two.</p>
     </body></html>`;
     const result = parseHTMLStructured(html);
     expect(result).toHaveProperty("sections");
-    expect(result).toHaveProperty("depthFallback");
-    expect(result.depthFallback).toBe(false);
+    expect(result).toHaveProperty("confidence");
+    expect(result.confidence).toHaveProperty("score");
+    expect(result.confidence).toHaveProperty("reasons");
+    expect(result.confidence.reasons).not.toContain("no_repeating_depth");
+    // PARSER_CONTRACT.md §8: ≥ 0.70 = high confidence band
+    expect(result.confidence.score).toBeGreaterThanOrEqual(0.70);
   });
 
-  it("returns depthFallback=true when only a single unique heading depth exists", () => {
+  it("returns confidence.reasons containing no_repeating_depth when only a single unique heading depth exists", () => {
     const html = `<html><body>
       <h2>Solo Section</h2><p>Body.</p>
     </body></html>`;
     const result = parseHTMLStructured(html);
-    expect(result.depthFallback).toBe(true);
+    expect(result.confidence.reasons).toContain("no_repeating_depth");
+    // PARSER_CONTRACT.md §8: < 0.70 (no repeating depth penalty −0.50 applied)
+    expect(result.confidence.score).toBeLessThan(0.70);
   });
 
-  it("returns depthFallback=false for no-headings doc (fallback doesn't apply)", () => {
+  it("returns confidence without no_repeating_depth for no-headings doc (fallback doesn't apply)", () => {
     const html = `<html><body><p>Just prose, no headings.</p></body></html>`;
     const result = parseHTMLStructured(html);
-    expect(result.depthFallback).toBe(false);
+    expect(result.confidence.reasons).not.toContain("no_repeating_depth");
   });
 });

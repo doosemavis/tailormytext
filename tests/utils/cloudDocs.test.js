@@ -19,12 +19,45 @@ const updateMock = vi.fn(() => ({
 // builder responses via `fromBuilders[tableName] = () => ({...})`.
 const fromBuilders = {};
 
+// Captured calls for cloudSaveChapterOverrides assertion — records the
+// most recent update() payload and the eq() chain arguments.
+const capturedUpdates = [];
+
 vi.mock("../../src/utils/supabase.js", () => ({
   supabase: {
+    auth: {
+      getUser: vi.fn(() => Promise.resolve({ data: { user: { id: "user-test-1" } } })),
+    },
     storage: {
       from: () => ({ download: downloadMock, remove: vi.fn(() => Promise.resolve({ error: null })) }),
     },
-    from: (table) => (fromBuilders[table] ? fromBuilders[table]() : { update: updateMock }),
+    from: (table) => {
+      if (fromBuilders[table]) return fromBuilders[table]();
+      // Default builder for recent_docs update chains used by
+      // cloudSaveChapterOverrides — captures payload + eq filters.
+      if (table === "recent_docs") {
+        return {
+          update: (payload) => {
+            const call = { table, payload, eqs: [] };
+            capturedUpdates.push(call);
+            const builder = {
+              eq: (col, val) => {
+                call.eqs.push({ col, val });
+                return builder;
+              },
+            };
+            // Resolve the chain as a thenable so `await chain` works.
+            Object.defineProperty(builder, "then", {
+              get() {
+                return (resolve) => resolve({ error: null });
+              },
+            });
+            return builder;
+          },
+        };
+      }
+      return { update: updateMock };
+    },
   },
 }));
 
@@ -35,7 +68,7 @@ vi.mock("../../src/utils/storage.js", () => ({
   storageGcUnscopedKeys: vi.fn(),
 }));
 
-const { cloudLoadDoc, cloudLoadLibraryPosition, cloudOpenLibraryBook } = await import("../../src/utils/cloudDocs.js");
+const { cloudLoadDoc, cloudLoadLibraryPosition, cloudOpenLibraryBook, cloudSaveChapterOverrides } = await import("../../src/utils/cloudDocs.js");
 
 describe("cloudLoadDoc — missing-vs-corrupted distinguishability", () => {
   beforeEach(() => {
@@ -180,5 +213,67 @@ describe("cloudOpenLibraryBook — surfaces recent_docs mirror failures (Task 1.
     expect(result.book.id).toBe("b1");
     expect(result.blob).toBeInstanceOf(Blob);
     expect(result.mirrorError).toBe(true);
+  });
+});
+
+describe("cloudSaveChapterOverrides — persists overrides to recent_docs", () => {
+  beforeEach(() => {
+    capturedUpdates.length = 0;
+    Object.keys(fromBuilders).forEach((k) => delete fromBuilders[k]);
+  });
+
+  it("calls update({ chapter_overrides }) on recent_docs with id + user_id guards", async () => {
+    await cloudSaveChapterOverrides("test-user-id", "doc-id-1", { breaks: [5, 12, 30] });
+
+    expect(capturedUpdates).toHaveLength(1);
+    const call = capturedUpdates[0];
+    expect(call.table).toBe("recent_docs");
+    expect(call.payload).toEqual({ chapter_overrides: { breaks: [5, 12, 30] } });
+    // Both RLS-matching eq guards must be present.
+    const eqCols = call.eqs.map((e) => e.col);
+    expect(eqCols).toContain("id");
+    expect(eqCols).toContain("user_id");
+    const idFilter = call.eqs.find((e) => e.col === "id");
+    expect(idFilter.val).toBe("doc-id-1");
+    const userFilter = call.eqs.find((e) => e.col === "user_id");
+    expect(userFilter.val).toBe("test-user-id");
+  });
+
+  it("throws when called without a userId (requireUserId guard)", async () => {
+    await expect(cloudSaveChapterOverrides(undefined, "doc-id-1", {})).rejects.toThrow(/authenticated/i);
+  });
+});
+
+describe("cloudLoadDoc — surfaces chapter_overrides from entry (D4)", () => {
+  beforeEach(() => {
+    downloadMock.mockReset();
+    Object.keys(fromBuilders).forEach((k) => delete fromBuilders[k]);
+  });
+
+  it("returns chapterOverrides from the entry object when the blob is clean", async () => {
+    const payload = JSON.stringify({ sections: [], text: "" });
+    downloadMock.mockResolvedValue({ data: new Blob([payload]), error: null });
+
+    const result = await cloudLoadDoc("user-abc", {
+      id: "doc-2",
+      name: "my-book.epub",
+      chapter_overrides: { breaks: [3, 7] },
+    });
+
+    expect(result).not.toBeNull();
+    expect(result.chapterOverrides).toEqual({ breaks: [3, 7] });
+  });
+
+  it("returns chapterOverrides: null when entry has no chapter_overrides", async () => {
+    const payload = JSON.stringify({ sections: [], text: "" });
+    downloadMock.mockResolvedValue({ data: new Blob([payload]), error: null });
+
+    const result = await cloudLoadDoc("user-abc", {
+      id: "doc-3",
+      name: "my-book.epub",
+    });
+
+    expect(result).not.toBeNull();
+    expect(result.chapterOverrides).toBeNull();
   });
 });

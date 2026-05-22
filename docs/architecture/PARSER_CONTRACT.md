@@ -180,14 +180,53 @@ The test at `tests/parsers/contract.test.js` asserts every parser emits a shape 
 
 These are tracked in `docs/superpowers/plans/2026-05-18-parser-rewrite.md` but flagged here so contract readers see them:
 
-- **`confidence` field** — Phase 5 adds a `{ score, reasons }` field to plain-text parser output, enabling the "Detection uncertain" UI affordance. When that ships, it becomes a 6th optional field on `Section[]`-returning calls.
-- **`chapter_overrides` integration** — Phase 5 also adds user-edited chapter maps stored per `docId`. The renderer will need to honor these overrides; the contract may need an `override?: boolean` flag on sections so the renderer can distinguish parser output from user-edited splits.
+- **`chapter_overrides` integration** — Phase 5 adds user-edited chapter maps stored per `docId`. The renderer will need to honor these overrides; the contract may need an `override?: boolean` flag on sections so the renderer can distinguish parser output from user-edited splits.
 - **HTML/DOCX `type` harmonization** — currently `"section"`; Phase 4 changes to `"chapter"` for consistent renderer behavior. After that change, `"section"` becomes a legacy value (still allowed but no parser should emit it).
 - **Inline-formatting expansion** — Phase 6 (EPUB deeper fixes) wants to preserve `<em>`, `<strong>`, `<code>`, `<sub>`, `<sup>` from EPUB XHTML. Will need either an extension to the content-body language or a richer-text alternative shape.
 
 ---
 
-## 8. Cross-references
+## 8. Confidence return shape (text parsers only)
+
+**Added Task D2 (Phase 5).** Text parsers return a two-field object instead of a bare `Section[]`:
+
+```typescript
+type TextParserResult = {
+  sections: Section[];
+  confidence: {
+    score: number;    // heuristic 0–1 value; higher = more confident structure detection
+    reasons: string[]; // tags explaining any score deductions
+  };
+};
+```
+
+Binary parsers (`parsePDF`, `parseEPUB`, `parseDOCX`) continue to return bare `Section[]`.
+
+### Score bands
+
+| Range | Band | UI implication |
+|---|---|---|
+| ≥ 0.70 | high | Render normally |
+| 0.55 – 0.70 | uncertain | Show "Detection uncertain" badge (Task D5) |
+| < 0.55 | fallback | Single-document mode (Task D5) |
+
+### Reason tags
+
+| Tag | Meaning |
+|---|---|
+| `"no_repeating_depth"` | Heading depths exist but none repeat ≥2 times — depth-pick used the smallest-depth fallback, a signal of structural uncertainty. Equivalent to the legacy `depthFallback: true` boolean. |
+| `"size_outlier"` | One section is > 5× the median section size — likely a false split or a very uneven document. |
+| `"single_section"` | Only one section was detected — no chapter structure found. |
+
+### Consumer notes
+
+- `App.jsx doUpload()` derives the legacy `depthFallback` boolean for `trackParseOutcome` telemetry as `confidence.reasons.includes("no_repeating_depth")` — the `parse_outcomes` table schema is unchanged.
+- `parseInWorker` (main-thread wrapper) detects a text-parser result by `confidence !== undefined` and resolves with `{ sections, confidence }`. Binary results resolve with the bare `Section[]`.
+- `scripts/eval-parsers.mjs` uses `normalize(result)` which extracts `result.sections` — backward-compatible with both shapes.
+
+---
+
+## 9. Cross-references
 
 Every file in the parser pipeline has a top-of-file comment pointing at this doc. If you find a parser without that comment, add it.
 
