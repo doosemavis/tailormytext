@@ -7,15 +7,11 @@ import { Tip } from "./Primitives";
 import PulsatingButton from "./PulsatingButton";
 import { supabase } from "../utils/supabase";
 import { marketingThemeVars } from "../utils/marketingTheme";
+import { formatDate } from "../utils/formatDate";
 
 const OVERLAY = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", zIndex: 1010 };
 
 // Format an absolute date as a friendly "Month D, YYYY" string.
-function formatDate(d) {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-}
-
 export default function SubscriptionModal({ open, onOpenChange, sub, onShowPricing, t }) {
   const { showToast } = useToast();
   const [confirmingCancel, setConfirmingCancel] = useState(false);
