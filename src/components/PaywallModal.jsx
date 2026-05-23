@@ -24,7 +24,6 @@ export default function PaywallModal({ uploadsUsed: _uploadsUsed, onUpgrade, onC
       <Dialog.Portal>
         <Dialog.Overlay style={OVERLAY} />
         <Dialog.Content
-          aria-describedby={undefined}
           className="tmt-marketing"
           style={{
             ...marketingThemeVars(t),

@@ -78,7 +78,6 @@ export default function DeleteAccountModal({ open, onOpenChange, sub, t }) {
       <Dialog.Portal>
         <Dialog.Overlay style={OVERLAY} />
         <Dialog.Content
-          aria-describedby={undefined}
           className="tmt-marketing"
           style={{ ...marketingThemeVars(t), position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: "var(--tmt-paper)", borderRadius: 22, maxWidth: 460, width: "calc(100% - 48px)", padding: 32, boxShadow: "0 28px 70px rgba(0,0,0,0.28)", zIndex: 1011, fontFamily: "var(--tmt-sans)" }}
         >
@@ -116,6 +115,7 @@ export default function DeleteAccountModal({ open, onOpenChange, sub, t }) {
             value={confirmText}
             onChange={e => setConfirmText(e.target.value)}
             placeholder={CONFIRM_PHRASE}
+            aria-label={`Type ${CONFIRM_PHRASE} to confirm account deletion`}
             autoComplete="off"
             spellCheck={false}
             style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: `1px solid ${confirmText === CONFIRM_PHRASE ? "#E25C5C" : t.border}`, background: "var(--tmt-paper-card)", color: "var(--tmt-ink)", fontSize: 14, fontFamily: "var(--tmt-mono)", letterSpacing: "0.08em", boxSizing: "border-box", marginBottom: 20, transition: "border-color 0.15s" }}

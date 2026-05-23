@@ -99,7 +99,6 @@ export default function LibraryDrawer({ open, onOpenChange, books, isPro, onOpen
         <style>{KEYFRAMES}</style>
         <Dialog.Overlay style={OVERLAY} />
         <Dialog.Content
-          aria-describedby={undefined}
           className="tmt-marketing"
           style={{
             ...marketingThemeVars(t),

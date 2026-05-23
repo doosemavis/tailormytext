@@ -66,13 +66,13 @@ function strengthLabel(score) {
   return            { label: "Strong", color: "#3A5C42" };
 }
 
-function StrengthMeter({ password }) {
+function StrengthMeter({ password, id }) {
   if (!password) return null;
   const score = passwordStrength(password);
   const { label, color } = strengthLabel(score);
   const tooShort = password.length < MIN_PASSWORD_LENGTH;
   return (
-    <div style={{ marginTop: -4 }}>
+    <div id={id} role="status" aria-live="polite" style={{ marginTop: -4 }}>
       <div style={{ height: 4, borderRadius: 2, background: "var(--tmt-rule)", overflow: "hidden" }}>
         <div style={{ width: `${score}%`, height: "100%", background: tooShort ? "var(--tmt-ink-muted)" : color, transition: "width 0.2s ease, background 0.2s ease" }} />
       </div>
@@ -85,7 +85,7 @@ function StrengthMeter({ password }) {
   );
 }
 
-function MatchBadge({ password, confirm }) {
+function MatchBadge({ password, confirm, id }) {
   // Live match indicator — terra while passwords differ, sage when they
   // line up. Hidden until the user has typed in confirm so we don't nag
   // before they've had a chance.
@@ -95,7 +95,7 @@ function MatchBadge({ password, confirm }) {
   const bg     = matches ? "#3A5C4218" : "#B0512E18";
   const border = matches ? "#3A5C4244" : "#B0512E44";
   return (
-    <div style={{
+    <div id={id} role="status" aria-live="polite" style={{
       display: "inline-flex", alignItems: "center", gap: 6,
       padding: "4px 10px", borderRadius: 999,
       background: bg, color, border: `1px solid ${border}`,
@@ -227,7 +227,6 @@ export default function AuthModal({ onClose, t, initialView = "login" }) {
       <Dialog.Portal>
         <Dialog.Overlay style={OVERLAY} />
         <Dialog.Content
-          aria-describedby={undefined}
           onPointerDownOutside={(e) => { if (isRecoveryMode) e.preventDefault(); }}
           onEscapeKeyDown={(e) => { if (isRecoveryMode) e.preventDefault(); }}
           className="tmt-marketing"
@@ -312,9 +311,9 @@ export default function AuthModal({ onClose, t, initialView = "login" }) {
 
           {view === "login" && (
             <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required style={INPUT_STYLE} />
+              <input type="email" placeholder="Email" aria-label="Email" value={email} onChange={e => setEmail(e.target.value)} required style={INPUT_STYLE} />
               <div style={{ position: "relative" }}>
-                <input type={showPw ? "text" : "password"} placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required style={{ ...INPUT_STYLE, paddingRight: 44 }} />
+                <input type={showPw ? "text" : "password"} placeholder="Password" aria-label="Password" value={password} onChange={e => setPassword(e.target.value)} required style={{ ...INPUT_STYLE, paddingRight: 44 }} />
                 <button type="button" onClick={() => setShowPw(v => !v)} aria-label="Toggle password visibility" className="rf-static" style={pwToggleStyle}>{showPw ? <EyeOff size={15} /> : <Eye size={15} />}</button>
               </div>
               <button type="submit" disabled={busy} className="rf-btn-solid tmt-btn" style={{ width: "100%", justifyContent: "center", marginTop: 6 }}>{busy ? "Signing in…" : "Sign in"}</button>
@@ -327,14 +326,14 @@ export default function AuthModal({ onClose, t, initialView = "login" }) {
 
           {view === "signup" && (
             <form onSubmit={handleSignUp} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required style={INPUT_STYLE} />
+              <input type="email" placeholder="Email" aria-label="Email" value={email} onChange={e => setEmail(e.target.value)} required style={INPUT_STYLE} />
               <div style={{ position: "relative" }}>
-                <input type={showPw ? "text" : "password"} placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required minLength={MIN_PASSWORD_LENGTH} style={{ ...INPUT_STYLE, paddingRight: 44 }} />
+                <input type={showPw ? "text" : "password"} placeholder="Password" aria-label="Password" aria-describedby="auth-password-strength" value={password} onChange={e => setPassword(e.target.value)} required minLength={MIN_PASSWORD_LENGTH} style={{ ...INPUT_STYLE, paddingRight: 44 }} />
                 <button type="button" onClick={() => setShowPw(v => !v)} aria-label="Toggle password visibility" className="rf-static" style={pwToggleStyle}>{showPw ? <EyeOff size={15} /> : <Eye size={15} />}</button>
               </div>
-              <StrengthMeter password={password} />
-              <input type={showPw ? "text" : "password"} placeholder="Confirm password" value={confirm} onChange={e => setConfirm(e.target.value)} required style={INPUT_STYLE} />
-              <MatchBadge password={password} confirm={confirm} />
+              <StrengthMeter password={password} id="auth-password-strength" />
+              <input type={showPw ? "text" : "password"} placeholder="Confirm password" aria-label="Confirm password" aria-describedby="auth-password-match" value={confirm} onChange={e => setConfirm(e.target.value)} required style={INPUT_STYLE} />
+              <MatchBadge password={password} confirm={confirm} id="auth-password-match" />
               <button type="submit" disabled={busy} className="rf-btn-solid tmt-btn" style={{ width: "100%", justifyContent: "center", marginTop: 6 }}>{busy ? "Creating account…" : "Create account"}</button>
               <div style={{ textAlign: "center", marginTop: 8 }}>
                 <a href="#" className="rf-link" onClick={(e) => { e.preventDefault(); setView("login"); clear(); }} style={LABEL_LINK}>Already have an account? Sign in</a>
@@ -344,7 +343,7 @@ export default function AuthModal({ onClose, t, initialView = "login" }) {
 
           {view === "reset" && (
             <form onSubmit={handleReset} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required style={INPUT_STYLE} />
+              <input type="email" placeholder="Email" aria-label="Email" value={email} onChange={e => setEmail(e.target.value)} required style={INPUT_STYLE} />
               <button type="submit" disabled={busy} className="rf-btn-solid tmt-btn" style={{ width: "100%", justifyContent: "center", marginTop: 6 }}>{busy ? "Sending…" : "Send reset link"}</button>
               <div style={{ textAlign: "center", marginTop: 8 }}>
                 <a href="#" className="rf-link" onClick={(e) => { e.preventDefault(); setView("login"); clear(); }} style={LABEL_LINK}>Back to sign in</a>
@@ -358,12 +357,12 @@ export default function AuthModal({ onClose, t, initialView = "login" }) {
                 Choose a new password for your account. You'll be signed in automatically.
               </p>
               <div style={{ position: "relative" }}>
-                <input type={showPw ? "text" : "password"} placeholder="New password" value={password} onChange={e => setPassword(e.target.value)} required minLength={MIN_PASSWORD_LENGTH} autoFocus style={{ ...INPUT_STYLE, paddingRight: 44 }} />
+                <input type={showPw ? "text" : "password"} placeholder="New password" aria-label="New password" aria-describedby="auth-password-strength" value={password} onChange={e => setPassword(e.target.value)} required minLength={MIN_PASSWORD_LENGTH} autoFocus style={{ ...INPUT_STYLE, paddingRight: 44 }} />
                 <button type="button" onClick={() => setShowPw(v => !v)} aria-label="Toggle password visibility" className="rf-static" style={pwToggleStyle}>{showPw ? <EyeOff size={15} /> : <Eye size={15} />}</button>
               </div>
-              <StrengthMeter password={password} />
-              <input type={showPw ? "text" : "password"} placeholder="Confirm new password" value={confirm} onChange={e => setConfirm(e.target.value)} required style={INPUT_STYLE} />
-              <MatchBadge password={password} confirm={confirm} />
+              <StrengthMeter password={password} id="auth-password-strength" />
+              <input type={showPw ? "text" : "password"} placeholder="Confirm new password" aria-label="Confirm new password" aria-describedby="auth-password-match" value={confirm} onChange={e => setConfirm(e.target.value)} required style={INPUT_STYLE} />
+              <MatchBadge password={password} confirm={confirm} id="auth-password-match" />
               <button type="submit" disabled={busy} className="rf-btn-solid tmt-btn" style={{ width: "100%", justifyContent: "center", marginTop: 6 }}>{busy ? "Updating…" : "Set new password"}</button>
               <div style={{ textAlign: "center", marginTop: 8 }}>
                 <a href="#" className="rf-link" onClick={(e) => { e.preventDefault(); clearRecovery?.(); signOut(); onClose(); }} style={{ ...LABEL_LINK, color: "var(--tmt-ink-muted)", fontSize: 12 }}>
