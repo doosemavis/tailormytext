@@ -8,15 +8,11 @@ import { useToast } from "../components/Toast";
 import { supabase } from "../utils/supabase";
 import { storageGet } from "../utils/storage";
 import { marketingThemeVars } from "../utils/marketingTheme";
+import { formatDate } from "../utils/formatDate";
 import Footer from "../components/Footer";
 
 const MIN_PASSWORD_LENGTH = 8;
 const LINK_RESET = { color: "inherit", textDecoration: "none" };
-
-function formatDate(d) {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-}
 
 // CSV cell-escape: wrap in quotes if value contains a separator/quote/newline,
 // double any inner quotes per RFC 4180.

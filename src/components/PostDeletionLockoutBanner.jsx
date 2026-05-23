@@ -1,14 +1,11 @@
 import { Lock } from "lucide-react";
+import { formatDate } from "../utils/formatDate";
 
 // Persistent top-of-app banner shown to users whose email is within the
 // 6-month post-deletion lockout window. They can sign in / sign up but
 // can't use Free-tier features — only path forward is subscribing. There's
 // no dismiss for this one (unlike PendingDeletionBanner) — the lockout is
 // a hard gate, not a heads-up.
-
-function formatDate(d) {
-  return new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-}
 
 export default function PostDeletionLockoutBanner({ lockoutUntil, onSubscribe }) {
   if (!lockoutUntil) return null;

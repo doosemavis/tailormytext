@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { AlertTriangle, X } from "lucide-react";
 import { supabase } from "../utils/supabase";
 import { useToast } from "./Toast";
+import { formatDate } from "../utils/formatDate";
 
 // Persistent top-of-app banner shown to users with a pending account
 // deletion. Shows a live countdown to the effective date and a one-click
@@ -21,10 +22,6 @@ function formatRelative(target) {
   if (hours === 1) return "in 1 hour";
   const minutes = Math.max(1, Math.floor(ms / 60000));
   return `in ${minutes} minute${minutes === 1 ? "" : "s"}`;
-}
-
-function formatDate(d) {
-  return new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 }
 
 export default function PendingDeletionBanner({ user, effectiveAt, onReactivated, t }) {

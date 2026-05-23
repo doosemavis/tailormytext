@@ -7,6 +7,7 @@ import {
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { supabase } from "../utils/supabase";
 import { useAuth } from "../contexts/AuthContext";
+import { formatDateShort } from "../utils/formatDate";
 import { ROLES } from "../config/roles";
 import {
   THEMES,
@@ -22,11 +23,6 @@ import RoadmapTab from "./admin/RoadmapTab";
 
 const LINK_RESET = { color: "inherit", textDecoration: "none" };
 const ROLE_OPTIONS = Object.entries(ROLES).map(([value, { label }]) => ({ value, label }));
-
-function formatDate(d) {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
 
 function StatCard({ label, value, sub, t }) {
   return (
@@ -274,7 +270,7 @@ function GrantProTab({ t }) {
           <Crown size={14} style={{ color: t.accent, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: t.fg, fontFamily: "'DM Sans', sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.email}</div>
-            <div style={{ fontSize: 11, color: t.fgSoft, fontFamily: "'DM Sans', sans-serif" }}>Until {formatDate(g.pro_grant_until)}</div>
+            <div style={{ fontSize: 11, color: t.fgSoft, fontFamily: "'DM Sans', sans-serif" }}>Until {formatDateShort(g.pro_grant_until)}</div>
           </div>
           <button
             onClick={() => handleRevoke(g.email)}
@@ -299,7 +295,7 @@ function GrantProTab({ t }) {
           <Clock size={14} style={{ color: t.fgSoft, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: t.fg, fontFamily: "'DM Sans', sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.email}</div>
-            <div style={{ fontSize: 11, color: t.fgSoft, fontFamily: "'DM Sans', sans-serif" }}>{p.months} month{p.months === 1 ? "" : "s"} · queued {formatDate(p.granted_at)}</div>
+            <div style={{ fontSize: 11, color: t.fgSoft, fontFamily: "'DM Sans', sans-serif" }}>{p.months} month{p.months === 1 ? "" : "s"} · queued {formatDateShort(p.granted_at)}</div>
           </div>
           <button
             onClick={() => handleRevokePending(p.id, p.email)}

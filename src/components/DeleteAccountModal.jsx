@@ -6,15 +6,12 @@ import { supabase } from "../utils/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "./Toast";
 import { marketingThemeVars } from "../utils/marketingTheme";
+import { formatDate } from "../utils/formatDate";
 
 const OVERLAY = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", zIndex: 1010 };
 
 const FREE_GRACE_DAYS = 7;
 const CONFIRM_PHRASE = "DELETE";
-
-function formatDate(d) {
-  return new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-}
 
 // Compute when the actual hard delete happens, based on the user's plan.
 //  - Free: NOW() + 7 days (oops-recovery window)
