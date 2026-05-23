@@ -155,7 +155,6 @@ export default function EditChaptersModal({
             flexDirection: "column",
             boxShadow: "0 28px 70px rgba(0,0,0,0.28)",
             zIndex: 1011,
-            outline: "none",
             fontFamily: "var(--tmt-sans)",
             overflow: "hidden",
           }}
@@ -487,7 +486,6 @@ export default function EditChaptersModal({
                           border: "none",
                           borderBottom: `1px solid ${t.borderSoft}`,
                           padding: "2px 0",
-                          outline: "none",
                         }}
                         onFocus={(e) => {
                           e.currentTarget.style.borderBottomColor = t.accent;

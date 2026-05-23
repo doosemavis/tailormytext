@@ -307,7 +307,7 @@ const DocumentBody = memo(function DocumentBody({ text, docSections, hasSections
     letterSpacing: "var(--rf-letter-spacing, 0px)",
     wordSpacing: "var(--rf-word-spacing, 0px)",
     color: fg,
-    transition: "width 0.3s ease",
+    transition: "var(--rf-wrapper-width-transition, width 0.3s ease)",
     boxSizing: "border-box",
   }), [fg]);
 

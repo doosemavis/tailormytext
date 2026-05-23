@@ -246,7 +246,7 @@ export default function AuthModal({ onClose, t, initialView = "login" }) {
             maxHeight: "calc(100vh - 48px)",
             overflowY: "auto",
             boxShadow: "0 28px 80px -20px rgba(31, 24, 18, 0.45), 0 6px 16px -8px rgba(31, 24, 18, 0.2)",
-            zIndex: 1001, outline: "none",
+            zIndex: 1001,
           }}
         >
           {/* Title block — eyebrow + Fraunces display */}

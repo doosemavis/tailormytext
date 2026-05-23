@@ -44,7 +44,7 @@ export default function PricingModal({ onClose, onSelectPlan, hasUsedTrial, t })
             height: "min(720px, calc(100vh - 32px))",
             overflowY: "auto",
             boxShadow: "0 32px 100px -20px rgba(31, 24, 18, 0.45), 0 6px 16px -8px rgba(31, 24, 18, 0.2)",
-            zIndex: 1001, outline: "none",
+            zIndex: 1001,
           }}
         >
           {/* Header */}

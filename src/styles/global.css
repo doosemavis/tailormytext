@@ -38,6 +38,19 @@ button:active {
   filter: none !important;
 }
 
+/* Global focus indicator — WCAG 2.4.11 Focus Appearance.
+   currentColor guarantees AA contrast against any container since text
+   inherits a contrast-checked theme color. `!important` overrides the
+   inline `outline: none` left on many interactive elements; a11y wins
+   over cosmetic outline suppression. Inline declarations on
+   Dialog.Content + the chapter dropdown trigger were stripped too so
+   the rule doesn't have to fight specificity for the surfaces most
+   load-bearing for keyboard nav. */
+:focus-visible {
+  outline: 2px solid currentColor !important;
+  outline-offset: 3px;
+}
+
 /* Inline text-link styled buttons — underline on hover */
 .rf-link:hover { text-decoration: underline; }
 
@@ -225,6 +238,21 @@ a.rf-link-btn:active {
 }
 .rf-doc-wrapper.rf-chapter-reveal .rf-para {
   animation: rf-body-fade-in 800ms ease-out 200ms backwards;
+}
+
+/* WCAG 2.3.3 — chapter-reveal fires on every chapter navigation, which is
+   the core reading action. Disable for users who request reduced motion;
+   they go straight from old-chapter to new without the fade-in pass. */
+@media (prefers-reduced-motion: reduce) {
+  .rf-doc-wrapper.rf-chapter-reveal,
+  .rf-doc-wrapper.rf-chapter-reveal .rf-para {
+    animation: none;
+  }
+  /* Same gate for the column-width slider transition in DocumentBody —
+     the wrapper reads --rf-wrapper-width-transition via its inline style. */
+  .rf-doc-wrapper {
+    --rf-wrapper-width-transition: none;
+  }
 }
 
 /* FocusMode: cursor activated by CSS class, not re-render */

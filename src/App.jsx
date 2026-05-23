@@ -1772,7 +1772,7 @@ export default function App() {
           {hasSections && docSections.length > 1 && (
             <DropdownMenu.Root open={showChapterNav} onOpenChange={setShowChapterNav}>
               <DropdownMenu.Trigger asChild>
-                <button className="rf-static" style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, border: `1px solid ${t.border}`, background: showChapterNav ? t.surface : "transparent", color: t.fg, cursor: "pointer", fontSize: 13, fontWeight: 500, fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box" }}>
+                <button className="rf-static" style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, border: `1px solid ${t.border}`, background: showChapterNav ? t.surface : "transparent", color: t.fg, cursor: "pointer", fontSize: 13, fontWeight: 500, fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box" }}>
                   <List size={14} style={{ color: t.icon }} />
                   {(() => {
                     const cur = docSections[currentSectionIdx] ?? docSections[0];
@@ -1787,7 +1787,7 @@ export default function App() {
                 <DropdownMenu.Content
                   align="end"
                   sideOffset={6}
-                  style={{ background: t.bg, border: `1px solid ${t.border}`, borderRadius: 12, boxShadow: "0 12px 36px rgba(0,0,0,0.18)", maxHeight: "60vh", overflowY: "auto", width: 220, zIndex: 999, outline: "none" }}
+                  style={{ background: t.bg, border: `1px solid ${t.border}`, borderRadius: 12, boxShadow: "0 12px 36px rgba(0,0,0,0.18)", maxHeight: "60vh", overflowY: "auto", width: 220, zIndex: 999 }}
                 >
                   <div style={{ padding: "10px 14px 8px", borderBottom: `1px solid ${t.borderSoft}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                     <span style={{ fontSize: 11, fontWeight: 650, color: t.fgSoft, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.05em", textTransform: "uppercase" }}>Table of Contents</span>

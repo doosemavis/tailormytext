@@ -50,7 +50,7 @@ export default function AvatarSettingsModal({ open, onOpenChange, onSave, curren
         <Dialog.Content
           aria-describedby={undefined}
           className="tmt-marketing"
-          style={{ ...marketingThemeVars(t), position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: "var(--tmt-paper)", borderRadius: 22, maxWidth: 400, width: "calc(100% - 48px)", padding: 28, boxShadow: "0 28px 70px rgba(0,0,0,0.28)", zIndex: 1011, outline: "none" }}
+          style={{ ...marketingThemeVars(t), position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: "var(--tmt-paper)", borderRadius: 22, maxWidth: 400, width: "calc(100% - 48px)", padding: 28, boxShadow: "0 28px 70px rgba(0,0,0,0.28)", zIndex: 1011 }}
         >
           <Dialog.Close asChild>
             <button aria-label="Close" style={{ position: "absolute", top: 16, right: 16, width: 34, height: 34, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
