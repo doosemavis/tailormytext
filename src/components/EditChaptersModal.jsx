@@ -4,6 +4,8 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { cloudSaveChapterOverrides } from "../utils/cloudDocs";
 import { marketingThemeVars } from "../utils/marketingTheme";
 import { buildParagraphs } from "../utils/paragraphStream";
+import ChapterParaRow from "./ChapterParaRow";
+import ChapterCardItem from "./ChapterCardItem";
 
 // Re-export so existing tests importing buildParagraphs from this module
 // continue to resolve without changes.
@@ -99,6 +101,16 @@ export default function EditChaptersModal({
   // Update a chapter title override keyed by the paragraph start index.
   const setTitleAt = useCallback((startIdx, value) => {
     setTitles((prev) => ({ ...prev, [startIdx]: value }));
+  }, []);
+
+  // Clear a title override (used on blur when the field is empty so the
+  // auto-detected title is restored). Stable ref so memo'd cards don't re-render.
+  const clearTitleAt = useCallback((startIdx) => {
+    setTitles((prev) => {
+      const next = { ...prev };
+      delete next[startIdx];
+      return next;
+    });
   }, []);
 
   const chapters = useMemo(
@@ -280,106 +292,17 @@ export default function EditChaptersModal({
                   No paragraphs found in this document.
                 </p>
               ) : (
-                paras.map((para, i) => {
-                  const isBreak = breaks.has(i);
-                  return (
-                    <button
-                      key={i}
-                      aria-pressed={i > 0 ? isBreak : undefined}
-                      onClick={() => {
-                        if (i > 0) toggleBreak(i);
-                      }}
-                      disabled={i === 0}
-                      title={
-                        i === 0
-                          ? "The first paragraph always starts a chapter"
-                          : isBreak
-                          ? "Remove chapter break before this paragraph"
-                          : "Add chapter break before this paragraph"
-                      }
-                      style={{
-                        display: "block",
-                        width: "100%",
-                        textAlign: "left",
-                        background: "transparent",
-                        border: "none",
-                        borderTop:
-                          isBreak && i > 0
-                            ? `2px solid ${t.accent}`
-                            : `1px solid transparent`,
-                        padding: "8px 20px",
-                        cursor: i === 0 ? "default" : "pointer",
-                        transition: "background 0.1s",
-                      }}
-                      onMouseEnter={(e) => {
-                        if (i > 0) {
-                          e.currentTarget.style.background = `${t.accent}12`;
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent";
-                      }}
-                    >
-                      {/* Chapter-start indicator */}
-                      {isBreak && i > 0 && (
-                        <span
-                          style={{
-                            display: "inline-block",
-                            marginBottom: 4,
-                            padding: "1px 7px",
-                            borderRadius: 999,
-                            background: t.accent,
-                            color: "#fff",
-                            fontSize: 9,
-                            fontWeight: 700,
-                            fontFamily: "var(--tmt-mono)",
-                            letterSpacing: "0.1em",
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          chapter start
-                        </span>
-                      )}
-                      {/* First paragraph — implicit chapter start, non-interactive */}
-                      {i === 0 && (
-                        <span
-                          style={{
-                            display: "inline-block",
-                            marginBottom: 4,
-                            padding: "1px 7px",
-                            borderRadius: 999,
-                            background: `${t.accent}30`,
-                            color: t.accent,
-                            fontSize: 9,
-                            fontWeight: 700,
-                            fontFamily: "var(--tmt-mono)",
-                            letterSpacing: "0.1em",
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          document start
-                        </span>
-                      )}
-                      <p
-                        style={{
-                          margin: 0,
-                          fontSize: 12,
-                          lineHeight: 1.55,
-                          color: para.isTitle
-                            ? "var(--tmt-ink)"
-                            : "var(--tmt-ink-soft)",
-                          fontWeight: para.isTitle ? 600 : 400,
-                          overflow: "hidden",
-                          display: "-webkit-box",
-                          WebkitLineClamp: 3,
-                          WebkitBoxOrient: "vertical",
-                        }}
-                      >
-                        {para.text}
-                      </p>
-                    </button>
-                  );
-                })
+                paras.map((para, i) => (
+                  <ChapterParaRow
+                    key={i}
+                    index={i}
+                    text={para.text}
+                    isTitle={para.isTitle}
+                    isBreak={breaks.has(i)}
+                    accent={t.accent}
+                    onToggle={toggleBreak}
+                  />
+                ))
               )}
             </div>
 
@@ -433,106 +356,21 @@ export default function EditChaptersModal({
                   ch.paras.find((p) => p.isTitle)?.text ||
                   ch.paras[0]?.text?.slice(0, 60) ||
                   `Chapter ${ci + 1}`;
-                const snippetPara = ch.paras.find(
-                  (p) => !p.isTitle && p.text,
-                );
+                const snippetPara = ch.paras.find((p) => !p.isTitle && p.text);
                 const snippet = snippetPara?.text?.slice(0, 120) || "";
-
                 return (
-                  <div
+                  <ChapterCardItem
                     key={ci}
-                    style={{
-                      padding: "10px 20px",
-                      borderBottom: `1px solid ${t.borderSoft}`,
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        marginBottom: 4,
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontFamily: "var(--tmt-mono)",
-                          fontSize: 9,
-                          fontWeight: 700,
-                          color: t.accent,
-                          letterSpacing: "0.1em",
-                          flexShrink: 0,
-                        }}
-                      >
-                        {ci + 1}
-                      </span>
-                      {/* Inline title editor: empty = use auto-detected title */}
-                      <input
-                        type="text"
-                        value={ch.titleOverride ?? ""}
-                        placeholder={autoTitle}
-                        aria-label={`Title for chapter ${ci + 1}`}
-                        onChange={(e) =>
-                          setTitleAt(ch.startIdx, e.target.value)
-                        }
-                        style={{
-                          flex: 1,
-                          minWidth: 0,
-                          fontSize: 12,
-                          fontWeight: 600,
-                          fontFamily: "var(--tmt-sans)",
-                          color: "var(--tmt-ink)",
-                          background: "transparent",
-                          border: "none",
-                          borderBottom: `1px solid ${t.borderSoft}`,
-                          padding: "2px 0",
-                        }}
-                        onFocus={(e) => {
-                          e.currentTarget.style.borderBottomColor = t.accent;
-                        }}
-                        onBlur={(e) => {
-                          e.currentTarget.style.borderBottomColor = t.borderSoft;
-                          // Clear the override if user empties the field so the
-                          // auto-detected title is used instead.
-                          if (!e.currentTarget.value) {
-                            setTitles((prev) => {
-                              const next = { ...prev };
-                              delete next[ch.startIdx];
-                              return next;
-                            });
-                          }
-                        }}
-                      />
-                    </div>
-                    {snippet ? (
-                      <p
-                        style={{
-                          margin: 0,
-                          fontSize: 11,
-                          lineHeight: 1.5,
-                          color: "var(--tmt-ink-muted)",
-                          overflow: "hidden",
-                          display: "-webkit-box",
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: "vertical",
-                        }}
-                      >
-                        {snippet}
-                        {snippet.length === 120 ? "…" : ""}
-                      </p>
-                    ) : (
-                      <p
-                        style={{
-                          margin: 0,
-                          fontSize: 11,
-                          color: "var(--tmt-ink-muted)",
-                          fontStyle: "italic",
-                        }}
-                      >
-                        (no body text)
-                      </p>
-                    )}
-                  </div>
+                    chapterIndex={ci + 1}
+                    startIdx={ch.startIdx}
+                    titleOverride={ch.titleOverride}
+                    autoTitle={autoTitle}
+                    snippet={snippet}
+                    accent={t.accent}
+                    borderSoft={t.borderSoft}
+                    onTitleChange={setTitleAt}
+                    onTitleClear={clearTitleAt}
+                  />
                 );
               })}
             </div>
