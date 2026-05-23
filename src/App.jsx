@@ -494,20 +494,17 @@ export default function App() {
   );
 
   // ── Handlers ──
-  // Chapter jump pipeline (matches restore for visual consistency):
-  //   1. Hide wrapper instantly so the user sees feedback the same frame
-  //      as the click and never sees the scroll-work snap.
-  //   2. Defer the heavy layout pass to the NEXT animation frame. This
-  //      lets opacity:0 commit to the screen first, so the user perceives
-  //      "click registered" immediately even if forced layout is slow.
-  //   3. rf-nav-jump forces content-visibility off so all sections report
-  //      real heights; compute the title's offset; instant-scroll there.
-  //   4. Stable-frame settle (3 consecutive idle frames or 15 max) catches
-  //      late shifts (lazy images, font metrics) invisibly behind the
-  //      hidden wrapper.
-  //   5. Reveal — add .rf-chapter-reveal which runs the wrapper fade-in
-  //      (250ms, brings the title up) plus the slower body paragraph fade
-  //      (800ms with 150ms delay). Title leads, body follows.
+  // Chapter jump — fast path for user clicks. Skips the settle pass + slow
+  // body fade-in that the restore-on-load path uses; layout is already
+  // stable for direct clicks (no async font/image loads pending), so the
+  // ceremony was wasted ~1s of perceived delay on long books like Don
+  // Quixote. Restore (effect below at the doc-load site) keeps the full
+  // ceremony because font.ready + late shifts genuinely matter there.
+  //
+  //   1. Hide wrapper one frame so the click registers as feedback.
+  //   2. rAF — force layout, compute target offset, instant-scroll.
+  //   3. Reveal: short rf-chapter-snap fade (180ms wrapper-only); the
+  //      paragraphs stay visible immediately.
   const scrollToSection = useCallback((idx) => {
     const container = readerRef.current;
     const wrapper = docWrapperRef.current;
@@ -516,6 +513,7 @@ export default function App() {
 
     if (wrapper) {
       wrapper.classList.remove("rf-chapter-reveal");
+      wrapper.classList.remove("rf-chapter-snap");
       wrapper.style.opacity = "0";
       void wrapper.offsetHeight;
     }
@@ -524,41 +522,19 @@ export default function App() {
       container.classList.add("rf-nav-jump");
       void container.offsetHeight;
       const TOP_GUTTER = 8;
-      const computeTop = () => {
-        const target = titleRefs.current[idx] ?? sectionRefs.current[idx];
-        if (!target) return null;
+      const target = titleRefs.current[idx] ?? sectionRefs.current[idx];
+      if (target) {
         const tr = target.getBoundingClientRect();
         const cr = container.getBoundingClientRect();
-        return Math.max(0, tr.top - cr.top + container.scrollTop - TOP_GUTTER);
-      };
-      const first = computeTop();
-      if (first != null) container.scrollTo({ top: first, behavior: "instant" });
-
-      let stableFrames = 0;
-      let passes = 0;
-      const MAX_PASSES = 15;
-      const REQUIRED_STABLE = 3;
-      const finish = () => {
-        container.classList.remove("rf-nav-jump");
-        if (wrapper) {
-          wrapper.style.opacity = "";
-          wrapper.classList.add("rf-chapter-reveal");
-          window.setTimeout(() => wrapper.classList.remove("rf-chapter-reveal"), 1000);
-        }
-      };
-      const settle = () => {
-        passes++;
-        const corrected = computeTop();
-        if (corrected != null && Math.abs(corrected - container.scrollTop) > 1) {
-          container.scrollTo({ top: corrected, behavior: "instant" });
-          stableFrames = 0;
-        } else {
-          stableFrames++;
-        }
-        if (stableFrames >= REQUIRED_STABLE || passes >= MAX_PASSES) finish();
-        else requestAnimationFrame(settle);
-      };
-      requestAnimationFrame(settle);
+        const top = Math.max(0, tr.top - cr.top + container.scrollTop - TOP_GUTTER);
+        container.scrollTo({ top, behavior: "instant" });
+      }
+      container.classList.remove("rf-nav-jump");
+      if (wrapper) {
+        wrapper.style.opacity = "";
+        wrapper.classList.add("rf-chapter-snap");
+        window.setTimeout(() => wrapper.classList.remove("rf-chapter-snap"), 250);
+      }
     });
   }, []);
 
