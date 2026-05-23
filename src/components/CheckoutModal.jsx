@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { X, Lock, BookOpen, AlertCircle } from "lucide-react";
+import { Lock, BookOpen, AlertCircle } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
 import BookLoader from "./BookLoader";
 import { supabase } from "../utils/supabase";
 import { marketingThemeVars } from "../utils/marketingTheme";
+import { ModalCloseButton } from "./Primitives";
 
 const OVERLAY = {
   position: "fixed", inset: 0,
@@ -84,9 +85,7 @@ export default function CheckoutModal({ billing, onClose, t }) {
               </div>
             </div>
             <Dialog.Close asChild>
-              <button aria-label="Close" className="rf-static" style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: "transparent", color: "var(--tmt-ink-muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "none" }}>
-                <X size={16} strokeWidth={2} />
-              </button>
+              <ModalCloseButton color="var(--tmt-ink-muted)" className="rf-static" style={{ boxShadow: "none" }} />
             </Dialog.Close>
           </div>
 

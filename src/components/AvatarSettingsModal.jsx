@@ -1,10 +1,10 @@
 import { useRef } from "react";
-import { X, Upload, Lock, Crown } from "lucide-react";
+import { Upload, Lock, Crown } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { PREMADE_AVATARS, PremadeAvatarSvg } from "./PremadeAvatarSvg";
 import { useToast } from "./Toast";
 import { marketingThemeVars } from "../utils/marketingTheme";
-import { MODAL_OVERLAY_STYLE } from "./Primitives";
+import { MODAL_OVERLAY_STYLE, ModalCloseButton } from "./Primitives";
 
 
 const ACCEPTED_AVATAR_TYPES = new Set(["image/jpeg", "image/png", "image/gif"]);
@@ -52,9 +52,7 @@ export default function AvatarSettingsModal({ open, onOpenChange, onSave, curren
           style={{ ...marketingThemeVars(t), position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: "var(--tmt-paper)", borderRadius: 22, maxWidth: 400, width: "calc(100% - 48px)", padding: 28, boxShadow: "0 28px 70px rgba(0,0,0,0.28)", zIndex: 1011 }}
         >
           <Dialog.Close asChild>
-            <button aria-label="Close" style={{ position: "absolute", top: 16, right: 16, width: 34, height: 34, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <X size={16} strokeWidth={2} />
-            </button>
+            <ModalCloseButton color={t.icon} style={{ position: "absolute", top: 16, right: 16 }} />
           </Dialog.Close>
 
           <div style={{ marginBottom: 18 }}>

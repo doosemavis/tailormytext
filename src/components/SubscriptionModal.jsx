@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { X, Crown, Calendar, CreditCard, TrendingUp } from "lucide-react";
+import { Crown, Calendar, CreditCard, TrendingUp } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { TRIAL_DAYS, PRICING } from "../config/constants";
 import { useToast } from "./Toast";
-import { Tip, MODAL_OVERLAY_STYLE } from "./Primitives";
+import { Tip, MODAL_OVERLAY_STYLE, ModalCloseButton } from "./Primitives";
 import PulsatingButton from "./PulsatingButton";
 import { supabase } from "../utils/supabase";
 import { marketingThemeVars } from "../utils/marketingTheme";
@@ -102,9 +102,7 @@ export default function SubscriptionModal({ open, onOpenChange, sub, onShowPrici
               </Dialog.Title>
             </div>
             <Dialog.Close asChild>
-              <button aria-label="Close" style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <X size={16} strokeWidth={2} />
-              </button>
+              <ModalCloseButton color={t.icon} style={{ flexShrink: 0 }} />
             </Dialog.Close>
           </div>
 

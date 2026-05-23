@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { X, Crown, Check, Gift, ArrowRight } from "lucide-react";
+import { Crown, Check, Gift, ArrowRight } from "lucide-react";
 import { FREE_UPLOAD_LIMIT, TRIAL_DAYS, PRICING } from "../config/constants";
 import * as Dialog from "@radix-ui/react-dialog";
 import PulsatingButton from "./PulsatingButton";
 import { marketingThemeVars } from "../utils/marketingTheme";
+import { ModalCloseButton } from "./Primitives";
 
 const OVERLAY = {
   position: "fixed", inset: 0,
@@ -60,9 +61,7 @@ export default function PricingModal({ onClose, onSelectPlan, hasUsedTrial, t })
               </p>
             </div>
             <Dialog.Close asChild>
-              <button aria-label="Close" style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: "transparent", color: "var(--tmt-ink-muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <X size={16} strokeWidth={2} />
-              </button>
+              <ModalCloseButton color="var(--tmt-ink-muted)" style={{ flexShrink: 0 }} />
             </Dialog.Close>
           </div>
 

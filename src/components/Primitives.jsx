@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, memo } from "react";
-import { ChevronDown } from "lucide-react";
+import React, { useState, useEffect, useRef, memo } from "react";
+import { ChevronDown, X } from "lucide-react";
 import { FONTS } from "../config/constants";
 import * as Switch from "@radix-ui/react-switch";
 import * as SliderPrimitive from "@radix-ui/react-slider";
@@ -23,6 +23,39 @@ export const MODAL_OVERLAY_STYLE = {
   WebkitBackdropFilter: "blur(6px)",
   zIndex: 1010,
 };
+
+// Shared modal close-button base. Previously inlined in 6 modal headers
+// with one-prop variations (color, flexShrink, position: absolute).
+// forwardRef + ...rest so Radix Dialog.Close can merge its handlers
+// when used via `asChild`.
+const MODAL_CLOSE_BUTTON_BASE = {
+  width: 34,
+  height: 34,
+  borderRadius: 8,
+  border: "none",
+  background: "transparent",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
+
+export const ModalCloseButton = React.forwardRef(function ModalCloseButton(
+  { color, style, className, ...rest },
+  ref,
+) {
+  return (
+    <button
+      ref={ref}
+      aria-label="Close"
+      className={className}
+      style={{ ...MODAL_CLOSE_BUTTON_BASE, color, ...style }}
+      {...rest}
+    >
+      <X size={16} strokeWidth={2} />
+    </button>
+  );
+});
 
 export const Toggle = memo(function Toggle({ on, onChange, label, icon: Icon, t }) {
   return (

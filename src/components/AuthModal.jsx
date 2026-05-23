@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { X, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import * as Dialog from "@radix-ui/react-dialog";
 import { marketingThemeVars } from "../utils/marketingTheme";
+import { ModalCloseButton } from "./Primitives";
 
 // Editorial overlay — dark warm tint instead of pure black, plus the paper
 // grain peeks through the blur. Matches the marketing aesthetic.
@@ -260,9 +261,7 @@ export default function AuthModal({ onClose, t, initialView = "login" }) {
             </div>
             {!isRecoveryMode && (
               <Dialog.Close asChild>
-                <button aria-label="Close" style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: "transparent", color: "var(--tmt-ink-muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <X size={16} strokeWidth={2} />
-                </button>
+                <ModalCloseButton color="var(--tmt-ink-muted)" />
               </Dialog.Close>
             )}
           </div>

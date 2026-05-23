@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { X, AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { TRIAL_DAYS } from "../config/constants";
 import { supabase } from "../utils/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "./Toast";
 import { marketingThemeVars } from "../utils/marketingTheme";
-import { MODAL_OVERLAY_STYLE } from "./Primitives";
+import { MODAL_OVERLAY_STYLE, ModalCloseButton } from "./Primitives";
 import { formatDate } from "../utils/formatDate";
 
 
@@ -88,9 +88,7 @@ export default function DeleteAccountModal({ open, onOpenChange, sub, t }) {
               </Dialog.Title>
             </div>
             <Dialog.Close asChild>
-              <button aria-label="Close" style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <X size={16} strokeWidth={2} />
-              </button>
+              <ModalCloseButton color={t.icon} style={{ flexShrink: 0 }} />
             </Dialog.Close>
           </div>
 
