@@ -336,6 +336,10 @@ export default function App() {
   const titleRefs = useRef({});
   const docWrapperRef = useRef(null);
   const typographyRafRef = useRef(null);
+  // Attached to the active chapter row inside the dropdown; used to
+  // scrollIntoView when the dropdown opens so users on chapter 87/149
+  // don't see the TOC top + empty space when they reopen the menu.
+  const activeChapterRef = useRef(null);
 
   // ── Derived ──
   const t = useMemo(() => ({ ...THEMES[theme], key: theme }), [theme]);
@@ -560,6 +564,18 @@ export default function App() {
 
   // Reset the active-chapter pointer whenever the doc changes.
   useEffect(() => { setCurrentSectionIdx(0); }, [docSections]);
+
+  // When the chapter dropdown opens, scroll the active chapter into view.
+  // rAF defers to the next frame so Radix has time to portal + mount the
+  // Content + items before scrollIntoView runs. Block:center anchors the
+  // active row near the middle of the dropdown's scroll viewport.
+  useEffect(() => {
+    if (!showChapterNav) return;
+    const raf = requestAnimationFrame(() => {
+      activeChapterRef.current?.scrollIntoView({ block: "center", behavior: "instant" });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [showChapterNav]);
 
   // Scroll watcher: keep the dropdown label in sync with whatever section
   // the user has scrolled to. RAF-throttled — at most one update per frame.
@@ -1814,6 +1830,7 @@ export default function App() {
                   {docSections.map((sec, si) => (
                     <ChapterDropdownItem
                       key={si}
+                      ref={si === currentSectionIdx ? activeChapterRef : null}
                       index={si}
                       label={sec.title || (sec.type === "page" ? `Page ${sec.number || si + 1}` : `Chapter ${sec.number || si + 1}`)}
                       active={si === currentSectionIdx}
