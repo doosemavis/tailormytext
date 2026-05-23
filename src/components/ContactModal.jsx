@@ -42,7 +42,6 @@ export default function ContactModal({ open, onOpenChange, t }) {
       <Dialog.Portal>
         <Dialog.Overlay style={OVERLAY} />
         <Dialog.Content
-          aria-describedby={undefined}
           className="tmt-marketing"
           style={{
             ...marketingThemeVars(t),

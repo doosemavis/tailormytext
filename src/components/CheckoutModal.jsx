@@ -59,7 +59,6 @@ export default function CheckoutModal({ billing, onClose, t }) {
       <Dialog.Portal>
         <Dialog.Overlay style={OVERLAY} />
         <Dialog.Content
-          aria-describedby={undefined}
           className="tmt-marketing"
           style={{
             ...marketingThemeVars(t),

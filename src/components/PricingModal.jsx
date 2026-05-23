@@ -28,7 +28,6 @@ export default function PricingModal({ onClose, onSelectPlan, hasUsedTrial, t })
       <Dialog.Portal>
         <Dialog.Overlay style={OVERLAY} />
         <Dialog.Content
-          aria-describedby={undefined}
           className="tmt-marketing"
           style={{
             ...marketingThemeVars(t),

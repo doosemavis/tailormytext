@@ -1582,6 +1582,8 @@ export default function App() {
                   <Tip key={k} label={tipLabel} t={t} side="top">
                     <button
                       onClick={() => gateCosmetic(free, () => setHuePalette(k))}
+                      aria-label={tipLabel}
+                      aria-pressed={huePalette === k}
                       style={{ position: "relative", width: 42, height: 26, borderRadius: 8, overflow: "hidden", display: "flex", padding: 0, cursor: "pointer", border: huePalette === k ? `2px solid ${t.accent}` : `1px solid ${t.border}`, boxShadow: huePalette === k ? `0 0 0 2px ${t.accentSoft}` : "none", transition: "all 0.15s", opacity: locked ? 0.55 : 1 }}
                     >
                       {pal.colors.map((c, i) => <div key={i} style={{ flex: 1, background: c, height: "100%" }} />)}
@@ -1612,6 +1614,8 @@ export default function App() {
                         <button
                           key={k}
                           onClick={() => gateCosmetic(free, () => setGuideColor(k))}
+                          aria-label={`Guide color: ${gc.label}${locked ? " (Pro)" : ""}`}
+                          aria-pressed={active}
                           title={`${gc.label}${locked ? " (Pro)" : ""}`}
                           style={{ width: 28, height: 28, borderRadius: 8, cursor: "pointer", border: active ? `2px solid ${dot}` : `1.5px solid ${t.border}`, background: k === "accent" ? `conic-gradient(from 0deg, ${t.accent}, ${t.accent}88, ${t.accent})` : (gc.highlight || dot), boxShadow: active ? `0 0 0 2px ${dot}33` : "none", transition: "all 0.15s", display: "flex", alignItems: "center", justifyContent: "center", opacity: locked ? 0.55 : 1 }}
                         >
@@ -1651,6 +1655,8 @@ export default function App() {
                     <button
                       key={key}
                       onClick={(e) => gateCosmetic(free, () => runThemeTransition(e, () => setTheme(key)))}
+                      aria-label={`Theme: ${key}${locked ? " (Pro)" : ""}`}
+                      aria-pressed={isActive}
                       className="rf-btn-icon-active"
                       style={{
                         padding: "9px 14px",
