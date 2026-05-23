@@ -77,6 +77,8 @@ import { useAuth } from "./contexts/AuthContext";
 import { useToast } from "./components/Toast";
 import HeroFeatureFlip from "./components/HeroFeatureFlip";
 import ChapterDropdownItem from "./components/ChapterDropdownItem";
+import ThemeDot from "./components/ThemeDot";
+import FeatureToggleButton from "./components/FeatureToggleButton";
 import {
   Toggle, Slider, Segment, Section, FontPicker, Tip,
   UploadBadge, SidebarRecentDocs, LandingRecentDocs, LibrarySection, LibraryTeaseSection,
@@ -437,6 +439,25 @@ export default function App() {
     el.style.setProperty("--rf-hue-intensity", String(hueIntensity));
     if (s.currentFontCss) el.style.setProperty("--rf-font-family", s.currentFontCss);
   }, [hueIntensity]);
+
+  // Stable feature-toggle handlers (Perf H1). Without these, the three
+  // reader-chrome toggles created a fresh onClick closure per render.
+  const toggleNeuroDiv = useCallback(() => setNeuroDiv(v => !v), []);
+  const toggleHueGuide = useCallback(() => setHueGuide(v => !v), []);
+  const toggleFocusMode = useCallback(() => {
+    setFocusMode(v => {
+      const next = !v;
+      if (!next) setFocusPara(-1);
+      return next;
+    });
+  }, []);
+
+  // Stable landing-page theme dot selector (Perf H3). Memo'd ThemeDot
+  // requires a stable onSelect ref or the memo never hits.
+  const onSelectTheme = useCallback((themeKey, e) => {
+    const free = isThemeFree(themeKey);
+    gateCosmetic(free, () => runThemeTransition(e, () => setTheme(themeKey)));
+  }, [gateCosmetic, isThemeFree]);
 
   // Per-slider live writers: write a single CSS var directly to the wrapper on every drag tick.
   // App state isn't touched during drag — we update it once on release via the slider's onChange.
@@ -1383,26 +1404,15 @@ export default function App() {
             const label = `${key[0].toUpperCase()}${key.slice(1)}${locked ? " (Pro)" : ""}`;
             return (
               <Tip key={key} label={label} t={t} themeKey={key} side="top">
-                <button
-                  onClick={(e) => gateCosmetic(free, () => runThemeTransition(e, () => setTheme(key)))}
-                  className="rf-static"
-                  style={{
-                    position: "relative",
-                    width: 26, height: 26,
-                    borderRadius: 13,
-                    background: th.accent,
-                    cursor: "pointer",
-                    border: theme === key ? `2.5px solid ${t.fg}` : "2.5px solid transparent",
-                    boxShadow: theme === key ? `0 0 0 2.5px ${t.bg}` : "none",
-                    transition: "all 0.15s",
-                    opacity: locked ? 0.55 : 1,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  {locked && <Lock size={10} style={{ color: "#fff", filter: "drop-shadow(0 1px 1px rgba(0,0,0,0.5))" }} />}
-                </button>
+                <ThemeDot
+                  themeKey={key}
+                  accent={th.accent}
+                  isActive={theme === key}
+                  locked={locked}
+                  fg={t.fg}
+                  bg={t.bg}
+                  onSelect={onSelectTheme}
+                />
               </Tip>
             );
           })}
@@ -1829,11 +1839,9 @@ export default function App() {
                settings, so the reader chrome stays scannable on hover.
                aria-label mirrors the tip for screen readers, which never see
                the tooltip. */}
-            {[{ on: neuroDiv, set: setNeuroDiv, icon: Baseline, tip: "NeuroDiv" }, { on: hueGuide, set: setHueGuide, icon: Palette, tip: "HueGuide" }, { on: focusMode, set: v => { setFocusMode(v); if (!v) setFocusPara(-1); }, icon: Focus, tip: "Focus" }].map(({ on, set, icon: Icon, tip }) => (
-              <Tip key={tip} label={tip} t={t} side="bottom">
-                <button onClick={() => set(!on)} aria-label={tip} aria-pressed={on} className={on ? "rf-btn-icon-active" : ""} style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: on ? t.accent : "transparent", color: on ? "#fff" : t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon size={16} strokeWidth={2} /></button>
-              </Tip>
-            ))}
+            <FeatureToggleButton on={neuroDiv} label="NeuroDiv" Icon={Baseline} accent={t.accent} iconColor={t.icon} onToggle={toggleNeuroDiv} t={t} />
+            <FeatureToggleButton on={hueGuide} label="HueGuide" Icon={Palette} accent={t.accent} iconColor={t.icon} onToggle={toggleHueGuide} t={t} />
+            <FeatureToggleButton on={focusMode} label="Focus" Icon={Focus} accent={t.accent} iconColor={t.icon} onToggle={toggleFocusMode} t={t} />
           </div>
           <UserMenu t={t} onShowAuth={() => setShowAuth(true)} onShowAvatarSettings={() => setShowAvatarSettings(true)} onShowSubscription={() => setShowSubscription(true)} onShowPaymentReceipts={handleShowPaymentReceipts} showPaymentReceipts={sub.hasStripeHistory} onShowDeleteAccount={() => setShowDeleteAccount(true)} avatar={avatar} themePersistEnabled={themePref.persistEnabled} onToggleThemePersist={onToggleThemePersist} mockFreeMode={sub.mockFreeMode} onToggleMockFreeMode={sub.toggleMockFreeMode} isProGrantActive={sub.isProGrantActive} />
         </div>
