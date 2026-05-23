@@ -43,7 +43,6 @@ const CONTENT = {
   borderRadius: 18,
   boxShadow: "0 40px 100px -24px rgba(31, 24, 18, 0.55), 0 8px 22px -8px rgba(31, 24, 18, 0.22)",
   zIndex: 1001,
-  outline: "none",
   display: "flex",
   flexDirection: "column",
   overflow: "hidden",
@@ -58,6 +57,12 @@ const KEYFRAMES = `
 @keyframes tmt-library-drawer-in {
   from { opacity: 0; transform: translate(-50%, -46%) scale(0.985); }
   to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes tmt-library-overlay-in { from, to { opacity: 1; } }
+  @keyframes tmt-library-drawer-in {
+    from, to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  }
 }
 `;
 
@@ -176,7 +181,6 @@ export default function LibraryDrawer({ open, onOpenChange, books, isPro, onOpen
                   style={{
                     border: "none",
                     background: "transparent",
-                    outline: "none",
                     fontFamily: "var(--tmt-serif-body)",
                     fontSize: 14,
                     // lineHeight: 1 collapses the input's line-box to the

@@ -36,7 +36,7 @@ export default function PaywallModal({ uploadsUsed: _uploadsUsed, onUpgrade, onC
             padding: "44px 36px 32px",
             textAlign: "center",
             boxShadow: "0 32px 80px -20px rgba(31, 24, 18, 0.45), 0 6px 16px -8px rgba(31, 24, 18, 0.2)",
-            zIndex: 1001, outline: "none",
+            zIndex: 1001,
           }}
         >
           <div style={{ width: 64, height: 64, borderRadius: 20, background: "rgba(176, 81, 46, 0.15)", border: "1px solid rgba(176, 81, 46, 0.3)", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 22 }}>

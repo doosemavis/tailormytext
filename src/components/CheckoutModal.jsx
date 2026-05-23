@@ -70,7 +70,7 @@ export default function CheckoutModal({ billing, onClose, t }) {
             maxWidth: 400, width: "calc(100% - 48px)",
             boxShadow: "0 32px 80px -20px rgba(31, 24, 18, 0.45), 0 6px 16px -8px rgba(31, 24, 18, 0.2)",
             overflow: "hidden",
-            zIndex: 1101, outline: "none",
+            zIndex: 1101,
           }}
         >
           {/* Header — TailorMyText Pro context strip */}

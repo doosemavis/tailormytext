@@ -53,7 +53,7 @@ export default function ContactModal({ open, onOpenChange, t }) {
             maxWidth: 440, width: "calc(100% - 48px)",
             padding: "28px 28px 24px",
             boxShadow: "0 28px 80px -20px rgba(31, 24, 18, 0.45), 0 6px 16px -8px rgba(31, 24, 18, 0.2)",
-            zIndex: 1011, outline: "none",
+            zIndex: 1011,
           }}
         >
           <Dialog.Close asChild>

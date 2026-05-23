@@ -99,7 +99,7 @@ export default function SubscriptionModal({ open, onOpenChange, sub, onShowPrici
         <Dialog.Content
           aria-describedby={undefined}
           className="tmt-marketing"
-          style={{ ...marketingThemeVars(t), position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: "var(--tmt-paper)", borderRadius: 22, maxWidth: 440, width: "calc(100% - 48px)", padding: 32, boxShadow: "0 28px 70px rgba(0,0,0,0.28)", zIndex: 1011, outline: "none", fontFamily: "var(--tmt-sans)" }}
+          style={{ ...marketingThemeVars(t), position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: "var(--tmt-paper)", borderRadius: 22, maxWidth: 440, width: "calc(100% - 48px)", padding: 32, boxShadow: "0 28px 70px rgba(0,0,0,0.28)", zIndex: 1011, fontFamily: "var(--tmt-sans)" }}
         >
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 22, gap: 12 }}>
             <div style={{ flex: 1 }}>
