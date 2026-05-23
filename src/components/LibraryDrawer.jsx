@@ -80,7 +80,10 @@ export default function LibraryDrawer({ open, onOpenChange, books, isPro, onOpen
   }, [books, query]);
 
   const total = books?.length || 0;
-  const free = (books || []).filter(b => b.tier_required !== "pro").length;
+  const free = useMemo(
+    () => (books || []).filter(b => b.tier_required !== "pro").length,
+    [books],
+  );
 
   // Closes the drawer the instant a load begins — user shouldn't have to
   // dismiss the drawer themselves once they've chosen a book. The actual
