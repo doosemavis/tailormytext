@@ -1,7 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { THEMES } from "../config/constants";
-import { storageGet } from "../utils/storage";
 import LegalLayout from "../components/LegalLayout";
+import { useStoredTheme } from "../hooks/useStoredTheme";
 
 const LAST_UPDATED = "May 3, 2026";
 
@@ -9,15 +7,7 @@ const LAST_UPDATED = "May 3, 2026";
 // the user's saved theme straight from localStorage so the page matches
 // their preferred chrome without spinning up the whole AuthContext flow.
 export default function Privacy() {
-  const [themeKey, setThemeKey] = useState("warm");
-
-  useEffect(() => {
-    storageGet("theme").then(saved => {
-      if (saved && THEMES[saved]) setThemeKey(saved);
-    });
-  }, []);
-
-  const t = useMemo(() => THEMES[themeKey], [themeKey]);
+  const { themeKey, t } = useStoredTheme();
 
   return (
     <LegalLayout t={t} title="Privacy Policy" lastUpdated={LAST_UPDATED}>

@@ -8,6 +8,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { supabase } from "../utils/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { formatDateShort } from "../utils/formatDate";
+import { useStoredTheme } from "../hooks/useStoredTheme";
 import { ROLES } from "../config/roles";
 import {
   THEMES,
@@ -581,15 +582,7 @@ export default function AdminPanel() {
   const { user, role, isOwner, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [themeKey, setThemeKey] = useState("warm");
-
-  useEffect(() => {
-    storageGet("theme").then(saved => {
-      if (saved && THEMES[saved]) setThemeKey(saved);
-    });
-  }, []);
-
-  const t = useMemo(() => THEMES[themeKey], [themeKey]);
+  const { themeKey, t } = useStoredTheme();
 
   const isAdmin = role === "admin";
   const isAuthorized = !!user && (isAdmin || isOwner);

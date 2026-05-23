@@ -1,20 +1,10 @@
-import { useState, useEffect, useMemo } from "react";
-import { THEMES } from "../config/constants";
-import { storageGet } from "../utils/storage";
 import LegalLayout from "../components/LegalLayout";
+import { useStoredTheme } from "../hooks/useStoredTheme";
 
 const LAST_UPDATED = "May 3, 2026";
 
 export default function Terms() {
-  const [themeKey, setThemeKey] = useState("warm");
-
-  useEffect(() => {
-    storageGet("theme").then(saved => {
-      if (saved && THEMES[saved]) setThemeKey(saved);
-    });
-  }, []);
-
-  const t = useMemo(() => THEMES[themeKey], [themeKey]);
+  const { themeKey, t } = useStoredTheme();
 
   return (
     <LegalLayout t={t} title="Terms Of Service" lastUpdated={LAST_UPDATED}>
