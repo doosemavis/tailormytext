@@ -26,7 +26,7 @@
     { "rank": 17, "id": 76,    "title": "Adventures of Huckleberry Finn",           "author": "Mark Twain",                 "publication_date": "1884", "tier": "pro"  },
     { "rank": 18, "id": 345,   "title": "Dracula",                                  "author": "Bram Stoker",                "publication_date": "1897", "tier": "pro"  },
     { "rank": 19, "id": 1661,  "title": "The Adventures of Sherlock Holmes",        "author": "Arthur Conan Doyle",         "publication_date": "1892", "tier": "pro"  },
-    { "rank": 20, "id": 1259,  "title": "Twenty Years After",                       "author": "Alexandre Dumas",            "publication_date": "1845", "tier": "pro"  },
+    { "rank": 20, "id": 996,   "title": "Don Quixote",                              "author": "Miguel de Cervantes Saavedra","publication_date": "1605", "tier": "pro"  },
     { "rank": 21, "id": 174,   "title": "The Picture of Dorian Gray",               "author": "Oscar Wilde",                "publication_date": "1890", "tier": "pro"  }
   ]
 }
