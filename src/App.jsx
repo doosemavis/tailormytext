@@ -452,13 +452,6 @@ export default function App() {
     });
   }, []);
 
-  // Stable landing-page theme dot selector (Perf H3). Memo'd ThemeDot
-  // requires a stable onSelect ref or the memo never hits.
-  const onSelectTheme = useCallback((themeKey, e) => {
-    const free = isThemeFree(themeKey);
-    gateCosmetic(free, () => runThemeTransition(e, () => setTheme(themeKey)));
-  }, [gateCosmetic, isThemeFree]);
-
   // Per-slider live writers: write a single CSS var directly to the wrapper on every drag tick.
   // App state isn't touched during drag — we update it once on release via the slider's onChange.
   const liveWriters = useMemo(() => ({
@@ -876,6 +869,15 @@ export default function App() {
     if (sub.isPro || isFreeItem) { applyFn(); return; }
     setShowPricing(true);
   }, [sub.isPro]);
+
+  // Stable landing-page theme dot selector (Perf H3). Memo'd ThemeDot
+  // requires a stable onSelect ref or the memo never hits. Declared AFTER
+  // gateCosmetic — earlier placement caused a TDZ ReferenceError at runtime
+  // (const binding in a dep array is read when useCallback evaluates).
+  const onSelectTheme = useCallback((themeKey, e) => {
+    const free = isThemeFree(themeKey);
+    gateCosmetic(free, () => runThemeTransition(e, () => setTheme(themeKey)));
+  }, [gateCosmetic]);
 
   // Open a library book by id. Shared by:
   //   - LibrarySection card clicks (fresh first open, passes the full book)
