@@ -6,9 +6,9 @@ import { supabase } from "../utils/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "./Toast";
 import { marketingThemeVars } from "../utils/marketingTheme";
+import { MODAL_OVERLAY_STYLE } from "./Primitives";
 import { formatDate } from "../utils/formatDate";
 
-const OVERLAY = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", zIndex: 1010 };
 
 const FREE_GRACE_DAYS = 7;
 const CONFIRM_PHRASE = "DELETE";
@@ -73,7 +73,7 @@ export default function DeleteAccountModal({ open, onOpenChange, sub, t }) {
   return (
     <Dialog.Root open={open} onOpenChange={(v) => { if (!v) setConfirmText(""); onOpenChange(v); }}>
       <Dialog.Portal>
-        <Dialog.Overlay style={OVERLAY} />
+        <Dialog.Overlay style={MODAL_OVERLAY_STYLE} />
         <Dialog.Content
           className="tmt-marketing"
           style={{ ...marketingThemeVars(t), position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: "var(--tmt-paper)", borderRadius: 22, maxWidth: 460, width: "calc(100% - 48px)", padding: 32, boxShadow: "0 28px 70px rgba(0,0,0,0.28)", zIndex: 1011, fontFamily: "var(--tmt-sans)" }}
