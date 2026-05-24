@@ -6,19 +6,11 @@ import { marketingThemeVars } from "../utils/marketingTheme";
 import { buildParagraphs } from "../utils/paragraphStream";
 import ChapterParaRow from "./ChapterParaRow";
 import ChapterCardItem from "./ChapterCardItem";
+import { MODAL_OVERLAY_STYLE } from "./Primitives";
 
 // Re-export so existing tests importing buildParagraphs from this module
 // continue to resolve without changes.
 export { buildParagraphs };
-
-const OVERLAY = {
-  position: "fixed",
-  inset: 0,
-  background: "rgba(0,0,0,0.55)",
-  backdropFilter: "blur(6px)",
-  WebkitBackdropFilter: "blur(6px)",
-  zIndex: 1010,
-};
 
 // Derive initial breaks from docSections: each section boundary (except the
 // first section) becomes a break at the first paragraph of that section.
@@ -149,7 +141,7 @@ export default function EditChaptersModal({
   return (
     <Dialog.Root open={open} onOpenChange={handleOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay style={OVERLAY} />
+        <Dialog.Overlay style={MODAL_OVERLAY_STYLE} />
         <Dialog.Content
           aria-describedby="edit-chapters-desc"
           className="tmt-marketing"

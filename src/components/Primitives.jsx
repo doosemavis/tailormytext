@@ -11,6 +11,19 @@ import { getTooltipColors } from "../config/themeColors";
 
 const DARK_BGS = new Set(["#111116", "#0B0E14", "#100E18", "#080806", "#0D1410"]);
 
+// Shared modal backdrop style. Previously duplicated verbatim in 4 modals
+// (Avatar / Delete / Subscription / EditChapters). The other modal overlays
+// intentionally diverge (warm tint, blur radius, zIndex layer) and stay
+// inline — see the modal files for those.
+export const MODAL_OVERLAY_STYLE = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(0,0,0,0.55)",
+  backdropFilter: "blur(6px)",
+  WebkitBackdropFilter: "blur(6px)",
+  zIndex: 1010,
+};
+
 export const Toggle = memo(function Toggle({ on, onChange, label, icon: Icon, t }) {
   return (
     <div

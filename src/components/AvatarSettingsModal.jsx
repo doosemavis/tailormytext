@@ -4,8 +4,8 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { PREMADE_AVATARS, PremadeAvatarSvg } from "./PremadeAvatarSvg";
 import { useToast } from "./Toast";
 import { marketingThemeVars } from "../utils/marketingTheme";
+import { MODAL_OVERLAY_STYLE } from "./Primitives";
 
-const OVERLAY = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", zIndex: 1010 };
 
 const ACCEPTED_AVATAR_TYPES = new Set(["image/jpeg", "image/png", "image/gif"]);
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024; // 2 MB
@@ -46,7 +46,7 @@ export default function AvatarSettingsModal({ open, onOpenChange, onSave, curren
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay style={OVERLAY} />
+        <Dialog.Overlay style={MODAL_OVERLAY_STYLE} />
         <Dialog.Content
           className="tmt-marketing"
           style={{ ...marketingThemeVars(t), position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: "var(--tmt-paper)", borderRadius: 22, maxWidth: 400, width: "calc(100% - 48px)", padding: 28, boxShadow: "0 28px 70px rgba(0,0,0,0.28)", zIndex: 1011 }}
