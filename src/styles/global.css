@@ -51,6 +51,22 @@ button:active {
   outline-offset: 3px;
 }
 
+/* Radix DropdownMenu / Select / Toolbar items already render a
+   data-highlighted background tint for the focused row. Exempt the
+   ARIA roles they emit so the global outline doesn't double up on top
+   of their existing highlight (read as a stray black ring on the
+   focused menu row in UserMenu / chapter dropdown / library cards).
+   Radix still manages focus correctly; AT users just see the highlight
+   instead of the outline + highlight. */
+[role="menu"]:focus-visible,
+[role="menuitem"]:focus-visible,
+[role="menuitemcheckbox"]:focus-visible,
+[role="menuitemradio"]:focus-visible,
+[role="option"]:focus-visible,
+[role="combobox"][data-state="open"]:focus-visible {
+  outline: none !important;
+}
+
 /* Inline text-link styled buttons — underline on hover */
 .rf-link:hover { text-decoration: underline; }
 
