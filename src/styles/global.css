@@ -51,6 +51,22 @@ button:active {
   outline-offset: 3px;
 }
 
+/* Radix DropdownMenu / Select / Toolbar items already render a
+   data-highlighted background tint for the focused row. Exempt the
+   ARIA roles they emit so the global outline doesn't double up on top
+   of their existing highlight (read as a stray black ring on the
+   focused menu row in UserMenu / chapter dropdown / library cards).
+   Radix still manages focus correctly; AT users just see the highlight
+   instead of the outline + highlight. */
+[role="menu"]:focus-visible,
+[role="menuitem"]:focus-visible,
+[role="menuitemcheckbox"]:focus-visible,
+[role="menuitemradio"]:focus-visible,
+[role="option"]:focus-visible,
+[role="combobox"][data-state="open"]:focus-visible {
+  outline: none !important;
+}
+
 /* Inline text-link styled buttons — underline on hover */
 .rf-link:hover { text-decoration: underline; }
 
@@ -240,12 +256,21 @@ a.rf-link-btn:active {
   animation: rf-body-fade-in 800ms ease-out 200ms backwards;
 }
 
+/* Short wrapper-only fade for user-initiated chapter jumps. Skips the
+   body fade so paragraphs stay visible instantly while the wrapper
+   provides click-feedback. ~6x shorter perceived delay than rf-chapter-
+   reveal on long books (Don Quixote, Moby Dick). */
+.rf-doc-wrapper.rf-chapter-snap {
+  animation: rf-wrapper-fade-in 180ms ease-out backwards;
+}
+
 /* WCAG 2.3.3 — chapter-reveal fires on every chapter navigation, which is
    the core reading action. Disable for users who request reduced motion;
    they go straight from old-chapter to new without the fade-in pass. */
 @media (prefers-reduced-motion: reduce) {
   .rf-doc-wrapper.rf-chapter-reveal,
-  .rf-doc-wrapper.rf-chapter-reveal .rf-para {
+  .rf-doc-wrapper.rf-chapter-reveal .rf-para,
+  .rf-doc-wrapper.rf-chapter-snap {
     animation: none;
   }
   /* Same gate for the column-width slider transition in DocumentBody —

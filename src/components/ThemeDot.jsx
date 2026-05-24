@@ -6,7 +6,10 @@ const LOCK_STYLE = {
   filter: "drop-shadow(0 1px 1px rgba(0,0,0,0.5))",
 };
 
-function ThemeDotImpl({ themeKey, accent, isActive, locked, fg, bg, onSelect }) {
+const ThemeDotImpl = React.forwardRef(function ThemeDotImpl(
+  { themeKey, accent, isActive, locked, fg, bg, onSelect },
+  ref,
+) {
   const handleClick = useCallback(
     (e) => onSelect(themeKey, e),
     [themeKey, onSelect],
@@ -14,6 +17,7 @@ function ThemeDotImpl({ themeKey, accent, isActive, locked, fg, bg, onSelect }) 
 
   return (
     <button
+      ref={ref}
       onClick={handleClick}
       className="rf-static"
       style={{
@@ -35,7 +39,7 @@ function ThemeDotImpl({ themeKey, accent, isActive, locked, fg, bg, onSelect }) 
       {locked && <Lock size={10} style={LOCK_STYLE} />}
     </button>
   );
-}
+});
 
 // React.memo with primitive props — themeKey, accent, isActive, locked, fg, bg
 // are all primitive. onSelect must be a stable ref from the parent (useCallback).

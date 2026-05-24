@@ -3,19 +3,14 @@ import { X, Crown, Calendar, CreditCard, TrendingUp } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { TRIAL_DAYS, PRICING } from "../config/constants";
 import { useToast } from "./Toast";
-import { Tip } from "./Primitives";
+import { Tip, MODAL_OVERLAY_STYLE } from "./Primitives";
 import PulsatingButton from "./PulsatingButton";
 import { supabase } from "../utils/supabase";
 import { marketingThemeVars } from "../utils/marketingTheme";
+import { formatDate } from "../utils/formatDate";
 
-const OVERLAY = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", zIndex: 1010 };
 
 // Format an absolute date as a friendly "Month D, YYYY" string.
-function formatDate(d) {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-}
-
 export default function SubscriptionModal({ open, onOpenChange, sub, onShowPricing, t }) {
   const { showToast } = useToast();
   const [confirmingCancel, setConfirmingCancel] = useState(false);
@@ -95,7 +90,7 @@ export default function SubscriptionModal({ open, onOpenChange, sub, onShowPrici
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay style={OVERLAY} />
+        <Dialog.Overlay style={MODAL_OVERLAY_STYLE} />
         <Dialog.Content
           className="tmt-marketing"
           style={{ ...marketingThemeVars(t), position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: "var(--tmt-paper)", borderRadius: 22, maxWidth: 440, width: "calc(100% - 48px)", padding: 32, boxShadow: "0 28px 70px rgba(0,0,0,0.28)", zIndex: 1011, fontFamily: "var(--tmt-sans)" }}

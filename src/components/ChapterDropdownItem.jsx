@@ -20,7 +20,10 @@ const LABEL_STYLE = {
   whiteSpace: "nowrap",
 };
 
-function ChapterDropdownItemImpl({ index, label, active, isLast, theme, onSelect }) {
+const ChapterDropdownItemImpl = React.forwardRef(function ChapterDropdownItemImpl(
+  { index, label, active, isLast, theme, onSelect },
+  ref,
+) {
   const handleSelect = useCallback(() => onSelect(index), [index, onSelect]);
 
   const handleMouseEnter = useCallback(
@@ -39,6 +42,7 @@ function ChapterDropdownItemImpl({ index, label, active, isLast, theme, onSelect
 
   return (
     <DropdownMenu.Item
+      ref={ref}
       onSelect={handleSelect}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -53,7 +57,7 @@ function ChapterDropdownItemImpl({ index, label, active, isLast, theme, onSelect
       <span style={LABEL_STYLE}>{label}</span>
     </DropdownMenu.Item>
   );
-}
+});
 
 // React.memo with default shallow compare. With primitive props (index, label,
 // active, isLast) plus the stable theme + onSelect refs from the parent, only
