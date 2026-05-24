@@ -9,6 +9,7 @@ import { supabase } from "../utils/supabase";
 import { storageGet } from "../utils/storage";
 import { marketingThemeVars } from "../utils/marketingTheme";
 import { formatDate } from "../utils/formatDate";
+import { useStoredTheme } from "../hooks/useStoredTheme";
 import Footer from "../components/Footer";
 
 const MIN_PASSWORD_LENGTH = 8;
@@ -87,20 +88,11 @@ export default function Account() {
   const { showToast } = useToast();
   const navigate = useNavigate();
 
-  const [themeKey, setThemeKey] = useState("warm");
+  const { themeKey, t } = useStoredTheme();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [exporting, setExporting] = useState(null);  // 'json' | 'csv' | null
-
-  // Pull saved theme so the page matches the user's preferred chrome.
-  useEffect(() => {
-    storageGet("theme").then(saved => {
-      if (saved && THEMES[saved]) setThemeKey(saved);
-    });
-  }, []);
-
-  const t = useMemo(() => THEMES[themeKey], [themeKey]);
 
   // Not signed in → bounce to home (auth modal lives there).
   useEffect(() => {
