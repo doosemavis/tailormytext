@@ -67,6 +67,20 @@ button:active {
   outline: none !important;
 }
 
+/* Icon-prefixed search pill: the wrapping <label> is the focusable
+   unit. Its child <input> is bare (border:none, background:transparent),
+   so the global :focus-visible outline would land inside the pill —
+   reads as a stray black ring crowded against the pill border. Move
+   the focus indicator onto the wrapper via :focus-within so keyboard
+   users see the whole pill light up. */
+.tmt-search-pill:focus-within {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.tmt-search-pill input:focus-visible {
+  outline: none !important;
+}
+
 /* Inline text-link styled buttons — underline on hover */
 .rf-link:hover { text-decoration: underline; }
 

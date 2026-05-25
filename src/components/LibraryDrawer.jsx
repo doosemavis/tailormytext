@@ -162,6 +162,7 @@ export default function LibraryDrawer({ open, onOpenChange, books, isPro, onOpen
 
             <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
               <label
+                className="tmt-search-pill"
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
