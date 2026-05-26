@@ -464,21 +464,44 @@ export default function App() {
   // `color: var(--rf-hue-N)` per word at render time using a slot index derived from word
   // position — that index is palette-independent, so the React tree never re-renders when the
   // user picks a different palette.
-  const liveWriters = useMemo(() => ({
-    fontSize: v => docWrapperRef.current?.style.setProperty("--rf-font-size", `${v}px`),
-    lineHeight: v => docWrapperRef.current?.style.setProperty("--rf-line-height", String(v)),
-    columnWidth: v => docWrapperRef.current?.style.setProperty("--rf-column-width", `${v}%`),
-    letterSpacing: v => docWrapperRef.current?.style.setProperty("--rf-letter-spacing", `${v}px`),
-    wordSpacing: v => docWrapperRef.current?.style.setProperty("--rf-word-spacing", `${v}px`),
-    hueIntensity: v => docWrapperRef.current?.style.setProperty("--rf-hue-intensity", String(v)),
-    huePalette: k => {
-      const el = docWrapperRef.current;
-      if (!el) return;
-      const colors = PALETTES[k]?.colors;
-      if (!colors) return;
-      for (let i = 0; i < colors.length; i++) el.style.setProperty(`--rf-hue-${i}`, colors[i]);
-    },
-  }), []);
+  const liveWriters = useMemo(() => {
+    // rAF-coalesce: high-DPI pointer input fires `input` events faster than the
+    // browser can paint (commonly 100+/sec), so an uncoalesced setProperty per
+    // event blocks the main thread enough that the slider thumb itself lags
+    // behind the cursor. Wrapping each writer so setProperty runs at most once
+    // per frame with the latest pending value keeps the thumb glued to the
+    // cursor on big docs (Don Quixote, 146 ch / 427K words).
+    const coalesced = (apply) => {
+      let pending = null;
+      let rafId = 0;
+      return (v) => {
+        pending = v;
+        if (rafId) return;
+        rafId = requestAnimationFrame(() => {
+          rafId = 0;
+          apply(pending);
+        });
+      };
+    };
+    return {
+      fontSize: coalesced(v => docWrapperRef.current?.style.setProperty("--rf-font-size", `${v}px`)),
+      lineHeight: coalesced(v => docWrapperRef.current?.style.setProperty("--rf-line-height", String(v))),
+      columnWidth: coalesced(v => docWrapperRef.current?.style.setProperty("--rf-column-width", `${v}%`)),
+      letterSpacing: coalesced(v => docWrapperRef.current?.style.setProperty("--rf-letter-spacing", `${v}px`)),
+      wordSpacing: coalesced(v => docWrapperRef.current?.style.setProperty("--rf-word-spacing", `${v}px`)),
+      hueIntensity: coalesced(v => docWrapperRef.current?.style.setProperty("--rf-hue-intensity", String(v))),
+      // huePalette stays synchronous: it's click-driven (palette dropdown), not
+      // drag-driven, and the mount-time seed in handleDocWrapperRef must run
+      // before first paint to avoid a one-frame color flash on .rf-word.
+      huePalette: (k) => {
+        const el = docWrapperRef.current;
+        if (!el) return;
+        const colors = PALETTES[k]?.colors;
+        if (!colors) return;
+        for (let i = 0; i < colors.length; i++) el.style.setProperty(`--rf-hue-${i}`, colors[i]);
+      },
+    };
+  }, []);
 
   // huePalette is read from a ref inside handleDocWrapperRef so the ref callback
   // stays stable across palette changes (otherwise React would re-fire the ref
