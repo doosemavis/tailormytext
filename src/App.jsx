@@ -102,6 +102,30 @@ const DeleteAccountModal   = lazy(() => import("./components/DeleteAccountModal"
 const LibraryDrawer        = lazy(() => import("./components/LibraryDrawer"));
 const EditChaptersModal    = lazy(() => import("./components/EditChaptersModal"));
 
+// Imperative DOM walker for NeuroDiv bold-slice updates. Called from both
+// liveWriters.neuroDivIntensity (slider drag) and the IntersectionObserver
+// callback (off-screen section scrolls into view). DOM structure invariant
+// per renderWord in DocumentBody.jsx — <span class="rf-word" data-word="...">
+// <strong>{first}</strong>{rest}{" "}</span> — so the walk is a pair of
+// textContent writes per word.
+function applyIntensityToWords(scope, intensity) {
+  const words = scope.querySelectorAll(".rf-word");
+  for (let i = 0; i < words.length; i++) {
+    const wEl = words[i];
+    const word = wEl.dataset.word;
+    if (!word) continue;
+    const bl = Math.max(1, Math.round(word.length * intensity));
+    const strong = wEl.firstElementChild;
+    if (!strong || strong.tagName !== "STRONG") continue;
+    strong.textContent = word.slice(0, bl);
+    const rest = strong.nextSibling;
+    if (rest && rest.nodeType === Node.TEXT_NODE) {
+      rest.textContent = word.slice(bl);
+    }
+  }
+  return words.length;
+}
+
 export default function App() {
   // ── Document state ──
   const [text, setText] = useState("");
@@ -502,35 +526,36 @@ export default function App() {
       },
       // neuroDivIntensity is structurally per-word (the bold-letter count
       // varies by word length), so it can't ride a single CSS variable like
-      // hueIntensity. Previously a React state change here re-walked thousands
-      // of memo'd Paragraphs — 2.9-3.6s commit on Don Quixote. Instead we
-      // mutate the DOM directly: each `.rf-word` carries `data-word` with the
-      // original text, the imperative updater rewrites the <strong> slice and
-      // the trailing rest text node. React isn't involved on intensity change.
-      // content-visibility:auto on .rf-section bounds the resulting reflow to
-      // visible content, so the browser side stays cheap too.
+      // hueIntensity. Instead we mutate the DOM directly: each `.rf-word`
+      // carries `data-word` with the original text, and `applyIntensityToWords`
+      // rewrites the <strong> slice + trailing text node. React isn't involved.
+      //
+      // Z+: the walk is scoped to currently-visible .rf-section elements
+      // (tracked by IntersectionObserver below). Off-screen sections are
+      // marked "stale" and updated when they scroll into view via the IO
+      // callback — bounding per-tick work to ~5 sections × ~500 words ≈ 2500
+      // elements instead of the full 424K on Don Quixote.
       neuroDivIntensity: coalesced(v => {
         neuroDivIntensityRef.current = v;
-        const el = docWrapperRef.current;
-        if (!el) return;
+        const wrapper = docWrapperRef.current;
+        if (!wrapper) return;
         const t0 = import.meta.env.DEV ? performance.now() : 0;
-        const words = el.querySelectorAll(".rf-word");
-        for (let i = 0; i < words.length; i++) {
-          const wEl = words[i];
-          const word = wEl.dataset.word;
-          if (!word) continue;
-          const bl = Math.max(1, Math.round(word.length * v));
-          const strong = wEl.firstElementChild;
-          if (!strong || strong.tagName !== "STRONG") continue;
-          strong.textContent = word.slice(0, bl);
-          const rest = strong.nextSibling;
-          if (rest && rest.nodeType === Node.TEXT_NODE) {
-            rest.textContent = word.slice(bl);
+        let visibleWordCount = 0;
+        for (const section of visibleSectionsRef.current) {
+          visibleWordCount += applyIntensityToWords(section, v);
+        }
+        // Off-screen sections track "needs update" via the stale Set; the
+        // IntersectionObserver callback applies the current intensity when
+        // they re-enter the viewport.
+        const allSections = wrapper.querySelectorAll(".rf-section");
+        for (const section of allSections) {
+          if (!visibleSectionsRef.current.has(section)) {
+            sectionStaleRef.current.add(section);
           }
         }
         if (import.meta.env.DEV) {
           // eslint-disable-next-line no-console
-          console.log(`[perf] neuroDivIntensity DOM walk: ${(performance.now() - t0).toFixed(0)}ms over ${words.length} words`);
+          console.log(`[perf] neuroDivIntensity walk (visible): ${(performance.now() - t0).toFixed(0)}ms over ${visibleWordCount} words (${visibleSectionsRef.current.size} visible / ${allSections.length} total sections)`);
         }
       }),
     };
@@ -550,6 +575,13 @@ export default function App() {
   // reads the live value.
   const neuroDivIntensityRef = useRef(neuroDivIntensity);
   neuroDivIntensityRef.current = neuroDivIntensity;
+
+  // Z+: IntersectionObserver bounds liveWriters.neuroDivIntensity to visible
+  // sections. visibleSectionsRef holds the .rf-section elements currently in
+  // (or near) the viewport; sectionStaleRef tracks sections that missed an
+  // intensity change while off-screen and need updating when they scroll back.
+  const visibleSectionsRef = useRef(new Set());
+  const sectionStaleRef = useRef(new Set());
 
   // Callback ref: writes vars synchronously the moment DocumentBody's wrapper mounts.
   // Without this, calc(var(--rf-font-size) * 1.5) on titles and calc(var(--rf-line-height) * 1.5em)
@@ -659,6 +691,55 @@ export default function App() {
 
   // Reset the active-chapter pointer whenever the doc changes.
   useEffect(() => { setCurrentSectionIdx(0); }, [docSections]);
+
+  // Z+: IntersectionObserver bounds the NeuroDiv intensity DOM walk to
+  // visible sections. Without this the live writer walks all 424K .rf-word
+  // elements on Don Quixote each tick (~780ms); with it the walk is bounded
+  // to ~5 visible sections (~2-5K words, target <50ms).
+  //
+  // On enter: section joins the visible set; if it missed an intensity change
+  // while off-screen (in the stale set), apply current intensity now.
+  // On leave: section drops out of the visible set.
+  // rAF retry until .rf-section elements are present in the DOM (initial
+  // mount race — DocumentBody renders sections after this effect fires).
+  useEffect(() => {
+    if (!hasSections || !docSections?.length) return;
+    const wrapper = docWrapperRef.current;
+    const reader = readerRef.current;
+    if (!wrapper || !reader) return;
+
+    let observer = null;
+    let rafId = 0;
+    const setup = () => {
+      const sections = wrapper.querySelectorAll(".rf-section");
+      if (sections.length === 0) {
+        rafId = requestAnimationFrame(setup);
+        return;
+      }
+      observer = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            visibleSectionsRef.current.add(entry.target);
+            if (sectionStaleRef.current.has(entry.target)) {
+              applyIntensityToWords(entry.target, neuroDivIntensityRef.current);
+              sectionStaleRef.current.delete(entry.target);
+            }
+          } else {
+            visibleSectionsRef.current.delete(entry.target);
+          }
+        }
+      }, { root: reader, rootMargin: "300px 0px" });
+      sections.forEach(s => observer.observe(s));
+    };
+    setup();
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      observer?.disconnect();
+      visibleSectionsRef.current.clear();
+      sectionStaleRef.current.clear();
+    };
+  }, [hasSections, docSections]);
 
   // When the chapter dropdown opens, scroll the active chapter into view.
   // rAF defers to the next frame so Radix has time to portal + mount the
