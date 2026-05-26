@@ -458,6 +458,12 @@ export default function App() {
 
   // Per-slider live writers: write a single CSS var directly to the wrapper on every drag tick.
   // App state isn't touched during drag — we update it once on release via the slider's onChange.
+  // huePalette is in the same family: instead of plumbing palette colors as props through 146
+  // sections / thousands of paragraphs (each re-walked by React on every palette change), the
+  // palette's 5 colors are written to --rf-hue-0..4 on the doc wrapper. DocumentBody emits
+  // `color: var(--rf-hue-N)` per word at render time using a slot index derived from word
+  // position — that index is palette-independent, so the React tree never re-renders when the
+  // user picks a different palette.
   const liveWriters = useMemo(() => ({
     fontSize: v => docWrapperRef.current?.style.setProperty("--rf-font-size", `${v}px`),
     lineHeight: v => docWrapperRef.current?.style.setProperty("--rf-line-height", String(v)),
@@ -465,15 +471,37 @@ export default function App() {
     letterSpacing: v => docWrapperRef.current?.style.setProperty("--rf-letter-spacing", `${v}px`),
     wordSpacing: v => docWrapperRef.current?.style.setProperty("--rf-word-spacing", `${v}px`),
     hueIntensity: v => docWrapperRef.current?.style.setProperty("--rf-hue-intensity", String(v)),
+    huePalette: k => {
+      const el = docWrapperRef.current;
+      if (!el) return;
+      const colors = PALETTES[k]?.colors;
+      if (!colors) return;
+      for (let i = 0; i < colors.length; i++) el.style.setProperty(`--rf-hue-${i}`, colors[i]);
+    },
   }), []);
+
+  // huePalette is read from a ref inside handleDocWrapperRef so the ref callback
+  // stays stable across palette changes (otherwise React would re-fire the ref
+  // each time the user picks a palette).
+  const huePaletteRef = useRef(huePalette);
+  huePaletteRef.current = huePalette;
 
   // Callback ref: writes vars synchronously the moment DocumentBody's wrapper mounts.
   // Without this, calc(var(--rf-font-size) * 1.5) on titles and calc(var(--rf-line-height) * 1.5em)
   // on dividers evaluate to invalid (no value, no fallback in calc) → headings collapse to body size.
+  // Palette vars (--rf-hue-0..4) are seeded the same way so word color resolves on first paint.
   const handleDocWrapperRef = useCallback((el) => {
     docWrapperRef.current = el;
-    if (el) writeTypographyVars();
-  }, [writeTypographyVars]);
+    if (el) {
+      writeTypographyVars();
+      liveWriters.huePalette(huePaletteRef.current);
+    }
+  }, [writeTypographyVars, liveWriters]);
+
+  // Palette changes after mount: write the 5 vars on the wrapper. No React render of DocumentBody.
+  useLayoutEffect(() => {
+    liveWriters.huePalette(huePalette);
+  }, [huePalette, liveWriters]);
 
   // Slider-driven updates: rAF-coalesced direct DOM writes, no React reconciliation in document tree.
   useLayoutEffect(() => {
@@ -486,11 +514,13 @@ export default function App() {
     return () => { if (typographyRafRef.current) cancelAnimationFrame(typographyRafRef.current); };
   }, [fontSize, lineHeight, columnWidth, letterSpacing, wordSpacing, textAlign, currentFontCss, hueIntensity, writeTypographyVars]);
 
-  // ── Render settings: only props that genuinely change paragraph/section JSX (palette colors, bold split, theme). ──
+  // ── Render settings: only props that genuinely change paragraph/section JSX (bold split, theme). ──
   //     NeuroDiv/HueGuide/Focus are NOT here — they flip via featureClassRef and never trigger Section re-renders.
+  //     huePalette is NOT here either — it's pushed to CSS vars (--rf-hue-0..4) via liveWriters,
+  //     so palette changes don't invalidate this memo and don't re-render the document tree.
   const settings = useMemo(
-    () => ({ neuroDivIntensity, huePalette, fg: t.fg, fgSoft: t.fgSoft, border: t.border }),
-    [neuroDivIntensity, huePalette, t.fg, t.fgSoft, t.border],
+    () => ({ neuroDivIntensity, fg: t.fg, fgSoft: t.fgSoft, border: t.border }),
+    [neuroDivIntensity, t.fg, t.fgSoft, t.border],
   );
 
   // ── Handlers ──
