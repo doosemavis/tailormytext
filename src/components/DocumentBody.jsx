@@ -63,10 +63,15 @@ function lineToWords(line) {
 const renderWord = (word, wi, total, neuroDivIntensity, isBold = false, isItalic = false) => {
   const cIdx = total > 1 ? Math.floor((wi / (total - 1)) * (HUE_SLOT_COUNT - 1)) : 0;
   const bl = Math.max(1, Math.round(word.length * neuroDivIntensity));
+  // data-word stores the original word text so App.jsx's imperative
+  // liveWriters.neuroDivIntensity can rewrite the <strong> slice + trailing
+  // text node on intensity change without re-rendering React. The DOM
+  // structure is invariant — <strong>{first}</strong>{rest}{" "} — so the
+  // updater only mutates two text nodes per word.
   // Bold/italic apply on the wrapping span and inherit through the
   // NeuroDiv first-portion <strong> anchor inside.
   return (
-    <span key={wi} className="rf-word" style={{
+    <span key={wi} className="rf-word" data-word={word} style={{
       "--hue-color": `var(--rf-hue-${cIdx})`,
       fontWeight: isBold ? 700 : "inherit",
       fontStyle: isItalic ? "italic" : "inherit",
@@ -155,9 +160,14 @@ function groupListBlocks(lines) {
   return blocks;
 }
 
-const Paragraph = memo(function Paragraph({ para, idx, neuroDivIntensity, onMouseEnter }) {
+// neuroDivIntensity is read from `intensityRef.current` (stable ref identity)
+// instead of being passed as a prop. This keeps the memo'd Paragraph from
+// re-rendering on intensity slider changes — App.jsx pushes the new bold
+// slice to the DOM imperatively via liveWriters.neuroDivIntensity.
+const Paragraph = memo(function Paragraph({ para, idx, intensityRef, onMouseEnter }) {
   const lines = para.split("\n").filter(l => l.trim());
   const blocks = groupListBlocks(lines);
+  const neuroDivIntensity = intensityRef.current;
   return (
     <div className="rf-para" data-idx={idx} onMouseEnter={() => onMouseEnter(idx)} style={PARA_STYLE}>
       {blocks.map((block, bi) => {
@@ -203,7 +213,7 @@ const Paragraph = memo(function Paragraph({ para, idx, neuroDivIntensity, onMous
   );
 });
 
-const Section = memo(function Section({ section, si, settings, onParaMouseEnter, sectionRefs, titleRefs }) {
+const Section = memo(function Section({ section, si, settings, intensityRef, onParaMouseEnter, sectionRefs, titleRefs }) {
   const nodeRef = useRef(null);
   const titleNodeRef = useRef(null);
 
@@ -216,7 +226,7 @@ const Section = memo(function Section({ section, si, settings, onParaMouseEnter,
     };
   }, [si, sectionRefs, titleRefs]);
 
-  const { fg, fgSoft, border, neuroDivIntensity } = settings;
+  const { fg, fgSoft, border } = settings;
   const isPage = section.type === "page";
   const typeLabel = isPage ? `Page ${section.number}` : null;
   // Prefer the original document's measured ratio so a 2.25× h1 stays
@@ -284,7 +294,7 @@ const Section = memo(function Section({ section, si, settings, onParaMouseEnter,
           key={pi}
           para={p}
           idx={si * 10000 + pi}
-          neuroDivIntensity={neuroDivIntensity}
+          intensityRef={intensityRef}
           onMouseEnter={onParaMouseEnter}
         />
       ))}
@@ -292,8 +302,8 @@ const Section = memo(function Section({ section, si, settings, onParaMouseEnter,
   );
 });
 
-const DocumentBody = memo(function DocumentBody({ text, docSections, hasSections, wrapperRef, featureClassRef, settings, focusModeRef, setFocusPara, sectionRefs, titleRefs }) {
-  const { neuroDivIntensity, fg } = settings;
+const DocumentBody = memo(function DocumentBody({ text, docSections, hasSections, wrapperRef, featureClassRef, settings, intensityRef, focusModeRef, setFocusPara, sectionRefs, titleRefs }) {
+  const { fg } = settings;
 
   const onParaMouseEnter = useCallback((idx) => {
     if (focusModeRef.current) setFocusPara(idx);
@@ -325,6 +335,7 @@ const DocumentBody = memo(function DocumentBody({ text, docSections, hasSections
               section={section}
               si={si}
               settings={settings}
+              intensityRef={intensityRef}
               onParaMouseEnter={onParaMouseEnter}
               sectionRefs={sectionRefs}
               titleRefs={titleRefs}
@@ -336,7 +347,7 @@ const DocumentBody = memo(function DocumentBody({ text, docSections, hasSections
               key={i}
               para={p}
               idx={i}
-              neuroDivIntensity={neuroDivIntensity}
+              intensityRef={intensityRef}
               onMouseEnter={onParaMouseEnter}
             />
           ))

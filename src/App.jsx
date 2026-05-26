@@ -500,6 +500,39 @@ export default function App() {
         if (!colors) return;
         for (let i = 0; i < colors.length; i++) el.style.setProperty(`--rf-hue-${i}`, colors[i]);
       },
+      // neuroDivIntensity is structurally per-word (the bold-letter count
+      // varies by word length), so it can't ride a single CSS variable like
+      // hueIntensity. Previously a React state change here re-walked thousands
+      // of memo'd Paragraphs — 2.9-3.6s commit on Don Quixote. Instead we
+      // mutate the DOM directly: each `.rf-word` carries `data-word` with the
+      // original text, the imperative updater rewrites the <strong> slice and
+      // the trailing rest text node. React isn't involved on intensity change.
+      // content-visibility:auto on .rf-section bounds the resulting reflow to
+      // visible content, so the browser side stays cheap too.
+      neuroDivIntensity: coalesced(v => {
+        neuroDivIntensityRef.current = v;
+        const el = docWrapperRef.current;
+        if (!el) return;
+        const t0 = import.meta.env.DEV ? performance.now() : 0;
+        const words = el.querySelectorAll(".rf-word");
+        for (let i = 0; i < words.length; i++) {
+          const wEl = words[i];
+          const word = wEl.dataset.word;
+          if (!word) continue;
+          const bl = Math.max(1, Math.round(word.length * v));
+          const strong = wEl.firstElementChild;
+          if (!strong || strong.tagName !== "STRONG") continue;
+          strong.textContent = word.slice(0, bl);
+          const rest = strong.nextSibling;
+          if (rest && rest.nodeType === Node.TEXT_NODE) {
+            rest.textContent = word.slice(bl);
+          }
+        }
+        if (import.meta.env.DEV) {
+          // eslint-disable-next-line no-console
+          console.log(`[perf] neuroDivIntensity DOM walk: ${(performance.now() - t0).toFixed(0)}ms over ${words.length} words`);
+        }
+      }),
     };
   }, []);
 
@@ -508,6 +541,15 @@ export default function App() {
   // each time the user picks a palette).
   const huePaletteRef = useRef(huePalette);
   huePaletteRef.current = huePalette;
+
+  // neuroDivIntensity is read from a ref by Paragraph at render time, so
+  // intensity changes don't propagate via props (and so don't re-render any
+  // memo'd Paragraph). The DOM is updated imperatively via
+  // liveWriters.neuroDivIntensity instead. Keeping the ref in sync on every
+  // render means any Paragraph that DOES re-render (theme change, doc swap)
+  // reads the live value.
+  const neuroDivIntensityRef = useRef(neuroDivIntensity);
+  neuroDivIntensityRef.current = neuroDivIntensity;
 
   // Callback ref: writes vars synchronously the moment DocumentBody's wrapper mounts.
   // Without this, calc(var(--rf-font-size) * 1.5) on titles and calc(var(--rf-line-height) * 1.5em)
@@ -537,14 +579,38 @@ export default function App() {
     return () => { if (typographyRafRef.current) cancelAnimationFrame(typographyRafRef.current); };
   }, [fontSize, lineHeight, columnWidth, letterSpacing, wordSpacing, textAlign, currentFontCss, hueIntensity, writeTypographyVars]);
 
-  // ── Render settings: only props that genuinely change paragraph/section JSX (bold split, theme). ──
-  //     NeuroDiv/HueGuide/Focus are NOT here — they flip via featureClassRef and never trigger Section re-renders.
+  // ── Render settings: only props that genuinely change paragraph/section JSX (theme). ──
+  //     NeuroDiv/HueGuide/Focus toggles are NOT here — they flip via featureClassRef and never trigger Section re-renders.
   //     huePalette is NOT here either — it's pushed to CSS vars (--rf-hue-0..4) via liveWriters,
   //     so palette changes don't invalidate this memo and don't re-render the document tree.
+  //     neuroDivIntensity is NOT here either — Paragraph reads it from intensityRef.current
+  //     and slider commits are pushed to the DOM imperatively via liveWriters.neuroDivIntensity,
+  //     so changing the bold intensity is a per-word DOM mutation, never a React reconcile.
   const settings = useMemo(
-    () => ({ neuroDivIntensity, fg: t.fg, fgSoft: t.fgSoft, border: t.border }),
-    [neuroDivIntensity, t.fg, t.fgSoft, t.border],
+    () => ({ fg: t.fg, fgSoft: t.fgSoft, border: t.border }),
+    [t.fg, t.fgSoft, t.border],
   );
+
+  // TEMP-PERF: instrument slider commits + palette/guide-mode clicks on Don Quixote so we can
+  // see which phase (render+commit vs layout+paint) owns the seconds of perceived lag. Gated on
+  // import.meta.env.DEV → Vite dead-code-eliminates the whole block in production builds.
+  // Remove after slice-D scope is decided.
+  const __perfRef = useRef(null);
+  const __tracePerf = useCallback((name) => {
+    if (!import.meta.env.DEV) return;
+    __perfRef.current = { name, t0: performance.now() };
+  }, []);
+  useEffect(() => {
+    if (!import.meta.env.DEV || !__perfRef.current) return;
+    const t1 = performance.now();
+    const { name, t0 } = __perfRef.current;
+    __perfRef.current = null;
+    requestAnimationFrame(() => {
+      const t2 = performance.now();
+      // eslint-disable-next-line no-console
+      console.log(`[perf] ${name}: render+commit ${(t1 - t0).toFixed(0)}ms · +paint ${(t2 - t1).toFixed(0)}ms · total ${(t2 - t0).toFixed(0)}ms`);
+    });
+  }, [neuroDivIntensity, hueIntensity, huePalette, guideMode, guideColor]);
 
   // ── Handlers ──
   // Chapter jump — fast path for user clicks. Skips the settle pass + slow
@@ -1629,7 +1695,7 @@ export default function App() {
 
             <Section title="Enhancements" icon={Sparkles} t={t} open={false} active={neuroDiv || hueGuide || focusMode}>
               <Toggle on={neuroDiv} onChange={setNeuroDiv} label="NeuroDiv Anchoring" icon={Baseline} t={t} />
-              {neuroDiv && <Slider value={neuroDivIntensity} min={0.2} max={0.7} step={0.01} onChange={setNeuroDivIntensity} label="Bold intensity" format={FMT_PCT_FROM_FRAC} t={t} />}
+              {neuroDiv && <Slider value={neuroDivIntensity} min={0.2} max={0.7} step={0.01} onChange={v => { __tracePerf("neuroDivIntensity"); setNeuroDivIntensity(v); }} onLiveChange={liveWriters.neuroDivIntensity} label="Bold intensity" format={FMT_PCT_FROM_FRAC} t={t} />}
               <Toggle on={hueGuide} onChange={setHueGuide} label="HueGuide Tracking" icon={Palette} t={t} />
               {hueGuide && <div style={{ padding: "6px 12px", display: "flex", flexWrap: "wrap", gap: 6 }}>{Object.entries(PALETTES).map(([k, pal]) => {
                 const free = isPaletteFree(k);
@@ -1638,7 +1704,7 @@ export default function App() {
                 return (
                   <Tip key={k} label={tipLabel} t={t} side="top">
                     <button
-                      onClick={() => gateCosmetic(free, () => setHuePalette(k))}
+                      onClick={() => gateCosmetic(free, () => { __tracePerf("huePalette"); setHuePalette(k); })}
                       aria-label={tipLabel}
                       aria-pressed={huePalette === k}
                       style={{ position: "relative", width: 42, height: 26, borderRadius: 8, overflow: "hidden", display: "flex", padding: 0, cursor: "pointer", border: huePalette === k ? `2px solid ${t.accent}` : `1px solid ${t.border}`, boxShadow: huePalette === k ? `0 0 0 2px ${t.accentSoft}` : "none", transition: "all 0.15s", opacity: locked ? 0.55 : 1 }}
@@ -1649,13 +1715,13 @@ export default function App() {
                   </Tip>
                 );
               })}</div>}
-              {hueGuide && <Slider value={hueIntensity} min={0} max={1} step={0.01} onChange={setHueIntensity} onLiveChange={liveWriters.hueIntensity} label="Hue intensity" format={FMT_PCT_FROM_FRAC} t={t} />}
+              {hueGuide && <Slider value={hueIntensity} min={0} max={1} step={0.01} onChange={v => { __tracePerf("hueIntensity"); setHueIntensity(v); }} onLiveChange={liveWriters.hueIntensity} label="Hue intensity" format={FMT_PCT_FROM_FRAC} t={t} />}
               <Toggle on={focusMode} onChange={v => { setFocusMode(v); if (!v) setFocusPara(-1); }} label="Focus Mode" icon={Focus} t={t} />
             </Section>
 
             <Section title="Reading Guide" icon={MousePointer2} t={t} open={false} active={guideMode !== "none"}>
               <div style={{ padding: "4px 12px" }}>
-                <Segment options={[{ value: "none", label: "Off", icon: EyeOff }, { value: "highlight", label: "Highlight", icon: Highlighter }, { value: "underline", label: "Line", icon: UnderlineIcon }, { value: "dim", label: "Dim", icon: Eye }]} value={guideMode} onChange={setGuideMode} t={t} />
+                <Segment options={[{ value: "none", label: "Off", icon: EyeOff }, { value: "highlight", label: "Highlight", icon: Highlighter }, { value: "underline", label: "Line", icon: UnderlineIcon }, { value: "dim", label: "Dim", icon: Eye }]} value={guideMode} onChange={v => { __tracePerf("guideMode"); setGuideMode(v); }} t={t} />
               </div>
               {guideMode === "dim" && <Slider value={guideDimOpacity} min={0.05} max={0.7} step={0.01} onChange={setGuideDimOpacity} label="Dim opacity" format={FMT_PCT_FROM_FRAC} t={t} />}
               {(guideMode === "highlight" || guideMode === "underline") && (
@@ -1670,7 +1736,7 @@ export default function App() {
                       return (
                         <button
                           key={k}
-                          onClick={() => gateCosmetic(free, () => setGuideColor(k))}
+                          onClick={() => gateCosmetic(free, () => { __tracePerf("guideColor"); setGuideColor(k); })}
                           aria-label={`Guide color: ${gc.label}${locked ? " (Pro)" : ""}`}
                           aria-pressed={active}
                           title={`${gc.label}${locked ? " (Pro)" : ""}`}
@@ -1911,7 +1977,7 @@ export default function App() {
               <DocumentBody
                 text={text} docSections={displaySections} hasSections={hasSections}
                 wrapperRef={handleDocWrapperRef} featureClassRef={handleFeatureClassRef}
-                settings={settings} focusModeRef={focusModeRef}
+                settings={settings} intensityRef={neuroDivIntensityRef} focusModeRef={focusModeRef}
                 setFocusPara={setFocusPara} sectionRefs={sectionRefs} titleRefs={titleRefs}
               />
             ) : (
