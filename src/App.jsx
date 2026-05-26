@@ -63,10 +63,11 @@ const SUPPORTED_EXTS = new Set(FILE_ACCEPT.split(",").map(s => s.replace(/^\./, 
 // in two visual columns. Add new themes to the appropriate array — order within each is the row order.
 const LIGHT_THEME_KEYS = ["warm", "cool", "sepia", "forest", "crimson"];
 const DARK_THEME_KEYS = ["phosphor", "jungle", "dark", "midnight", "obsidian"];
-import { parsePDF, parseEPUB, parseDOCX, parseHTMLStructured, parseMarkdownStructured, detectTextStructure, parseInWorker, runThemeTransition, sniffDocumentType, applyChapterOverrides } from "./utils";
+import { parsePDF, parseEPUB, parseDOCX, parseHTMLStructured, parseMarkdownStructured, detectTextStructure, parseInWorker, runThemeTransition, sniffDocumentType } from "./utils";
 import { storageGet, storageSet, storageDel } from "./utils/storage";
 import { supabase } from "./utils/supabase";
 import { track, trackParseOutcome } from "./utils/track";
+import { useDocumentState } from "./hooks/useDocumentState";
 import { useSubscription } from "./hooks/useSubscription";
 import { useRecentDocs } from "./hooks/useRecentDocs";
 import { useLibrary } from "./hooks/useLibrary";
@@ -127,40 +128,26 @@ function applyIntensityToWords(scope, intensity) {
 }
 
 export default function App() {
-  // ── Document state ──
-  const [text, setText] = useState("");
-  const [docSections, setDocSections] = useState(null);
-  const [fileName, setFileName] = useState("");
-  // Stable doc id of the currently loaded doc — used to key per-doc
-  // reading position in localStorage so switching between docs and back
-  // resumes at the right place.
-  const [currentDocId, setCurrentDocId] = useState(null);
-  // "upload" | "library" | null. Distinguishes which storage layer drives
-  // the reading-position memory for the loaded doc: localStorage (uploads,
-  // per-device) vs library_reads (library, cross-device synced).
-  const [currentDocSource, setCurrentDocSource] = useState(null);
-  // Reader vs Landing visibility. Stays true after a doc is closed so the
-  // reader chrome (sidebar + empty-state prompt) keeps rendering instead of
-  // bouncing the user back to the landing page. Only the explicit
-  // "TailorMyText" back-button in the reader's top bar clears this.
-  const [readerOpen, setReaderOpen] = useState(false);
+  // ── Document state ── (extracted to useDocumentState — see src/hooks/useDocumentState.js)
+  //   Holds the loaded document's text/sections/identity, reader-vs-landing
+  //   visibility, loader fade timing, confidence + chapter overrides, and the
+  //   displaySections memo. C1 of the state-colocation refactor (docs/architecture/
+  //   STATE_COLOCATION_PLAN.md) — handlers + signout effect move in C2.
+  const {
+    text, docSections, displaySections, fileName,
+    currentDocId, currentDocSource, readerOpen,
+    loading, loadMsg, loaderShown, loaderOpaque,
+    confidence, chapterOverrides,
+    setText, setDocSections, setFileName,
+    setCurrentDocId, setCurrentDocSource, setReaderOpen,
+    setLoading, setLoadMsg,
+    setConfidence, setChapterOverrides,
+  } = useDocumentState();
+
+  // Landing drag-drop + sidebar collapse — stay in App; move out in Phases 5/6.
   const [dragging, setDragging] = useState(false);
   const [hoverUpload, setHoverUpload] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [loadMsg, setLoadMsg] = useState("");
   const [panelOpen, setPanelOpen] = useState(true);
-
-  // Loader overlay state. The raw `loading` boolean flips instantly; the overlay
-  // fades in/out around it so a fast parse doesn't flash and a finishing parse
-  // doesn't hard-cut to the reader before the reader has rendered underneath.
-  //   - `loaderShown` controls whether the overlay is mounted at all.
-  //   - `loaderOpaque` drives the CSS opacity transition (1 = covering, 0 = fading out).
-  //   - `loaderStartedAt` enforces a minimum visible duration so fast parses
-  //     don't flicker. Without this a ~80ms text-file parse would show the
-  //     loader for one frame and look like a glitch.
-  const [loaderShown, setLoaderShown] = useState(false);
-  const [loaderOpaque, setLoaderOpaque] = useState(false);
-  const loaderStartedAt = useRef(null);
 
   // ── Enhancement state ──
   const [neuroDiv, setNeuroDiv] = useState(false);
@@ -206,37 +193,6 @@ export default function App() {
 
   // Marketing funnel: record one landing_view per session on first mount.
   useEffect(() => { track("landing_view"); }, []);
-
-  // Loader fade-in/out transitions around `loading`. Timing budget:
-  //   FADE_MS         loader opacity transition (in and out)
-  //   MIN_VISIBLE_MS  shortest time the loader can be on screen, prevents
-  //                   sub-300ms parses from flashing
-  //   POST_LOAD_HOLD  delay after `loading` flips false before starting the
-  //                   fade-out — gives React one frame to commit the new
-  //                   reader tree underneath the still-opaque loader, so the
-  //                   fade reveals already-painted content instead of a
-  //                   half-rendered tree
-  // The handoff: loading=true → show + fade in → parse runs → loading=false →
-  // hold → fade out → unmount. Reader mounts during the hold/fade window.
-  useEffect(() => {
-    const FADE_MS = 300;
-    const MIN_VISIBLE_MS = 500;
-    const POST_LOAD_HOLD = 80;
-    if (loading) {
-      loaderStartedAt.current = performance.now();
-      setLoaderShown(true);
-      // Defer the opacity-1 flip to the next frame so the CSS transition
-      // observes a 0→1 change instead of mounting opaque.
-      const raf = requestAnimationFrame(() => setLoaderOpaque(true));
-      return () => cancelAnimationFrame(raf);
-    }
-    if (!loaderShown) return;
-    const elapsed = performance.now() - (loaderStartedAt.current || 0);
-    const holdFor = Math.max(POST_LOAD_HOLD, MIN_VISIBLE_MS - elapsed);
-    const fadeStartT = setTimeout(() => setLoaderOpaque(false), holdFor);
-    const unmountT = setTimeout(() => setLoaderShown(false), holdFor + FADE_MS);
-    return () => { clearTimeout(fadeStartT); clearTimeout(unmountT); };
-  }, [loading, loaderShown]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -337,16 +293,6 @@ export default function App() {
   const [showCheckout, setShowCheckout] = useState(false);
   const [checkoutBilling, setCheckoutBilling] = useState("monthly");
   const [showChapterNav, setShowChapterNav] = useState(false);
-  // Parser confidence score for the currently-loaded text document.
-  // Null for binary parsers (PDF, EPUB, DOCX) and library books.
-  // Reset to null whenever a new doc is loaded. D7 will use it for
-  // override-aware re-parse decisions; D5 surfaces it as the warning badge.
-  const [confidence, setConfidence] = useState(null);
-  // Persisted chapter break overrides for the currently-loaded upload doc.
-  // Set when cloudLoadDoc returns chapterOverrides; null for fresh uploads,
-  // library books, and when the user hasn't saved overrides yet.
-  // D7 will consume this to seed the re-parse after EditChaptersModal saves.
-  const [chapterOverrides, setChapterOverrides] = useState(null);
   // Controls EditChaptersModal visibility (D6).
   const [editChaptersOpen, setEditChaptersOpen] = useState(false);
   const [showLibraryDrawer, setShowLibraryDrawer] = useState(false);
@@ -369,13 +315,6 @@ export default function App() {
   const t = useMemo(() => ({ ...THEMES[theme], key: theme }), [theme]);
   const currentFont = useMemo(() => FONTS.find(f => f.name === fontFamily), [fontFamily]);
   const hasSections = docSections && docSections.length > 0 && (docSections.length > 1 || docSections[0]?.title);
-  // Override-aware sections for the renderer. docSections (raw parser output)
-  // stays untouched so EditChaptersModal paragraph indices remain stable.
-  const displaySections = useMemo(
-    () => (docSections && chapterOverrides ? applyChapterOverrides(docSections, chapterOverrides) : docSections),
-    [docSections, chapterOverrides],
-  );
-
   // Sync favicon + browser-chrome theme-color to the active theme. SVG is
   // regenerated as a data URI on each theme change; the `<link rel="icon">`
   // and `<meta name="theme-color">` in index.html are mutated in place.
@@ -878,7 +817,16 @@ export default function App() {
     const container = readerRef.current;
     if (!container) return;
     let saveTimer = null;
-    const savePosition = () => {
+    // lastComputed captures the most recent scroll position WHILE this doc's
+    // DOM was current. The cleanup persists it instead of re-reading
+    // sectionRefs.current — by the time cleanup runs after a doc switch, the
+    // DOM has already been updated to show the NEW doc's sections (the
+    // sectionRefs are mutable and React's commit phase has already overwritten
+    // them), so a fresh DOM read inside cleanup would save the WRONG doc's
+    // positions under THIS doc's id. Capturing on every scroll event keeps the
+    // computation in the window where sectionRefs and docSections agree.
+    let lastComputed = null;
+    const computePosition = () => {
       const cr = container.getBoundingClientRect();
       let sectionIdx = 0;
       let scrollOffset = 0;
@@ -891,7 +839,9 @@ export default function App() {
           scrollOffset = -top;
         } else break;
       }
-      const position = { sectionIdx, scrollOffset: Math.round(scrollOffset), savedAt: Date.now() };
+      return { sectionIdx, scrollOffset: Math.round(scrollOffset), savedAt: Date.now() };
+    };
+    const persistPosition = (position) => {
       if (currentDocSource === "library" && user?.id) {
         cloudSaveLibraryPosition(user.id, currentDocId, position).catch(err => {
           console.warn("[position] library save failed:", err.message);
@@ -901,13 +851,20 @@ export default function App() {
       }
     };
     const onScroll = () => {
+      lastComputed = computePosition();
       if (saveTimer) clearTimeout(saveTimer);
-      saveTimer = setTimeout(savePosition, 600);
+      saveTimer = setTimeout(() => persistPosition(lastComputed), 600);
     };
     container.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       container.removeEventListener("scroll", onScroll);
-      if (saveTimer) { clearTimeout(saveTimer); savePosition(); }
+      if (saveTimer) {
+        clearTimeout(saveTimer);
+        // Flush the LAST-captured position (from when this doc was active).
+        // Do NOT re-read sectionRefs/DOM here — they may already reflect the
+        // doc the user just switched to.
+        if (lastComputed) persistPosition(lastComputed);
+      }
     };
   }, [docSections, hasSections, currentDocId, currentDocSource, user]);
 
