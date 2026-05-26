@@ -102,6 +102,30 @@ const DeleteAccountModal   = lazy(() => import("./components/DeleteAccountModal"
 const LibraryDrawer        = lazy(() => import("./components/LibraryDrawer"));
 const EditChaptersModal    = lazy(() => import("./components/EditChaptersModal"));
 
+// Imperative DOM walker for NeuroDiv bold-slice updates. Called from both
+// liveWriters.neuroDivIntensity (slider drag) and the IntersectionObserver
+// callback (off-screen section scrolls into view). DOM structure invariant
+// per renderWord in DocumentBody.jsx — <span class="rf-word" data-word="...">
+// <strong>{first}</strong>{rest}{" "}</span> — so the walk is a pair of
+// textContent writes per word.
+function applyIntensityToWords(scope, intensity) {
+  const words = scope.querySelectorAll(".rf-word");
+  for (let i = 0; i < words.length; i++) {
+    const wEl = words[i];
+    const word = wEl.dataset.word;
+    if (!word) continue;
+    const bl = Math.max(1, Math.round(word.length * intensity));
+    const strong = wEl.firstElementChild;
+    if (!strong || strong.tagName !== "STRONG") continue;
+    strong.textContent = word.slice(0, bl);
+    const rest = strong.nextSibling;
+    if (rest && rest.nodeType === Node.TEXT_NODE) {
+      rest.textContent = word.slice(bl);
+    }
+  }
+  return words.length;
+}
+
 export default function App() {
   // ── Document state ──
   const [text, setText] = useState("");
@@ -458,22 +482,123 @@ export default function App() {
 
   // Per-slider live writers: write a single CSS var directly to the wrapper on every drag tick.
   // App state isn't touched during drag — we update it once on release via the slider's onChange.
-  const liveWriters = useMemo(() => ({
-    fontSize: v => docWrapperRef.current?.style.setProperty("--rf-font-size", `${v}px`),
-    lineHeight: v => docWrapperRef.current?.style.setProperty("--rf-line-height", String(v)),
-    columnWidth: v => docWrapperRef.current?.style.setProperty("--rf-column-width", `${v}%`),
-    letterSpacing: v => docWrapperRef.current?.style.setProperty("--rf-letter-spacing", `${v}px`),
-    wordSpacing: v => docWrapperRef.current?.style.setProperty("--rf-word-spacing", `${v}px`),
-    hueIntensity: v => docWrapperRef.current?.style.setProperty("--rf-hue-intensity", String(v)),
-  }), []);
+  // huePalette is in the same family: instead of plumbing palette colors as props through 146
+  // sections / thousands of paragraphs (each re-walked by React on every palette change), the
+  // palette's 5 colors are written to --rf-hue-0..4 on the doc wrapper. DocumentBody emits
+  // `color: var(--rf-hue-N)` per word at render time using a slot index derived from word
+  // position — that index is palette-independent, so the React tree never re-renders when the
+  // user picks a different palette.
+  const liveWriters = useMemo(() => {
+    // rAF-coalesce: high-DPI pointer input fires `input` events faster than the
+    // browser can paint (commonly 100+/sec), so an uncoalesced setProperty per
+    // event blocks the main thread enough that the slider thumb itself lags
+    // behind the cursor. Wrapping each writer so setProperty runs at most once
+    // per frame with the latest pending value keeps the thumb glued to the
+    // cursor on big docs (Don Quixote, 146 ch / 427K words).
+    const coalesced = (apply) => {
+      let pending = null;
+      let rafId = 0;
+      return (v) => {
+        pending = v;
+        if (rafId) return;
+        rafId = requestAnimationFrame(() => {
+          rafId = 0;
+          apply(pending);
+        });
+      };
+    };
+    return {
+      fontSize: coalesced(v => docWrapperRef.current?.style.setProperty("--rf-font-size", `${v}px`)),
+      lineHeight: coalesced(v => docWrapperRef.current?.style.setProperty("--rf-line-height", String(v))),
+      columnWidth: coalesced(v => docWrapperRef.current?.style.setProperty("--rf-column-width", `${v}%`)),
+      letterSpacing: coalesced(v => docWrapperRef.current?.style.setProperty("--rf-letter-spacing", `${v}px`)),
+      wordSpacing: coalesced(v => docWrapperRef.current?.style.setProperty("--rf-word-spacing", `${v}px`)),
+      hueIntensity: coalesced(v => docWrapperRef.current?.style.setProperty("--rf-hue-intensity", String(v))),
+      // huePalette stays synchronous: it's click-driven (palette dropdown), not
+      // drag-driven, and the mount-time seed in handleDocWrapperRef must run
+      // before first paint to avoid a one-frame color flash on .rf-word.
+      huePalette: (k) => {
+        const el = docWrapperRef.current;
+        if (!el) return;
+        const colors = PALETTES[k]?.colors;
+        if (!colors) return;
+        for (let i = 0; i < colors.length; i++) el.style.setProperty(`--rf-hue-${i}`, colors[i]);
+      },
+      // neuroDivIntensity is structurally per-word (the bold-letter count
+      // varies by word length), so it can't ride a single CSS variable like
+      // hueIntensity. Instead we mutate the DOM directly: each `.rf-word`
+      // carries `data-word` with the original text, and `applyIntensityToWords`
+      // rewrites the <strong> slice + trailing text node. React isn't involved.
+      //
+      // Z+: the walk is scoped to currently-visible .rf-section elements
+      // (tracked by IntersectionObserver below). Off-screen sections are
+      // marked "stale" and updated when they scroll into view via the IO
+      // callback — bounding per-tick work to ~5 sections × ~500 words ≈ 2500
+      // elements instead of the full 424K on Don Quixote.
+      neuroDivIntensity: coalesced(v => {
+        neuroDivIntensityRef.current = v;
+        const wrapper = docWrapperRef.current;
+        if (!wrapper) return;
+        const t0 = import.meta.env.DEV ? performance.now() : 0;
+        let visibleWordCount = 0;
+        for (const section of visibleSectionsRef.current) {
+          visibleWordCount += applyIntensityToWords(section, v);
+        }
+        // Off-screen sections track "needs update" via the stale Set; the
+        // IntersectionObserver callback applies the current intensity when
+        // they re-enter the viewport.
+        const allSections = wrapper.querySelectorAll(".rf-section");
+        for (const section of allSections) {
+          if (!visibleSectionsRef.current.has(section)) {
+            sectionStaleRef.current.add(section);
+          }
+        }
+        if (import.meta.env.DEV) {
+          // eslint-disable-next-line no-console
+          console.log(`[perf] neuroDivIntensity walk (visible): ${(performance.now() - t0).toFixed(0)}ms over ${visibleWordCount} words (${visibleSectionsRef.current.size} visible / ${allSections.length} total sections)`);
+        }
+      }),
+    };
+  }, []);
+
+  // huePalette is read from a ref inside handleDocWrapperRef so the ref callback
+  // stays stable across palette changes (otherwise React would re-fire the ref
+  // each time the user picks a palette).
+  const huePaletteRef = useRef(huePalette);
+  huePaletteRef.current = huePalette;
+
+  // neuroDivIntensity is read from a ref by Paragraph at render time, so
+  // intensity changes don't propagate via props (and so don't re-render any
+  // memo'd Paragraph). The DOM is updated imperatively via
+  // liveWriters.neuroDivIntensity instead. Keeping the ref in sync on every
+  // render means any Paragraph that DOES re-render (theme change, doc swap)
+  // reads the live value.
+  const neuroDivIntensityRef = useRef(neuroDivIntensity);
+  neuroDivIntensityRef.current = neuroDivIntensity;
+
+  // Z+: IntersectionObserver bounds liveWriters.neuroDivIntensity to visible
+  // sections. visibleSectionsRef holds the .rf-section elements currently in
+  // (or near) the viewport; sectionStaleRef tracks sections that missed an
+  // intensity change while off-screen and need updating when they scroll back.
+  const visibleSectionsRef = useRef(new Set());
+  const sectionStaleRef = useRef(new Set());
 
   // Callback ref: writes vars synchronously the moment DocumentBody's wrapper mounts.
   // Without this, calc(var(--rf-font-size) * 1.5) on titles and calc(var(--rf-line-height) * 1.5em)
   // on dividers evaluate to invalid (no value, no fallback in calc) → headings collapse to body size.
+  // Palette vars (--rf-hue-0..4) are seeded the same way so word color resolves on first paint.
   const handleDocWrapperRef = useCallback((el) => {
     docWrapperRef.current = el;
-    if (el) writeTypographyVars();
-  }, [writeTypographyVars]);
+    if (el) {
+      writeTypographyVars();
+      liveWriters.huePalette(huePaletteRef.current);
+    }
+  }, [writeTypographyVars, liveWriters]);
+
+  // Palette changes after mount: write the 5 vars on the wrapper. No React render of DocumentBody.
+  useLayoutEffect(() => {
+    liveWriters.huePalette(huePalette);
+  }, [huePalette, liveWriters]);
 
   // Slider-driven updates: rAF-coalesced direct DOM writes, no React reconciliation in document tree.
   useLayoutEffect(() => {
@@ -486,11 +611,16 @@ export default function App() {
     return () => { if (typographyRafRef.current) cancelAnimationFrame(typographyRafRef.current); };
   }, [fontSize, lineHeight, columnWidth, letterSpacing, wordSpacing, textAlign, currentFontCss, hueIntensity, writeTypographyVars]);
 
-  // ── Render settings: only props that genuinely change paragraph/section JSX (palette colors, bold split, theme). ──
-  //     NeuroDiv/HueGuide/Focus are NOT here — they flip via featureClassRef and never trigger Section re-renders.
+  // ── Render settings: only props that genuinely change paragraph/section JSX (theme). ──
+  //     NeuroDiv/HueGuide/Focus toggles are NOT here — they flip via featureClassRef and never trigger Section re-renders.
+  //     huePalette is NOT here either — it's pushed to CSS vars (--rf-hue-0..4) via liveWriters,
+  //     so palette changes don't invalidate this memo and don't re-render the document tree.
+  //     neuroDivIntensity is NOT here either — Paragraph reads it from intensityRef.current
+  //     and slider commits are pushed to the DOM imperatively via liveWriters.neuroDivIntensity,
+  //     so changing the bold intensity is a per-word DOM mutation, never a React reconcile.
   const settings = useMemo(
-    () => ({ neuroDivIntensity, huePalette, fg: t.fg, fgSoft: t.fgSoft, border: t.border }),
-    [neuroDivIntensity, huePalette, t.fg, t.fgSoft, t.border],
+    () => ({ fg: t.fg, fgSoft: t.fgSoft, border: t.border }),
+    [t.fg, t.fgSoft, t.border],
   );
 
   // ── Handlers ──
@@ -540,6 +670,55 @@ export default function App() {
 
   // Reset the active-chapter pointer whenever the doc changes.
   useEffect(() => { setCurrentSectionIdx(0); }, [docSections]);
+
+  // Z+: IntersectionObserver bounds the NeuroDiv intensity DOM walk to
+  // visible sections. Without this the live writer walks all 424K .rf-word
+  // elements on Don Quixote each tick (~780ms); with it the walk is bounded
+  // to ~5 visible sections (~2-5K words, target <50ms).
+  //
+  // On enter: section joins the visible set; if it missed an intensity change
+  // while off-screen (in the stale set), apply current intensity now.
+  // On leave: section drops out of the visible set.
+  // rAF retry until .rf-section elements are present in the DOM (initial
+  // mount race — DocumentBody renders sections after this effect fires).
+  useEffect(() => {
+    if (!hasSections || !docSections?.length) return;
+    const wrapper = docWrapperRef.current;
+    const reader = readerRef.current;
+    if (!wrapper || !reader) return;
+
+    let observer = null;
+    let rafId = 0;
+    const setup = () => {
+      const sections = wrapper.querySelectorAll(".rf-section");
+      if (sections.length === 0) {
+        rafId = requestAnimationFrame(setup);
+        return;
+      }
+      observer = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            visibleSectionsRef.current.add(entry.target);
+            if (sectionStaleRef.current.has(entry.target)) {
+              applyIntensityToWords(entry.target, neuroDivIntensityRef.current);
+              sectionStaleRef.current.delete(entry.target);
+            }
+          } else {
+            visibleSectionsRef.current.delete(entry.target);
+          }
+        }
+      }, { root: reader, rootMargin: "300px 0px" });
+      sections.forEach(s => observer.observe(s));
+    };
+    setup();
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      observer?.disconnect();
+      visibleSectionsRef.current.clear();
+      sectionStaleRef.current.clear();
+    };
+  }, [hasSections, docSections]);
 
   // When the chapter dropdown opens, scroll the active chapter into view.
   // rAF defers to the next frame so Radix has time to portal + mount the
@@ -1576,7 +1755,7 @@ export default function App() {
 
             <Section title="Enhancements" icon={Sparkles} t={t} open={false} active={neuroDiv || hueGuide || focusMode}>
               <Toggle on={neuroDiv} onChange={setNeuroDiv} label="NeuroDiv Anchoring" icon={Baseline} t={t} />
-              {neuroDiv && <Slider value={neuroDivIntensity} min={0.2} max={0.7} step={0.01} onChange={setNeuroDivIntensity} label="Bold intensity" format={FMT_PCT_FROM_FRAC} t={t} />}
+              {neuroDiv && <Slider value={neuroDivIntensity} min={0.2} max={0.7} step={0.01} onChange={setNeuroDivIntensity} onLiveChange={liveWriters.neuroDivIntensity} label="Bold intensity" format={FMT_PCT_FROM_FRAC} t={t} />}
               <Toggle on={hueGuide} onChange={setHueGuide} label="HueGuide Tracking" icon={Palette} t={t} />
               {hueGuide && <div style={{ padding: "6px 12px", display: "flex", flexWrap: "wrap", gap: 6 }}>{Object.entries(PALETTES).map(([k, pal]) => {
                 const free = isPaletteFree(k);
@@ -1858,7 +2037,7 @@ export default function App() {
               <DocumentBody
                 text={text} docSections={displaySections} hasSections={hasSections}
                 wrapperRef={handleDocWrapperRef} featureClassRef={handleFeatureClassRef}
-                settings={settings} focusModeRef={focusModeRef}
+                settings={settings} intensityRef={neuroDivIntensityRef} focusModeRef={focusModeRef}
                 setFocusPara={setFocusPara} sectionRefs={sectionRefs} titleRefs={titleRefs}
               />
             ) : (
