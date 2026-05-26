@@ -623,27 +623,6 @@ export default function App() {
     [t.fg, t.fgSoft, t.border],
   );
 
-  // TEMP-PERF: instrument slider commits + palette/guide-mode clicks on Don Quixote so we can
-  // see which phase (render+commit vs layout+paint) owns the seconds of perceived lag. Gated on
-  // import.meta.env.DEV → Vite dead-code-eliminates the whole block in production builds.
-  // Remove after slice-D scope is decided.
-  const __perfRef = useRef(null);
-  const __tracePerf = useCallback((name) => {
-    if (!import.meta.env.DEV) return;
-    __perfRef.current = { name, t0: performance.now() };
-  }, []);
-  useEffect(() => {
-    if (!import.meta.env.DEV || !__perfRef.current) return;
-    const t1 = performance.now();
-    const { name, t0 } = __perfRef.current;
-    __perfRef.current = null;
-    requestAnimationFrame(() => {
-      const t2 = performance.now();
-      // eslint-disable-next-line no-console
-      console.log(`[perf] ${name}: render+commit ${(t1 - t0).toFixed(0)}ms · +paint ${(t2 - t1).toFixed(0)}ms · total ${(t2 - t0).toFixed(0)}ms`);
-    });
-  }, [neuroDivIntensity, hueIntensity, huePalette, guideMode, guideColor]);
-
   // ── Handlers ──
   // Chapter jump — fast path for user clicks. Skips the settle pass + slow
   // body fade-in that the restore-on-load path uses; layout is already
@@ -1776,7 +1755,7 @@ export default function App() {
 
             <Section title="Enhancements" icon={Sparkles} t={t} open={false} active={neuroDiv || hueGuide || focusMode}>
               <Toggle on={neuroDiv} onChange={setNeuroDiv} label="NeuroDiv Anchoring" icon={Baseline} t={t} />
-              {neuroDiv && <Slider value={neuroDivIntensity} min={0.2} max={0.7} step={0.01} onChange={v => { __tracePerf("neuroDivIntensity"); setNeuroDivIntensity(v); }} onLiveChange={liveWriters.neuroDivIntensity} label="Bold intensity" format={FMT_PCT_FROM_FRAC} t={t} />}
+              {neuroDiv && <Slider value={neuroDivIntensity} min={0.2} max={0.7} step={0.01} onChange={setNeuroDivIntensity} onLiveChange={liveWriters.neuroDivIntensity} label="Bold intensity" format={FMT_PCT_FROM_FRAC} t={t} />}
               <Toggle on={hueGuide} onChange={setHueGuide} label="HueGuide Tracking" icon={Palette} t={t} />
               {hueGuide && <div style={{ padding: "6px 12px", display: "flex", flexWrap: "wrap", gap: 6 }}>{Object.entries(PALETTES).map(([k, pal]) => {
                 const free = isPaletteFree(k);
@@ -1785,7 +1764,7 @@ export default function App() {
                 return (
                   <Tip key={k} label={tipLabel} t={t} side="top">
                     <button
-                      onClick={() => gateCosmetic(free, () => { __tracePerf("huePalette"); setHuePalette(k); })}
+                      onClick={() => gateCosmetic(free, () => setHuePalette(k))}
                       aria-label={tipLabel}
                       aria-pressed={huePalette === k}
                       style={{ position: "relative", width: 42, height: 26, borderRadius: 8, overflow: "hidden", display: "flex", padding: 0, cursor: "pointer", border: huePalette === k ? `2px solid ${t.accent}` : `1px solid ${t.border}`, boxShadow: huePalette === k ? `0 0 0 2px ${t.accentSoft}` : "none", transition: "all 0.15s", opacity: locked ? 0.55 : 1 }}
@@ -1796,13 +1775,13 @@ export default function App() {
                   </Tip>
                 );
               })}</div>}
-              {hueGuide && <Slider value={hueIntensity} min={0} max={1} step={0.01} onChange={v => { __tracePerf("hueIntensity"); setHueIntensity(v); }} onLiveChange={liveWriters.hueIntensity} label="Hue intensity" format={FMT_PCT_FROM_FRAC} t={t} />}
+              {hueGuide && <Slider value={hueIntensity} min={0} max={1} step={0.01} onChange={setHueIntensity} onLiveChange={liveWriters.hueIntensity} label="Hue intensity" format={FMT_PCT_FROM_FRAC} t={t} />}
               <Toggle on={focusMode} onChange={v => { setFocusMode(v); if (!v) setFocusPara(-1); }} label="Focus Mode" icon={Focus} t={t} />
             </Section>
 
             <Section title="Reading Guide" icon={MousePointer2} t={t} open={false} active={guideMode !== "none"}>
               <div style={{ padding: "4px 12px" }}>
-                <Segment options={[{ value: "none", label: "Off", icon: EyeOff }, { value: "highlight", label: "Highlight", icon: Highlighter }, { value: "underline", label: "Line", icon: UnderlineIcon }, { value: "dim", label: "Dim", icon: Eye }]} value={guideMode} onChange={v => { __tracePerf("guideMode"); setGuideMode(v); }} t={t} />
+                <Segment options={[{ value: "none", label: "Off", icon: EyeOff }, { value: "highlight", label: "Highlight", icon: Highlighter }, { value: "underline", label: "Line", icon: UnderlineIcon }, { value: "dim", label: "Dim", icon: Eye }]} value={guideMode} onChange={setGuideMode} t={t} />
               </div>
               {guideMode === "dim" && <Slider value={guideDimOpacity} min={0.05} max={0.7} step={0.01} onChange={setGuideDimOpacity} label="Dim opacity" format={FMT_PCT_FROM_FRAC} t={t} />}
               {(guideMode === "highlight" || guideMode === "underline") && (
@@ -1817,7 +1796,7 @@ export default function App() {
                       return (
                         <button
                           key={k}
-                          onClick={() => gateCosmetic(free, () => { __tracePerf("guideColor"); setGuideColor(k); })}
+                          onClick={() => gateCosmetic(free, () => setGuideColor(k))}
                           aria-label={`Guide color: ${gc.label}${locked ? " (Pro)" : ""}`}
                           aria-pressed={active}
                           title={`${gc.label}${locked ? " (Pro)" : ""}`}
