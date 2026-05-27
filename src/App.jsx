@@ -65,6 +65,11 @@ const DeleteAccountModal   = lazy(() => import("./components/DeleteAccountModal"
 const LibraryDrawer        = lazy(() => import("./components/LibraryDrawer"));
 const EditChaptersModal    = lazy(() => import("./components/EditChaptersModal"));
 
+// Stable style ref for the parse-loader BookLoader so memo doesn't break
+// every time loadMsg changes — otherwise the Lottie animation restarts each
+// time the "Reading file… → Unpacking EPUB…" status text flips.
+const BOOK_LOADER_STYLE = { marginBottom: 20 };
+
 // Imperative DOM walker for NeuroDiv bold-slice updates. Called from both
 // liveWriters.neuroDivIntensity (slider drag) and the IntersectionObserver
 // callback (off-screen section scrolls into view). DOM structure invariant
@@ -989,7 +994,7 @@ export default function App() {
         pointerEvents: loaderOpaque ? "auto" : "none",
       }}
     >
-      <BookLoader size={220} t={t} style={{ marginBottom: 20 }} />
+      <BookLoader size={220} t={t} style={BOOK_LOADER_STYLE} />
       <p style={{ fontSize: 16, fontWeight: 620, color: t.fg, marginBottom: 4 }}>{loadMsg}</p>
       <p style={{ fontSize: 13, color: t.fgSoft }}>This may take a moment for large files</p>
     </div>
