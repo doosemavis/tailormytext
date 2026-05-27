@@ -13,37 +13,6 @@ import { isThemeFree, isPaletteFree, isGuideColorFree } from "./config/proFeatur
 import { getRevealColors } from "./config/themeColors";
 import { marketingThemeVars } from "./utils/marketingTheme";
 
-// Maps raw parser exceptions to user-friendly messages. Internal pdf.js /
-// EPub.js / mammoth error strings ("InvalidPDFException", "Cannot read
-// properties of undefined") are leaky and useless to a reader who just
-// wants to know "is the file broken or did I do something wrong."
-function mapParserErrorToMessage(ext, err) {
-  const raw = String(err?.message ?? err ?? "").toLowerCase();
-  // Already-friendly messages from our own throws — pass through.
-  if (raw.includes("readable text") || raw.includes("doesn't support") || raw.includes("file too large")) {
-    return err.message;
-  }
-  if (ext === "pdf") {
-    if (raw.includes("password") || raw.includes("encrypt")) {
-      return "This PDF is password-protected. TailorMyText can't open encrypted PDFs.";
-    }
-    if (raw.includes("invalid") || raw.includes("corrupt") || raw.includes("malformed")) {
-      return "This PDF appears corrupted. Try re-downloading it from the source.";
-    }
-    return "Couldn't read this PDF — it may be malformed or encrypted.";
-  }
-  if (ext === "epub") {
-    return "Couldn't read this EPUB — it may be DRM-protected or malformed.";
-  }
-  if (ext === "docx") {
-    return "Couldn't read this DOCX — try re-saving from Word as a fresh .docx file.";
-  }
-  if (ext === "html" || ext === "htm") {
-    return "Couldn't parse this HTML file. It may use unsupported encoding.";
-  }
-  return "Couldn't read this file. It may be corrupted or use an unsupported format.";
-}
-
 // Stable Slider format helpers (module-level so memo on Slider isn't busted each App render).
 const FMT_PX = v => `${v}px`;
 const FMT_LH = v => v.toFixed(2);
@@ -51,26 +20,20 @@ const FMT_FIXED1_PX = v => `${v.toFixed(1)}px`;
 const FMT_PCT = v => `${v}%`;
 const FMT_PCT_FROM_FRAC = v => `${Math.round(v * 100)}%`;
 
-// File-picker `accept` attribute (HTML hint) and the strict allowlist
-// doUpload validates against. Picker hint and runtime check stay in sync
-// because both derive from the same source. The `accept` attribute alone
-// can't be relied on — drag-and-drop and "show all files" both bypass it.
-const FILE_ACCEPT = ".pdf,.epub,.txt,.md,.docx,.json";
-const SUPPORTED_EXTS = new Set(FILE_ACCEPT.split(",").map(s => s.replace(/^\./, "")));
-
 // Theme picker layout: left column = light themes, right column = dark themes (5 + 5).
 // Render order is light-first-then-dark; grid-auto-flow: column with 5 rows places them
 // in two visual columns. Add new themes to the appropriate array — order within each is the row order.
 const LIGHT_THEME_KEYS = ["warm", "cool", "sepia", "forest", "crimson"];
 const DARK_THEME_KEYS = ["phosphor", "jungle", "dark", "midnight", "obsidian"];
-import { parsePDF, parseEPUB, parseDOCX, parseHTMLStructured, parseMarkdownStructured, detectTextStructure, parseInWorker, runThemeTransition, sniffDocumentType, applyChapterOverrides } from "./utils";
+import { detectTextStructure, runThemeTransition } from "./utils";
 import { storageGet, storageSet, storageDel } from "./utils/storage";
 import { supabase } from "./utils/supabase";
-import { track, trackParseOutcome } from "./utils/track";
+import { track } from "./utils/track";
+import { useDocumentState, FILE_ACCEPT } from "./hooks/useDocumentState";
 import { useSubscription } from "./hooks/useSubscription";
 import { useRecentDocs } from "./hooks/useRecentDocs";
 import { useLibrary } from "./hooks/useLibrary";
-import { cloudOpenLibraryBook, cloudSaveLibraryPosition, cloudLoadLibraryPosition } from "./utils/cloudDocs";
+import { cloudSaveLibraryPosition, cloudLoadLibraryPosition } from "./utils/cloudDocs";
 import { useAvatar } from "./hooks/useAvatar";
 import { useThemePreference } from "./hooks/useThemePreference";
 import { useAuth } from "./contexts/AuthContext";
@@ -102,6 +65,11 @@ const DeleteAccountModal   = lazy(() => import("./components/DeleteAccountModal"
 const LibraryDrawer        = lazy(() => import("./components/LibraryDrawer"));
 const EditChaptersModal    = lazy(() => import("./components/EditChaptersModal"));
 
+// Stable style ref for the parse-loader BookLoader so memo doesn't break
+// every time loadMsg changes — otherwise the Lottie animation restarts each
+// time the "Reading file… → Unpacking EPUB…" status text flips.
+const BOOK_LOADER_STYLE = { marginBottom: 20 };
+
 // Imperative DOM walker for NeuroDiv bold-slice updates. Called from both
 // liveWriters.neuroDivIntensity (slider drag) and the IntersectionObserver
 // callback (off-screen section scrolls into view). DOM structure invariant
@@ -127,40 +95,15 @@ function applyIntensityToWords(scope, intensity) {
 }
 
 export default function App() {
-  // ── Document state ──
-  const [text, setText] = useState("");
-  const [docSections, setDocSections] = useState(null);
-  const [fileName, setFileName] = useState("");
-  // Stable doc id of the currently loaded doc — used to key per-doc
-  // reading position in localStorage so switching between docs and back
-  // resumes at the right place.
-  const [currentDocId, setCurrentDocId] = useState(null);
-  // "upload" | "library" | null. Distinguishes which storage layer drives
-  // the reading-position memory for the loaded doc: localStorage (uploads,
-  // per-device) vs library_reads (library, cross-device synced).
-  const [currentDocSource, setCurrentDocSource] = useState(null);
-  // Reader vs Landing visibility. Stays true after a doc is closed so the
-  // reader chrome (sidebar + empty-state prompt) keeps rendering instead of
-  // bouncing the user back to the landing page. Only the explicit
-  // "TailorMyText" back-button in the reader's top bar clears this.
-  const [readerOpen, setReaderOpen] = useState(false);
+  // useDocumentState() call lives below — see ── Document state hook ── block
+  // after the useSubscription/useRecentDocs declarations. Order matters: the
+  // hook receives user/authLoading/sub/recentDocs/showToast/onGate as inputs,
+  // all of which are declared in the section between this comment and that call.
+
+  // Landing drag-drop + sidebar collapse — stay in App; move out in Phases 5/6.
   const [dragging, setDragging] = useState(false);
   const [hoverUpload, setHoverUpload] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [loadMsg, setLoadMsg] = useState("");
   const [panelOpen, setPanelOpen] = useState(true);
-
-  // Loader overlay state. The raw `loading` boolean flips instantly; the overlay
-  // fades in/out around it so a fast parse doesn't flash and a finishing parse
-  // doesn't hard-cut to the reader before the reader has rendered underneath.
-  //   - `loaderShown` controls whether the overlay is mounted at all.
-  //   - `loaderOpaque` drives the CSS opacity transition (1 = covering, 0 = fading out).
-  //   - `loaderStartedAt` enforces a minimum visible duration so fast parses
-  //     don't flicker. Without this a ~80ms text-file parse would show the
-  //     loader for one frame and look like a glitch.
-  const [loaderShown, setLoaderShown] = useState(false);
-  const [loaderOpaque, setLoaderOpaque] = useState(false);
-  const loaderStartedAt = useRef(null);
 
   // ── Enhancement state ──
   const [neuroDiv, setNeuroDiv] = useState(false);
@@ -206,37 +149,6 @@ export default function App() {
 
   // Marketing funnel: record one landing_view per session on first mount.
   useEffect(() => { track("landing_view"); }, []);
-
-  // Loader fade-in/out transitions around `loading`. Timing budget:
-  //   FADE_MS         loader opacity transition (in and out)
-  //   MIN_VISIBLE_MS  shortest time the loader can be on screen, prevents
-  //                   sub-300ms parses from flashing
-  //   POST_LOAD_HOLD  delay after `loading` flips false before starting the
-  //                   fade-out — gives React one frame to commit the new
-  //                   reader tree underneath the still-opaque loader, so the
-  //                   fade reveals already-painted content instead of a
-  //                   half-rendered tree
-  // The handoff: loading=true → show + fade in → parse runs → loading=false →
-  // hold → fade out → unmount. Reader mounts during the hold/fade window.
-  useEffect(() => {
-    const FADE_MS = 300;
-    const MIN_VISIBLE_MS = 500;
-    const POST_LOAD_HOLD = 80;
-    if (loading) {
-      loaderStartedAt.current = performance.now();
-      setLoaderShown(true);
-      // Defer the opacity-1 flip to the next frame so the CSS transition
-      // observes a 0→1 change instead of mounting opaque.
-      const raf = requestAnimationFrame(() => setLoaderOpaque(true));
-      return () => cancelAnimationFrame(raf);
-    }
-    if (!loaderShown) return;
-    const elapsed = performance.now() - (loaderStartedAt.current || 0);
-    const holdFor = Math.max(POST_LOAD_HOLD, MIN_VISIBLE_MS - elapsed);
-    const fadeStartT = setTimeout(() => setLoaderOpaque(false), holdFor);
-    const unmountT = setTimeout(() => setLoaderShown(false), holdFor + FADE_MS);
-    return () => { clearTimeout(fadeStartT); clearTimeout(unmountT); };
-  }, [loading, loaderShown]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -294,14 +206,11 @@ export default function App() {
   const [showSubscription, setShowSubscription] = useState(false);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
 
-  // Reset document state on signout
+  // Reset focus-mode paragraph pointer on signout. Doc-state reset
+  // (text/docSections/fileName/etc) runs inside useDocumentState — focusPara
+  // belongs to Bucket C (enhancement state) that Phase 2 of the refactor owns.
   useEffect(() => {
-    if (!authLoading && !user) {
-      setText("");
-      setDocSections(null);
-      setFileName("");
-      setFocusPara(-1);
-    }
+    if (!authLoading && !user) setFocusPara(-1);
   }, [user, authLoading]);
 
   // Restore the user's saved theme once per login. When the saved theme differs
@@ -334,19 +243,33 @@ export default function App() {
   const library = useLibrary(!authLoading, user?.id);
   const [showPricing, setShowPricing] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+
+  // ── Document state hook ──
+  //   Owns the loaded document's text/sections/identity, loader timing,
+  //   confidence + chapter overrides, the displaySections memo, and the four
+  //   upload/load handlers. Inputs come from the hooks declared above this
+  //   block. onGate is the unified gate dispatcher — handlers call
+  //   onGate({ kind: 'auth' | 'pricing' | 'paywall' }) and App routes to the
+  //   appropriate modal.
+  const onGate = useCallback(({ kind }) => {
+    if (kind === "auth") setShowAuth(true);
+    else if (kind === "pricing") setShowPricing(true);
+    else if (kind === "paywall") setShowPaywall(true);
+  }, []);
+  const {
+    text, docSections, displaySections, fileName,
+    currentDocId, currentDocSource, readerOpen,
+    loading, loadMsg, loaderShown, loaderOpaque,
+    confidence, chapterOverrides,
+    setText, setDocSections, setFileName,
+    setCurrentDocSource, setReaderOpen,
+    setChapterOverrides,
+    attemptUpload, openLibraryBook, loadRecentDoc, closeDoc,
+  } = useDocumentState({ user, authLoading, sub, recentDocs, showToast, onGate });
+
   const [showCheckout, setShowCheckout] = useState(false);
   const [checkoutBilling, setCheckoutBilling] = useState("monthly");
   const [showChapterNav, setShowChapterNav] = useState(false);
-  // Parser confidence score for the currently-loaded text document.
-  // Null for binary parsers (PDF, EPUB, DOCX) and library books.
-  // Reset to null whenever a new doc is loaded. D7 will use it for
-  // override-aware re-parse decisions; D5 surfaces it as the warning badge.
-  const [confidence, setConfidence] = useState(null);
-  // Persisted chapter break overrides for the currently-loaded upload doc.
-  // Set when cloudLoadDoc returns chapterOverrides; null for fresh uploads,
-  // library books, and when the user hasn't saved overrides yet.
-  // D7 will consume this to seed the re-parse after EditChaptersModal saves.
-  const [chapterOverrides, setChapterOverrides] = useState(null);
   // Controls EditChaptersModal visibility (D6).
   const [editChaptersOpen, setEditChaptersOpen] = useState(false);
   const [showLibraryDrawer, setShowLibraryDrawer] = useState(false);
@@ -369,13 +292,6 @@ export default function App() {
   const t = useMemo(() => ({ ...THEMES[theme], key: theme }), [theme]);
   const currentFont = useMemo(() => FONTS.find(f => f.name === fontFamily), [fontFamily]);
   const hasSections = docSections && docSections.length > 0 && (docSections.length > 1 || docSections[0]?.title);
-  // Override-aware sections for the renderer. docSections (raw parser output)
-  // stays untouched so EditChaptersModal paragraph indices remain stable.
-  const displaySections = useMemo(
-    () => (docSections && chapterOverrides ? applyChapterOverrides(docSections, chapterOverrides) : docSections),
-    [docSections, chapterOverrides],
-  );
-
   // Sync favicon + browser-chrome theme-color to the active theme. SVG is
   // regenerated as a data URI on each theme change; the `<link rel="icon">`
   // and `<meta name="theme-color">` in index.html are mutated in place.
@@ -878,7 +794,16 @@ export default function App() {
     const container = readerRef.current;
     if (!container) return;
     let saveTimer = null;
-    const savePosition = () => {
+    // lastComputed captures the most recent scroll position WHILE this doc's
+    // DOM was current. The cleanup persists it instead of re-reading
+    // sectionRefs.current — by the time cleanup runs after a doc switch, the
+    // DOM has already been updated to show the NEW doc's sections (the
+    // sectionRefs are mutable and React's commit phase has already overwritten
+    // them), so a fresh DOM read inside cleanup would save the WRONG doc's
+    // positions under THIS doc's id. Capturing on every scroll event keeps the
+    // computation in the window where sectionRefs and docSections agree.
+    let lastComputed = null;
+    const computePosition = () => {
       const cr = container.getBoundingClientRect();
       let sectionIdx = 0;
       let scrollOffset = 0;
@@ -891,7 +816,9 @@ export default function App() {
           scrollOffset = -top;
         } else break;
       }
-      const position = { sectionIdx, scrollOffset: Math.round(scrollOffset), savedAt: Date.now() };
+      return { sectionIdx, scrollOffset: Math.round(scrollOffset), savedAt: Date.now() };
+    };
+    const persistPosition = (position) => {
       if (currentDocSource === "library" && user?.id) {
         cloudSaveLibraryPosition(user.id, currentDocId, position).catch(err => {
           console.warn("[position] library save failed:", err.message);
@@ -901,137 +828,22 @@ export default function App() {
       }
     };
     const onScroll = () => {
+      lastComputed = computePosition();
       if (saveTimer) clearTimeout(saveTimer);
-      saveTimer = setTimeout(savePosition, 600);
+      saveTimer = setTimeout(() => persistPosition(lastComputed), 600);
     };
     container.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       container.removeEventListener("scroll", onScroll);
-      if (saveTimer) { clearTimeout(saveTimer); savePosition(); }
+      if (saveTimer) {
+        clearTimeout(saveTimer);
+        // Flush the LAST-captured position (from when this doc was active).
+        // Do NOT re-read sectionRefs/DOM here — they may already reflect the
+        // doc the user just switched to.
+        if (lastComputed) persistPosition(lastComputed);
+      }
     };
   }, [docSections, hasSections, currentDocId, currentDocSource, user]);
-
-  const attemptUpload = useCallback((file) => {
-    if (!file) return;
-    if (!user) { setShowAuth(true); return; }
-    // Lockout users skip the "X free uploads used" paywall (it'd be a lie)
-    // and go straight to the pricing modal — only path forward is subscribe.
-    if (sub.isLockedOut) { setShowPricing(true); return; }
-    if (!sub.canUpload) { setShowPaywall(true); return; }
-    // Pre-check file size against the server-derived per-tier ceiling.
-    // The storage trigger enforces this too; this is the friendly UX gate
-    // so the user doesn't watch a parse spinner before getting rejected.
-    if (file.size > sub.maxFileSize) {
-      const limitMb = Math.round(sub.maxFileSize / 1048576);
-      const proHint = sub.isPro ? "" : " — upgrade to Pro for 50MB.";
-      showToast(`This file is too large (${(file.size / 1048576).toFixed(1)}MB). Max ${limitMb}MB${proHint}`, "error", 7000);
-      return;
-    }
-    doUpload(file);
-  }, [user, sub.canUpload, sub.isLockedOut, sub.maxFileSize, sub.isPro, showToast]);
-
-  // doUpload is the parser dispatcher. Each branch must produce Section[]
-  // per docs/architecture/PARSER_CONTRACT.md (see §4 for the dispatch
-  // protocol — fullText is joined from sections for the empty-content
-  // guard, then setDocSections feeds the renderer).
-  const doUpload = useCallback(async (file) => {
-    setLoading(true); setLoadMsg("Reading file…");
-    setConfidence(null); // reset whenever a new upload begins
-    setChapterOverrides(null);
-    let sections;
-    const rawExt = file.name.split(".").pop().toLowerCase();
-    let ext = rawExt;
-    try {
-      // Guard: reject anything outside the supported allowlist. Without this,
-      // an image (.jpg/.png) or audio file falls through to the plain-text
-      // branch and `.text()` decodes its binary bytes as UTF-8 garbage —
-      // user sees a screen of gibberish instead of a clear error.
-      if (!SUPPORTED_EXTS.has(rawExt)) {
-        throw new Error(`TailorMyText doesn't support .${rawExt} files. Try a PDF, EPUB, DOCX, or text file (TXT, MD, JSON).`);
-      }
-      // Phase 2 sniff: route by content when the extension is wrong (a
-      // .txt that's actually HTML, a renamed binary, etc.). Sniffer is
-      // pure inspection of the file head; it never overrides a known
-      // binary extension. Falls back to the user's extension on null.
-      const sniffBuf = await file.arrayBuffer();
-      const sniffed = await sniffDocumentType(file.name, sniffBuf);
-      if (sniffed && sniffed !== rawExt) {
-        console.warn(`[doUpload] sniffer routed .${rawExt} → .${sniffed} based on content`);
-        ext = sniffed;
-      }
-      if (ext === "pdf") { setLoadMsg("Loading PDF engine…"); sections = await parsePDF(file); }
-      else if (ext === "epub") { setLoadMsg("Unpacking EPUB…"); sections = await parseEPUB(file); }
-      else if (ext === "docx") { setLoadMsg("Extracting DOCX…"); sections = await parseDOCX(file); }
-      else if (ext === "html" || ext === "htm") { setLoadMsg("Parsing HTML…"); sections = parseHTMLStructured(await file.text()); }
-      // MD + plain-text branches dispatch through the parser worker so even
-      // a huge text file doesn't stall the loader animation. HTML stays on
-      // main thread for now (uses DOMParser; not worker-safe without a
-      // polyfill — Phase 3 territory if we want it moved).
-      else if (ext === "md") { setLoadMsg("Parsing Markdown…"); sections = await parseInWorker("parse-md", await file.text()); }
-      else { sections = await parseInWorker("parse-text", await file.text()); }
-      // Normalize the parser result shape (Task D2):
-      // - Binary parsers (PDF, EPUB, DOCX) return Section[] directly.
-      // - Text parsers (HTML, MD, TXT) return { sections, confidence }.
-      //   parseInWorker passes the worker postMessage payload through unchanged.
-      const parserResult = sections;
-      const normalizedSections = Array.isArray(parserResult) ? parserResult : parserResult.sections;
-      const confidence = Array.isArray(parserResult) ? undefined : parserResult.confidence;
-      sections = normalizedSections;
-      // Derive the legacy depthFallback boolean from confidence.reasons so the
-      // parse_outcomes telemetry row schema is unchanged (no ALTER TABLE needed).
-      const depthFallback = confidence?.reasons?.includes("no_repeating_depth") ?? false;
-      // Fire-and-forget telemetry — never block the UI render path on a DB insert.
-      void trackParseOutcome({
-        format: ext === "htm" ? "html" : ext,
-        depthFallback,
-        sectionCount: sections.length,
-        docByteSize: file?.size ?? null,
-        ext: file?.name?.split(".").pop()?.toLowerCase() ?? null,
-      });
-      const fullText = sections.map(s => [s.title, s.content].filter(Boolean).join("\n\n")).join("\n\n");
-      // Empty-content guard: if the parser returned no readable text, the
-      // file is most likely image-only (scanned PDF without OCR), encrypted,
-      // or genuinely empty (e.g. an audio file mis-extension'd as .txt).
-      // Fail before recording an upload or showing a blank reader.
-      if (!fullText.trim()) {
-        throw new Error("This file doesn't contain any readable text. It might be image-based, encrypted, or empty.");
-      }
-      setText(fullText); setDocSections(sections); setFileName(file.name);
-      setCurrentDocSource("upload");
-      // Hoist confidence to App state so the UncertaintyBadge can render.
-      // Binary parsers leave `confidence` undefined; text parsers provide it.
-      setConfidence(confidence ?? null);
-      setReaderOpen(true);
-    } catch (e) {
-      // Map raw parser exceptions to user-friendly per-format messages.
-      // The original exception is still in console for debugging.
-      console.error(`[doUpload] ${ext} parser threw:`, e);
-      const friendly = mapParserErrorToMessage(ext, e);
-      showToast(friendly, "error", 7000);
-      setLoading(false); setLoadMsg("");
-      return;
-    }
-    // Save to recents separately so a quota/storage failure leaves the
-    // freshly-parsed doc visible instead of being replaced by an error message.
-    // recordUpload only fires after successful storage save so a Free user's
-    // monthly quota isn't burned by a storage outage.
-    const wasFirstUpload = recentDocs.recentList.length === 0;
-    try {
-      const saved = await recentDocs.saveDoc(file.name, sections, sections.map(s => [s.title, s.content].filter(Boolean).join("\n\n")).join("\n\n"));
-      if (saved?.id) setCurrentDocId(saved.id);
-      await sub.recordUpload();
-      if (wasFirstUpload) track("first_upload");
-    }
-    catch (e) {
-      const msg = String(e?.message || e);
-      if (msg.includes("File too large")) {
-        showToast(msg, "error", 7000);
-      } else {
-        showToast("Couldn't save to your library: " + msg, "error");
-      }
-    }
-    finally { setLoading(false); setLoadMsg(""); }
-  }, [sub, recentDocs, showToast]);
 
   // Cosmetic-gate helper: for Pro-only themes/palettes/guide-colors, free
   // users get the PricingModal instead of the change being applied.
@@ -1049,102 +861,6 @@ export default function App() {
     const free = isThemeFree(themeKey);
     gateCosmetic(free, () => runThemeTransition(e, () => setTheme(themeKey)));
   }, [gateCosmetic]);
-
-  // Open a library book by id. Shared by:
-  //   - LibrarySection card clicks (fresh first open, passes the full book)
-  //   - Bookshelf clicks / Recent Docs entries with source='library' (re-opens)
-  //
-  // cloudOpenLibraryBook handles the tier gate server-side. If gated, surface
-  // the PricingModal (free user trying to open a Pro title); otherwise feed
-  // the returned EPUB blob to the existing parseEPUB pipeline.
-  const openLibraryBook = useCallback(async (bookOrId) => {
-    if (!user?.id) { setShowAuth(true); return; }
-    const bookId = typeof bookOrId === "string" ? bookOrId : bookOrId?.id;
-    if (!bookId) return;
-    setConfidence(null);
-    setChapterOverrides(null);
-    setLoading(true); setLoadMsg("Fetching from the library…");
-    try {
-      const result = await cloudOpenLibraryBook(user.id, bookId, sub.isPro);
-      if (!result) {
-        showToast("That book isn't available right now.", "error");
-        return;
-      }
-      if (result.gated) {
-        // Free user opened a Pro-only book — point them at the upgrade flow
-        // instead of the parser. Keep the landing visible (no doc state change).
-        setShowPricing(true);
-        return;
-      }
-      const { blob, book, mirrorError } = result;
-      if (mirrorError) {
-        showToast("Your bookshelf may not refresh until you reload.", "warning", 5000);
-      }
-      setLoadMsg("Unpacking EPUB…");
-      const sections = await parseEPUB(blob);
-      const fullText = sections.map(s => [s.title, s.content].filter(Boolean).join("\n\n")).join("\n\n");
-      if (!fullText.trim()) {
-        throw new Error("This book doesn't contain readable text.");
-      }
-      setText(fullText);
-      setDocSections(sections);
-      setFileName(book.title);
-      setCurrentDocId(book.id);
-      setCurrentDocSource("library");
-      setReaderOpen(true);
-      // Refresh both lists so the freshly-opened book appears on the
-      // bookshelf without waiting for the next mount.
-      recentDocs.refreshLists();
-    } catch (e) {
-      console.error("[openLibraryBook] failed:", e);
-      showToast(e.message || "Couldn't open that book.", "error", 7000);
-    } finally {
-      setLoading(false); setLoadMsg("");
-    }
-  }, [user, sub.isPro, recentDocs, showToast]);
-
-  const loadRecentDoc = useCallback(async (entry) => {
-    // Library entries route through cloudOpenLibraryBook so the EPUB blob
-    // is re-fetched from the shared library bucket and the saved position
-    // is restored. Uploads continue through the per-user documents bucket.
-    if (entry?.source === "library" && entry?.book_id) {
-      return openLibraryBook(entry.book_id);
-    }
-    setConfidence(null);
-    setChapterOverrides(null);
-    setLoading(true); setLoadMsg("Loading saved document…");
-    try {
-      const data = await recentDocs.loadDoc(entry);
-      if (data && !data.error) {
-        setText(data.text); setDocSections(data.sections); setFileName(data.name);
-        setCurrentDocId(entry.id);
-        setCurrentDocSource("upload");
-        setChapterOverrides(data.chapterOverrides ?? null);
-        setReaderOpen(true);
-      } else if (data?.error === "corrupted") {
-        setText("This document file is damaged and can't be opened. Please re-upload the original.");
-        setDocSections(null); setFileName(data.name || entry.name); setCurrentDocId(null);
-        setCurrentDocSource(null);
-      } else {
-        setText("Document no longer available. Try uploading it again.");
-        setDocSections(null); setFileName(entry.name); setCurrentDocId(null);
-        setCurrentDocSource(null);
-      }
-    } catch (err) {
-      console.warn("[App] loadRecentDoc threw:", err);
-      // Network failures from fetch/Supabase typically surface as TypeError
-      // with "fetch failed" / "NetworkError" / "Failed to fetch". Anything
-      // else falls through to the generic message.
-      const msg = String(err?.message || "");
-      if (/fetch|network/i.test(msg)) {
-        setText("Couldn't reach the server to load this document. Check your connection and try again.");
-      } else {
-        setText("Error loading saved document.");
-      }
-      setDocSections(null); setCurrentDocId(null); setCurrentDocSource(null);
-    }
-    finally { setLoading(false); setLoadMsg(""); }
-  }, [recentDocs, openLibraryBook]);
 
   const onDrop = useCallback((e) => { e.preventDefault(); setDragging(false); if (e.dataTransfer?.files?.[0]) attemptUpload(e.dataTransfer.files[0]); }, [attemptUpload]);
   // Phase 8c — gate the checkout flow on a verified email. Supabase populates
@@ -1278,7 +994,7 @@ export default function App() {
         pointerEvents: loaderOpaque ? "auto" : "none",
       }}
     >
-      <BookLoader size={220} t={t} style={{ marginBottom: 20 }} />
+      <BookLoader size={220} t={t} style={BOOK_LOADER_STYLE} />
       <p style={{ fontSize: 16, fontWeight: 620, color: t.fg, marginBottom: 4 }}>{loadMsg}</p>
       <p style={{ fontSize: 13, color: t.fgSoft }}>This may take a moment for large files</p>
     </div>
@@ -1699,7 +1415,7 @@ export default function App() {
                   a navigation crossing into the marketing/landing surface. */}
               <Tip label="Back to home" t={t} side="bottom">
                 <button
-                  onClick={() => { setText(""); setDocSections(null); setFileName(""); setFocusPara(-1); setCurrentDocId(null); setCurrentDocSource(null); setReaderOpen(false); }}
+                  onClick={() => { closeDoc(); setFocusPara(-1); }}
                   aria-label="Back to home"
                   style={{
                     display: "inline-flex",
@@ -1748,7 +1464,7 @@ export default function App() {
                 <div style={{ display: "flex", alignItems: "center", gap: 8, color: t.fgSoft }}>
                   <FileText size={13} style={{ color: t.accent, flexShrink: 0 }} />
                   <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "'Newsreader', Georgia, serif", fontStyle: "italic", fontSize: 14, color: t.fg }}>{fileName}</span>
-                  <button aria-label="Close document" title="Close — pick another from your shelf" onClick={() => { setText(""); setDocSections(null); setFileName(""); setFocusPara(-1); setCurrentDocId(null); setCurrentDocSource(null); /* keep readerOpen so user lands on the empty-state prompt, not the landing page */ }} style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><X size={15} strokeWidth={2} /></button>
+                  <button aria-label="Close document" title="Close — pick another from your shelf" onClick={() => { closeDoc({ keepReaderOpen: true }); setFocusPara(-1); }} style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><X size={15} strokeWidth={2} /></button>
                 </div>
               </div>
             )}
@@ -1931,7 +1647,7 @@ export default function App() {
             </Tip>
           )}
           <button
-            onClick={() => { setText(""); setDocSections(null); setFileName(""); setFocusPara(-1); setCurrentDocId(null); setCurrentDocSource(null); setReaderOpen(false); }}
+            onClick={() => { closeDoc(); setFocusPara(-1); }}
             className="rf-static"
             title="Back to home"
             style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", fontSize: 20, fontWeight: 620, color: t.fg, fontFamily: currentFont?.css ?? "'DM Sans', sans-serif", outline: "none", transition: "font-family 0.2s" }}
@@ -2031,7 +1747,7 @@ export default function App() {
             t={t}
             title="Couldn't render this document"
             description="The reader hit an error displaying this file. It may be malformed or use unsupported markup. Try another document, or reset to clear the error."
-            onReset={() => { setText(""); setDocSections(null); setFileName(""); setCurrentDocId(null); setCurrentDocSource(null); setReaderOpen(false); }}
+            onReset={() => { closeDoc(); }}
           >
             {text ? (
               <DocumentBody
