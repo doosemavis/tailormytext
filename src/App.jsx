@@ -262,9 +262,9 @@ export default function App() {
     loading, loadMsg, loaderShown, loaderOpaque,
     confidence, chapterOverrides,
     setText, setDocSections, setFileName,
-    setCurrentDocId, setCurrentDocSource, setReaderOpen,
+    setCurrentDocSource, setReaderOpen,
     setChapterOverrides,
-    attemptUpload, openLibraryBook, loadRecentDoc,
+    attemptUpload, openLibraryBook, loadRecentDoc, closeDoc,
   } = useDocumentState({ user, authLoading, sub, recentDocs, showToast, onGate });
 
   const [showCheckout, setShowCheckout] = useState(false);
@@ -1415,7 +1415,7 @@ export default function App() {
                   a navigation crossing into the marketing/landing surface. */}
               <Tip label="Back to home" t={t} side="bottom">
                 <button
-                  onClick={() => { setText(""); setDocSections(null); setFileName(""); setFocusPara(-1); setCurrentDocId(null); setCurrentDocSource(null); setReaderOpen(false); }}
+                  onClick={() => { closeDoc(); setFocusPara(-1); }}
                   aria-label="Back to home"
                   style={{
                     display: "inline-flex",
@@ -1464,7 +1464,7 @@ export default function App() {
                 <div style={{ display: "flex", alignItems: "center", gap: 8, color: t.fgSoft }}>
                   <FileText size={13} style={{ color: t.accent, flexShrink: 0 }} />
                   <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "'Newsreader', Georgia, serif", fontStyle: "italic", fontSize: 14, color: t.fg }}>{fileName}</span>
-                  <button aria-label="Close document" title="Close — pick another from your shelf" onClick={() => { setText(""); setDocSections(null); setFileName(""); setFocusPara(-1); setCurrentDocId(null); setCurrentDocSource(null); /* keep readerOpen so user lands on the empty-state prompt, not the landing page */ }} style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><X size={15} strokeWidth={2} /></button>
+                  <button aria-label="Close document" title="Close — pick another from your shelf" onClick={() => { closeDoc({ keepReaderOpen: true }); setFocusPara(-1); }} style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><X size={15} strokeWidth={2} /></button>
                 </div>
               </div>
             )}
@@ -1647,7 +1647,7 @@ export default function App() {
             </Tip>
           )}
           <button
-            onClick={() => { setText(""); setDocSections(null); setFileName(""); setFocusPara(-1); setCurrentDocId(null); setCurrentDocSource(null); setReaderOpen(false); }}
+            onClick={() => { closeDoc(); setFocusPara(-1); }}
             className="rf-static"
             title="Back to home"
             style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", fontSize: 20, fontWeight: 620, color: t.fg, fontFamily: currentFont?.css ?? "'DM Sans', sans-serif", outline: "none", transition: "font-family 0.2s" }}
@@ -1747,7 +1747,7 @@ export default function App() {
             t={t}
             title="Couldn't render this document"
             description="The reader hit an error displaying this file. It may be malformed or use unsupported markup. Try another document, or reset to clear the error."
-            onReset={() => { setText(""); setDocSections(null); setFileName(""); setCurrentDocId(null); setCurrentDocSource(null); setReaderOpen(false); }}
+            onReset={() => { closeDoc(); }}
           >
             {text ? (
               <DocumentBody

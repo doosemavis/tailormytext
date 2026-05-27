@@ -343,6 +343,27 @@ export function useDocumentState({ user, authLoading, sub, recentDocs, showToast
     }
   }, [user, sub.isPro, recentDocs, showToast, onGate]);
 
+  // Reset doc state on user-initiated close. Three callers in App.jsx:
+  //   - sidebar close-X in the "Currently Reading" panel (keepReaderOpen: true
+  //     — user lands on the reader's empty-state instead of bouncing back to
+  //     the landing page)
+  //   - top-bar back-to-landing button (keepReaderOpen: false)
+  //   - ErrorBoundary onReset around DocumentBody (keepReaderOpen: false)
+  // focusPara (Bucket C state) is reset by each caller separately — it
+  // belongs to the enhancement bucket, not this hook.
+  // Parity with the pre-C3 inline resets: does NOT touch confidence or
+  // chapterOverrides — leaving a stale confidence badge or chapter-override
+  // map on a closed doc is arguably a bug, but C3 ships pure refactor; bug
+  // can be filed as a follow-up.
+  const closeDoc = useCallback(({ keepReaderOpen = false } = {}) => {
+    setText("");
+    setDocSections(null);
+    setFileName("");
+    setCurrentDocId(null);
+    setCurrentDocSource(null);
+    if (!keepReaderOpen) setReaderOpen(false);
+  }, []);
+
   const loadRecentDoc = useCallback(async (entry) => {
     // Library entries route through cloudOpenLibraryBook so the EPUB blob
     // is re-fetched from the shared library bucket and the saved position
@@ -392,12 +413,16 @@ export function useDocumentState({ user, authLoading, sub, recentDocs, showToast
     currentDocId, currentDocSource, readerOpen,
     loading, loadMsg, loaderShown, loaderOpaque,
     confidence, chapterOverrides,
-    // Setters still needed by App's inline reset sites + EditChaptersModal +
-    // ErrorBoundary onReset. C3 narrows further by introducing closeDoc.
+    // Setters still needed: setText/setDocSections/setFileName/setCurrentDocSource/
+    // setReaderOpen by the Demo Article click handler (synthesizes a doc
+    // inline without going through doUpload); setChapterOverrides by
+    // EditChaptersModal's onSaved. setCurrentDocId narrowed out in C3 —
+    // its only external consumers were the inline reset sites now replaced
+    // by closeDoc.
     setText, setDocSections, setFileName,
-    setCurrentDocId, setCurrentDocSource, setReaderOpen,
+    setCurrentDocSource, setReaderOpen,
     setChapterOverrides,
     // Handlers
-    attemptUpload, openLibraryBook, loadRecentDoc,
+    attemptUpload, openLibraryBook, loadRecentDoc, closeDoc,
   };
 }

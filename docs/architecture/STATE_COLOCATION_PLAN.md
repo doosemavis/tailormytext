@@ -42,15 +42,17 @@ App.jsx is 2061 lines with 110 hook invocations. Its responsibilities group into
 
 | Name + Path | Owns | Accepts from parent | Renders |
 |---|---|---|---|
-| `src/features/document/useDocumentState.js` | `text`, `docSections`, `displaySections`, `fileName`, `currentDocId`, `currentDocSource`, `readerOpen`, `confidence`, `chapterOverrides`, `loading`, `loadMsg`, loader timing | `sub`, `recentDocs`, `user`, `showToast` | nothing — hook only |
-| `src/features/document/DocumentLoader.jsx` | `loaderShown`, `loaderOpaque` animation | `loading`, `loadMsg`, `t` | The fixed loader overlay |
-| `src/features/reader/useScrollController.js` | `currentSectionIdx`, scroll watcher, position save/restore, IntersectionObserver (NeuroDiv scoping), `sectionRefs`, `titleRefs` | `docSections`, `hasSections`, `currentDocId`, `currentDocSource`, `user`, `neuroDivIntensityRef` | nothing — hook only |
-| `src/features/reader/useEnhancements.js` | `neuroDiv`, `neuroDivIntensity`, `hueGuide`, `huePalette`, `hueIntensity`, `focusMode`, `focusPara`, all feature-class/style refs and live writers, the stale-section IntersectionObserver | `docWrapperRef`, `sub.isPro`, `gateCosmetic` | nothing — hook only |
-| `src/features/reader/useTypography.js` | `fontFamily`, `fontSize`, `lineHeight`, `letterSpacing`, `wordSpacing`, `columnWidth`, `textAlign`, all typography refs and live writers | `docWrapperRef`, `hueIntensity` | nothing — hook only |
-| `src/features/reader/Sidebar.jsx` | `panelOpen` | `t`, `sub`, `text`, `fileName`, enhancements, typography, `recentDocs`, `library`, `fileRef`, callbacks | Full sidebar panel |
-| `src/features/reader/ReaderToolbar.jsx` | `showChapterNav` | `t`, `sub`, `docSections`, `currentSectionIdx`, `scrollToSection`, feature toggles, `confidence`, `user`, modal callbacks | Top bar |
-| `src/features/landing/Landing.jsx` | `dragging`, `hoverUpload` | `t`, `sub`, `user`, `recentDocs`, `library`, `attemptUpload`, `openLibraryBook`, `loadRecentDoc`, modal callbacks, `theme`, `onSelectTheme` | The full landing page tree |
-| `src/features/auth/useGiftLink.js` | `pendingGift`, the gift-link toast effect | `user`, `authLoading`, `showToast` | nothing — hook only |
+| `src/hooks/useDocumentState.js` | `text`, `docSections`, `displaySections`, `fileName`, `currentDocId`, `currentDocSource`, `readerOpen`, `confidence`, `chapterOverrides`, `loading`, `loadMsg`, loader timing | `sub`, `recentDocs`, `user`, `showToast`, `onGate` | nothing — hook only |
+| `src/components/DocumentLoader.jsx` | `loaderShown`, `loaderOpaque` animation | `loading`, `loadMsg`, `t` | The fixed loader overlay |
+| `src/hooks/useScrollController.js` | `currentSectionIdx`, scroll watcher, position save/restore, IntersectionObserver (NeuroDiv scoping), `sectionRefs`, `titleRefs` | `docSections`, `hasSections`, `currentDocId`, `currentDocSource`, `user`, `neuroDivIntensityRef` | nothing — hook only |
+| `src/hooks/useEnhancements.js` | `neuroDiv`, `neuroDivIntensity`, `hueGuide`, `huePalette`, `hueIntensity`, `focusMode`, `focusPara`, all feature-class/style refs and live writers, the stale-section IntersectionObserver | `docWrapperRef`, `sub.isPro`, `gateCosmetic` | nothing — hook only |
+| `src/hooks/useTypography.js` | `fontFamily`, `fontSize`, `lineHeight`, `letterSpacing`, `wordSpacing`, `columnWidth`, `textAlign`, all typography refs and live writers | `docWrapperRef`, `hueIntensity` | nothing — hook only |
+| `src/components/Sidebar.jsx` | `panelOpen` | `t`, `sub`, `text`, `fileName`, enhancements, typography, `recentDocs`, `library`, `fileRef`, callbacks | Full sidebar panel |
+| `src/components/ReaderToolbar.jsx` | `showChapterNav` | `t`, `sub`, `docSections`, `currentSectionIdx`, `scrollToSection`, feature toggles, `confidence`, `user`, modal callbacks | Top bar |
+| `src/components/Landing.jsx` | `dragging`, `hoverUpload` | `t`, `sub`, `user`, `recentDocs`, `library`, `attemptUpload`, `openLibraryBook`, `loadRecentDoc`, modal callbacks, `theme`, `onSelectTheme` | The full landing page tree |
+| `src/hooks/useGiftLink.js` | `pendingGift`, the gift-link toast effect | `user`, `authLoading`, `showToast` | nothing — hook only |
+
+> **File-location note (amended during Phase 1 C3):** the original draft of this plan proposed `src/features/<area>/` paths for both hooks and components. During Phase 1 execution we deferred the feature-folder convention: hooks live in `src/hooks/` (matches the six existing hooks — `useSubscription`, `useRecentDocs`, etc.) and components in `src/components/` (matches the dozen-plus existing components). Introducing a brand-new `src/features/` tree as a side effect of the lowest-risk extraction would have bundled a directory-restructure decision into a refactor that was supposed to be pure relocation. The feature-folder convention can be revisited at Phase 5 (Sidebar/ReaderToolbar component extraction) if it's load-bearing there — by then we'll have more visibility into whether the extra organization pays off.
 
 App.jsx itself becomes an orchestrator of ~150-200 lines that: imports these hooks, assembles the `modals` block, and decides whether to render `<Landing>`, the reader, or the subscription loading splash.
 
@@ -72,7 +74,7 @@ Each phase is its own branch + PR off `production`. Each PR is independently shi
 
 ### Phase 1 — Extract `useDocumentState` hook (lowest risk)
 
-**What changes:** Move `text`, `docSections`, `fileName`, `currentDocId`, `currentDocSource`, `readerOpen`, `confidence`, `chapterOverrides`, loader state (`loading`, `loadMsg`, `loaderShown`, `loaderOpaque`, `loaderStartedAt`), `doUpload`, `attemptUpload`, `loadRecentDoc`, `openLibraryBook`, and the loader fade effect out of App.jsx into `src/features/document/useDocumentState.js`. App.jsx calls this hook and destructures its return.
+**What changes:** Move `text`, `docSections`, `fileName`, `currentDocId`, `currentDocSource`, `readerOpen`, `confidence`, `chapterOverrides`, loader state (`loading`, `loadMsg`, `loaderShown`, `loaderOpaque`, `loaderStartedAt`), `doUpload`, `attemptUpload`, `loadRecentDoc`, `openLibraryBook`, and the loader fade effect out of App.jsx into `src/hooks/useDocumentState.js`. App.jsx calls this hook and destructures its return.
 
 **Why first:** Clearest boundary. Returns a flat object of state + handlers. No DOM refs, no JSX. Easiest to extract with low regression surface.
 
@@ -84,7 +86,7 @@ Each phase is its own branch + PR off `production`. Each PR is independently shi
 
 ### Phase 2 — Extract `useEnhancements` hook
 
-**What changes:** Move Bucket C entirely into `src/features/reader/useEnhancements.js`. Includes all feature toggle state, `liveWriters` (rAF-coalesced DOM writers), `featureClassRef`, `focusStyleRef`, the NeuroDiv IntersectionObserver, and the three stable toggle callbacks. `docWrapperRef` passed in as a parameter (Phase 3 absorbs it).
+**What changes:** Move Bucket C entirely into `src/hooks/useEnhancements.js`. Includes all feature toggle state, `liveWriters` (rAF-coalesced DOM writers), `featureClassRef`, `focusStyleRef`, the NeuroDiv IntersectionObserver, and the three stable toggle callbacks. `docWrapperRef` passed in as a parameter (Phase 3 absorbs it).
 
 **Why second:** Prerequisite plumbing for the Phase 5 perf win. Once `huePalette` lives inside `useEnhancements`, the swatch click no longer requires App-level state to flow through Sidebar.
 
@@ -96,7 +98,7 @@ Each phase is its own branch + PR off `production`. Each PR is independently shi
 
 ### Phase 3 — Extract `useTypography` hook
 
-**What changes:** Move Bucket D into `src/features/reader/useTypography.js`. All typography state, `writeTypographyVars`, `typographyStateRef`, layout effect, `currentFont` memo, `docWrapperRef`, `handleDocWrapperRef`, and `FMT_*` constants (move to `src/config/formatters.js` sibling).
+**What changes:** Move Bucket D into `src/hooks/useTypography.js`. All typography state, `writeTypographyVars`, `typographyStateRef`, layout effect, `currentFont` memo, `docWrapperRef`, `handleDocWrapperRef`, and `FMT_*` constants (move to `src/config/formatters.js` sibling).
 
 **Why third:** Typography state changes cause the same App-wide re-render. Prerequisite for `Sidebar` isolation. `docWrapperRef` logically belongs here; absorbing it permanently means updating `useEnhancements` to accept the ref from `useTypography`'s return.
 
@@ -108,7 +110,7 @@ Each phase is its own branch + PR off `production`. Each PR is independently shi
 
 ### Phase 4 — Extract `useScrollController` hook
 
-**What changes:** Move `currentSectionIdx`, `scrollToSection`, scroll watcher effect, chapter-restore effect, position-save effect, section/title refs into `src/features/reader/useScrollController.js`. The NeuroDiv IntersectionObserver (visibility scoping) moves from `useEnhancements` into this hook — scroll visibility is fundamentally a scroll concern.
+**What changes:** Move `currentSectionIdx`, `scrollToSection`, scroll watcher effect, chapter-restore effect, position-save effect, section/title refs into `src/hooks/useScrollController.js`. The NeuroDiv IntersectionObserver (visibility scoping) moves from `useEnhancements` into this hook — scroll visibility is fundamentally a scroll concern.
 
 **Why fourth:** Depends on `useDocumentState` (needs `docSections`, `currentDocId`, `currentDocSource`) and `useEnhancements` (needs `neuroDivIntensityRef`).
 
@@ -120,7 +122,7 @@ Each phase is its own branch + PR off `production`. Each PR is independently shi
 
 ### Phase 5 — Extract `Sidebar` and `ReaderToolbar` components ⭐ Perf win lands here
 
-**What changes:** Move full sidebar panel JSX into `src/features/reader/Sidebar.jsx`, passing hook returns as props. Move reader top bar JSX into `src/features/reader/ReaderToolbar.jsx`. `huePalette` state lives inside `useEnhancements`, consumed by `Sidebar` — swatch click now re-renders `Sidebar` only.
+**What changes:** Move full sidebar panel JSX into `src/components/Sidebar.jsx`, passing hook returns as props. Move reader top bar JSX into `src/components/ReaderToolbar.jsx`. `huePalette` state lives inside `useEnhancements`, consumed by `Sidebar` — swatch click now re-renders `Sidebar` only.
 
 **Why fifth:** Cannot be done before Phases 2 and 3 establish the hook boundaries. Component extraction without prior hook extraction would just move the same problem one level down.
 
@@ -132,7 +134,7 @@ Each phase is its own branch + PR off `production`. Each PR is independently shi
 
 ### Phase 6 — Extract `Landing` component
 
-**What changes:** Move full landing page JSX into `src/features/landing/Landing.jsx`. Extract `useGiftLink` into `src/features/auth/useGiftLink.js` at the same time. `dragging`/`hoverUpload` state moves into Landing.
+**What changes:** Move full landing page JSX into `src/components/Landing.jsx`. Extract `useGiftLink` into `src/hooks/useGiftLink.js` at the same time. `dragging`/`hoverUpload` state moves into Landing.
 
 **Why last:** Most inline JSX and most prop threading. Doing it last means App's API surface is already clean from prior phases.
 
