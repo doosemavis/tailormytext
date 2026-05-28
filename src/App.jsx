@@ -30,7 +30,7 @@ import { storageGet, storageSet, storageDel } from "./utils/storage";
 import { supabase } from "./utils/supabase";
 import { track } from "./utils/track";
 import { useDocumentState, FILE_ACCEPT } from "./hooks/useDocumentState";
-import { useEnhancements, applyIntensityToWords } from "./hooks/useEnhancements";
+import { useEnhancements } from "./hooks/useEnhancements";
 import { useSubscription } from "./hooks/useSubscription";
 import { useRecentDocs } from "./hooks/useRecentDocs";
 import { useLibrary } from "./hooks/useLibrary";
@@ -258,10 +258,10 @@ export default function App() {
   // ── Enhancements hook (Bucket C) ──
   //   Owns NeuroDiv / HueGuide / Focus state + intensities + palette, the
   //   rAF-coalesced liveWriters, the three stable toggle callbacks, the
-  //   feature-class className writer, and the focus-mode <style> sheet.
-  //   The NeuroDiv IntersectionObserver still lives in App.jsx for C1 and
-  //   reads visibleSectionsRef / sectionStaleRef / neuroDivIntensityRef
-  //   returned by the hook; C2 moves the IO inside.
+  //   feature-class className writer, the focus-mode <style> sheet, and
+  //   the NeuroDiv IntersectionObserver (visibility-scoped DOM walker).
+  //   Phase 4 (useScrollController) will absorb the IO since scroll
+  //   visibility is a scroll concern.
   const {
     neuroDiv, neuroDivIntensity, hueGuide, huePalette, hueIntensity, focusMode, focusPara,
     setNeuroDiv, setNeuroDivIntensity, setHueGuide, setHuePalette, setHueIntensity,
@@ -269,9 +269,8 @@ export default function App() {
     toggleNeuroDiv, toggleHueGuide, toggleFocusMode,
     liveWriters, huePaletteRef,
     neuroDivIntensityRef, focusModeRef,
-    visibleSectionsRef, sectionStaleRef,
     handleFeatureClassRef,
-  } = useEnhancements({ docWrapperRef, user, authLoading });
+  } = useEnhancements({ docWrapperRef, readerRef, docSections, user, authLoading });
 
   // ── Derived ──
   const t = useMemo(() => ({ ...THEMES[theme], key: theme }), [theme]);
@@ -415,55 +414,6 @@ export default function App() {
 
   // Reset the active-chapter pointer whenever the doc changes.
   useEffect(() => { setCurrentSectionIdx(0); }, [docSections]);
-
-  // Z+: IntersectionObserver bounds the NeuroDiv intensity DOM walk to
-  // visible sections. Without this the live writer walks all 424K .rf-word
-  // elements on Don Quixote each tick (~780ms); with it the walk is bounded
-  // to ~5 visible sections (~2-5K words, target <50ms).
-  //
-  // On enter: section joins the visible set; if it missed an intensity change
-  // while off-screen (in the stale set), apply current intensity now.
-  // On leave: section drops out of the visible set.
-  // rAF retry until .rf-section elements are present in the DOM (initial
-  // mount race — DocumentBody renders sections after this effect fires).
-  useEffect(() => {
-    if (!hasSections || !docSections?.length) return;
-    const wrapper = docWrapperRef.current;
-    const reader = readerRef.current;
-    if (!wrapper || !reader) return;
-
-    let observer = null;
-    let rafId = 0;
-    const setup = () => {
-      const sections = wrapper.querySelectorAll(".rf-section");
-      if (sections.length === 0) {
-        rafId = requestAnimationFrame(setup);
-        return;
-      }
-      observer = new IntersectionObserver((entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            visibleSectionsRef.current.add(entry.target);
-            if (sectionStaleRef.current.has(entry.target)) {
-              applyIntensityToWords(entry.target, neuroDivIntensityRef.current);
-              sectionStaleRef.current.delete(entry.target);
-            }
-          } else {
-            visibleSectionsRef.current.delete(entry.target);
-          }
-        }
-      }, { root: reader, rootMargin: "300px 0px" });
-      sections.forEach(s => observer.observe(s));
-    };
-    setup();
-
-    return () => {
-      if (rafId) cancelAnimationFrame(rafId);
-      observer?.disconnect();
-      visibleSectionsRef.current.clear();
-      sectionStaleRef.current.clear();
-    };
-  }, [hasSections, docSections]);
 
   // When the chapter dropdown opens, scroll the active chapter into view.
   // rAF defers to the next frame so Radix has time to portal + mount the

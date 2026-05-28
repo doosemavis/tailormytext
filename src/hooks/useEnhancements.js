@@ -7,7 +7,7 @@ import { PALETTES } from "../config/constants";
 // per renderWord in DocumentBody.jsx — <span class="rf-word" data-word="...">
 // <strong>{first}</strong>{rest}{" "}</span> — so the walk is a pair of
 // textContent writes per word.
-export function applyIntensityToWords(scope, intensity) {
+function applyIntensityToWords(scope, intensity) {
   const words = scope.querySelectorAll(".rf-word");
   for (let i = 0; i < words.length; i++) {
     const wEl = words[i];
@@ -35,13 +35,19 @@ export function applyIntensityToWords(scope, intensity) {
 // Inputs:
 //   docWrapperRef — App-owned ref to the document inner wrapper. liveWriters
 //     and the huePalette layout effect read it for setProperty writes.
+//   readerRef — App-owned ref to the scrollable reader container. Used as
+//     the IntersectionObserver `root` so the visible-section set tracks
+//     reader-frame visibility, not viewport visibility.
+//   docSections — drives the IO effect's setup/teardown lifecycle.
 //   user, authLoading — drive the signout reset for focusPara.
 //
-// `visibleSectionsRef`, `sectionStaleRef`, and `neuroDivIntensityRef` are
-// returned to App in C1 so the NeuroDiv IntersectionObserver effect (still
-// in App.jsx) can read them. Phase 2 C2 moves the IO inside this hook and
-// stops exporting `visibleSectionsRef` / `sectionStaleRef`.
-export function useEnhancements({ docWrapperRef, user, authLoading }) {
+// Phase 4 (useScrollController) will pull `visibleSectionsRef` and
+// `sectionStaleRef` out of here — scroll visibility is fundamentally a
+// scroll concern. Until then they're hook-local refs that liveWriters and
+// the IO callback both touch.
+export function useEnhancements({ docWrapperRef, readerRef, docSections, user, authLoading }) {
+  const hasSections = docSections && docSections.length > 0 && (docSections.length > 1 || docSections[0]?.title);
+
   // ── State ──
   const [neuroDiv, setNeuroDiv] = useState(false);
   const [neuroDivIntensity, setNeuroDivIntensity] = useState(0.42);
@@ -216,6 +222,55 @@ export function useEnhancements({ docWrapperRef, user, authLoading }) {
     liveWriters.huePalette(huePalette);
   }, [huePalette, liveWriters]);
 
+  // Z+: IntersectionObserver bounds the NeuroDiv intensity DOM walk to
+  // visible sections. Without this the live writer walks all 424K .rf-word
+  // elements on Don Quixote each tick (~780ms); with it the walk is bounded
+  // to ~5 visible sections (~2-5K words, target <50ms).
+  //
+  // On enter: section joins the visible set; if it missed an intensity change
+  // while off-screen (in the stale set), apply current intensity now.
+  // On leave: section drops out of the visible set.
+  // rAF retry until .rf-section elements are present in the DOM (initial
+  // mount race — DocumentBody renders sections after this effect fires).
+  useEffect(() => {
+    if (!hasSections || !docSections?.length) return;
+    const wrapper = docWrapperRef.current;
+    const reader = readerRef.current;
+    if (!wrapper || !reader) return;
+
+    let observer = null;
+    let rafId = 0;
+    const setup = () => {
+      const sections = wrapper.querySelectorAll(".rf-section");
+      if (sections.length === 0) {
+        rafId = requestAnimationFrame(setup);
+        return;
+      }
+      observer = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            visibleSectionsRef.current.add(entry.target);
+            if (sectionStaleRef.current.has(entry.target)) {
+              applyIntensityToWords(entry.target, neuroDivIntensityRef.current);
+              sectionStaleRef.current.delete(entry.target);
+            }
+          } else {
+            visibleSectionsRef.current.delete(entry.target);
+          }
+        }
+      }, { root: reader, rootMargin: "300px 0px" });
+      sections.forEach(s => observer.observe(s));
+    };
+    setup();
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      observer?.disconnect();
+      visibleSectionsRef.current.clear();
+      sectionStaleRef.current.clear();
+    };
+  }, [hasSections, docSections, docWrapperRef, readerRef]);
+
   return {
     // State
     neuroDiv, neuroDivIntensity, hueGuide, huePalette, hueIntensity, focusMode, focusPara,
@@ -227,9 +282,8 @@ export function useEnhancements({ docWrapperRef, user, authLoading }) {
     // Writers
     liveWriters,
     huePaletteRef,
-    // Refs read by App (IO effect lives there for C1) and by DocumentBody descendants
+    // Refs read by DocumentBody descendants (hover focus reset, intensityRef)
     neuroDivIntensityRef, focusModeRef,
-    visibleSectionsRef, sectionStaleRef,
     // Callback ref consumed by DocumentBody
     handleFeatureClassRef,
   };
