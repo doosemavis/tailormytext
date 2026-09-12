@@ -311,6 +311,22 @@ a.rf-link-btn:active {
 .rf-word strong { font-weight: inherit; }
 .rf-neurodiv .rf-word strong { font-weight: 700; }
 
+/* WPM Pacer: current word + 3-word fading trail + paused-cursor outline.
+   Driven by classList writes from usePacer, never by React re-render.
+   --rf-pace-color is the active theme accent, written on the reader
+   scroll container by App.jsx; alpha is applied here so the same colour
+   serves the outline (solid) and the fills (translucent). */
+.rf-word { border-radius: 3px; transition: background-color 0.18s ease; }
+.rf-pace-current { background: color-mix(in oklab, var(--rf-pace-color, currentColor) 28%, transparent); }
+.rf-pace-trail-1 { background: color-mix(in oklab, var(--rf-pace-color, currentColor) 18%, transparent); }
+.rf-pace-trail-2 { background: color-mix(in oklab, var(--rf-pace-color, currentColor) 11%, transparent); }
+.rf-pace-trail-3 { background: color-mix(in oklab, var(--rf-pace-color, currentColor) 5%, transparent); }
+.rf-pace-cursor  { outline: 2px solid var(--rf-pace-color, currentColor); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) {
+  .rf-word { transition: none; }
+  .rf-pace-trail-1, .rf-pace-trail-2, .rf-pace-trail-3 { background: transparent; }
+}
+
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ── Pulsating button (PulsatingButton.jsx) ──

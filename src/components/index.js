@@ -15,6 +15,8 @@ export { default as PostDeletionLockoutBanner } from "./PostDeletionLockoutBanne
 export { default as ErrorBoundary } from "./ErrorBoundary";
 export { default as UncertaintyBadge } from "./UncertaintyBadge";
 export { default as ReaderEmptyState } from "./ReaderEmptyState";
+export { default as PacerBar } from "./PacerBar";
+export { default as PacerWpmSlider } from "./PacerWpmSlider";
 export { default as Footer } from "./Footer";
 export { default as LegalLayout } from "./LegalLayout";
 // Modals (PricingModal, PaywallModal, CheckoutModal, AuthModal,
