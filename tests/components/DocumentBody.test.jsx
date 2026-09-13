@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, fireEvent } from "@testing-library/react";
-import DocumentBody from "../../src/components/DocumentBody";
+import DocumentBody, { PLAIN_CHUNK_SIZE } from "../../src/components/DocumentBody";
 import { THEMES } from "../../src/config/constants";
 import { _resetMaterializer } from "../../src/utils/sectionMaterializer";
 
@@ -60,6 +60,23 @@ describe("DocumentBody", () => {
     const idx = Array.from(container.querySelectorAll(".rf-para")).map((p) => p.dataset.idx);
     expect(idx).toEqual(["0", "1", "10000"]);
     expect(secs[1].querySelector(".rf-section-body .rf-word").dataset.word).toBe("Body");
+  });
+
+  it("windows chapterless documents in fixed-size chunks with continuous paragraph indices", () => {
+    const text = Array.from({ length: PLAIN_CHUNK_SIZE + 5 }, (_, i) => `Para ${i} words here.`).join("\n\n");
+    const { container } = render(<DocumentBody
+      text={text} docSections={null} hasSections={false}
+      wrapperRef={vi.fn()} featureClassRef={vi.fn()} settings={settings}
+      intensityRef={{ current: 0.5 }} focusModeRef={{ current: false }} setFocusPara={vi.fn()}
+      sectionRefs={{ current: [] }} titleRefs={{ current: [] }}
+    />);
+    const chunks = container.querySelectorAll(".rf-section.rf-plain-chunk");
+    expect(chunks.length).toBe(2);
+    expect(chunks[0].querySelectorAll(".rf-para").length).toBe(PLAIN_CHUNK_SIZE);
+    expect(chunks[1].querySelectorAll(".rf-para").length).toBe(5);
+    const idx = Array.from(container.querySelectorAll(".rf-para")).map((p) => Number(p.dataset.idx));
+    expect(idx).toEqual(Array.from({ length: PLAIN_CHUNK_SIZE + 5 }, (_, i) => i));
+    expect(chunks[1].querySelector(".rf-word").dataset.word).toBe("Para");
   });
 
   it("delegates paragraph hover to setFocusPara only in focus mode", () => {

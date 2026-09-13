@@ -1,5 +1,4 @@
 import { memo, useMemo, useCallback, useRef, useEffect } from "react";
-import { paragraphHtml } from "../utils/paragraphHtml";
 import { registerSection, unregisterSection } from "../utils/sectionMaterializer";
 
 // CONTRACT: consumes Section[] per docs/architecture/PARSER_CONTRACT.md.
@@ -18,24 +17,9 @@ const TITLE_WRAP_STYLE = { marginBottom: "calc(var(--rf-line-height, 1.8) * 0.8e
 const TYPE_LABEL_STYLE = { fontSize: 11, fontWeight: 600, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.06em", textTransform: "uppercase" };
 const INNER_STYLE = { textAlign: "var(--rf-text-align, left)" };
 
-// neuroDivIntensity is read from `intensityRef.current` (stable ref identity)
-// instead of being passed as a prop, so the memo'd Paragraph never re-renders
-// on intensity changes — useEnhancements pushes new bold slices to the DOM.
-//
-// The markup is written through a ref callback rather than
-// dangerouslySetInnerHTML so React never retains the generated string in
-// props (~50MB across a 420K-word book); it is garbage the moment it lands
-// in the DOM. `renderedSource` remembers which paragraph text an element
-// currently shows, so a changed `para` (chapter-break edits) re-renders it.
-const renderedSource = new WeakMap();
-const Paragraph = memo(function Paragraph({ para, idx, intensityRef }) {
-  const attach = useCallback((el) => {
-    if (!el || renderedSource.get(el) === para) return;
-    el.innerHTML = paragraphHtml(para, intensityRef.current);
-    renderedSource.set(el, para);
-  }, [para, intensityRef]);
-  return <div className="rf-para" data-idx={idx} ref={attach} />;
-});
+// Every paragraph is written by the materializer (utils/sectionMaterializer)
+// as innerHTML built by utils/paragraphHtml — never as React elements —
+// and only while its section or chunk is near the viewport.
 
 const Section = memo(function Section({ section, si, settings, intensityRef, sectionRefs, titleRefs }) {
   const nodeRef = useRef(null);
@@ -117,6 +101,36 @@ const Section = memo(function Section({ section, si, settings, intensityRef, sec
   );
 });
 
+// Chapterless documents get the same DOM windowing as sectioned ones:
+// paragraphs are grouped into fixed-size chunks that register with the
+// materializer exactly like a Section (class rf-section so the pacer's word
+// index and the content-visibility rules treat them as containers), minus
+// the title. Paragraph data-idx stays the global paragraph index.
+export const PLAIN_CHUNK_SIZE = 40;
+
+const PlainChunk = memo(function PlainChunk({ paras, start, intensityRef }) {
+  const nodeRef = useRef(null);
+  const bodyRef = useRef(null);
+  useEffect(() => {
+    const sectionEl = nodeRef.current;
+    const bodyEl = bodyRef.current;
+    if (!sectionEl || !bodyEl) return;
+    registerSection({ sectionEl, bodyEl, paras, baseIdx: start, getIntensity: () => intensityRef.current });
+    return () => unregisterSection(sectionEl);
+  }, [paras, start, intensityRef]);
+  return (
+    <div ref={nodeRef} className="rf-section rf-plain-chunk">
+      <div ref={bodyRef} className="rf-section-body" />
+    </div>
+  );
+});
+
+function chunkParagraphs(paragraphs, size) {
+  const chunks = [];
+  for (let i = 0; i < paragraphs.length; i += size) chunks.push({ start: i, paras: paragraphs.slice(i, i + size) });
+  return chunks;
+}
+
 const DocumentBody = memo(function DocumentBody({ text, docSections, hasSections, wrapperRef, featureClassRef, settings, intensityRef, focusModeRef, setFocusPara, sectionRefs, titleRefs }) {
   const { fg } = settings;
 
@@ -136,7 +150,10 @@ const DocumentBody = memo(function DocumentBody({ text, docSections, hasSections
   }, [focusModeRef, setFocusPara]);
   const onMouseLeave = useCallback(() => { lastHoverIdxRef.current = -1; }, []);
 
-  const paragraphs = useMemo(() => text.split(/\n\s*\n/).filter(p => p.trim()), [text]);
+  const plainChunks = useMemo(
+    () => (hasSections && docSections ? [] : chunkParagraphs(text.split(/\n\s*\n/).filter(p => p.trim()), PLAIN_CHUNK_SIZE)),
+    [text, hasSections, docSections],
+  );
 
   const wrapperStyle = useMemo(() => ({
     width: "var(--rf-column-width, 95%)",
@@ -168,8 +185,8 @@ const DocumentBody = memo(function DocumentBody({ text, docSections, hasSections
             />
           ))
         ) : (
-          paragraphs.map((p, i) => (
-            <Paragraph key={i} para={p} idx={i} intensityRef={intensityRef} />
+          plainChunks.map((c) => (
+            <PlainChunk key={c.start} paras={c.paras} start={c.start} intensityRef={intensityRef} />
           ))
         )}
       </div>
