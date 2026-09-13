@@ -63,6 +63,13 @@ export const FREE_UPLOAD_LIMIT = 3;
 export const TRIAL_DAYS = 14;
 export const MAX_RECENT_DOCS = 5;
 
+// Sidebar panel geometry. The inner content wrapper is sized to fit beside the
+// thin scrollbar (see .rf-side-scroll in global.css) so nothing clips on the
+// right when the scrollbar is present; the 1px accounts for the panel border.
+export const SIDEBAR_WIDTH = 296;
+export const SIDEBAR_SCROLLBAR_WIDTH = 6;
+export const SIDEBAR_CONTENT_WIDTH = SIDEBAR_WIDTH - 1 - SIDEBAR_SCROLLBAR_WIDTH;
+
 // Phase 3 of the parser rewrite. When true, .md uploads go through
 // parseMarkdownTokens (marked.lexer + adapter). When false, they go
 // through the legacy parseMarkdownStructured (regex preprocessor +
