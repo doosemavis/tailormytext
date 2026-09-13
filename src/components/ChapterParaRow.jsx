@@ -7,17 +7,17 @@ const BUTTON_STYLE = {
   textAlign: "left",
   background: "transparent",
   border: "none",
-  padding: "8px 20px",
+  padding: "10px 24px",
   transition: "background 0.1s",
 };
 
 const BADGE_STYLE = {
   display: "inline-block",
   marginBottom: 4,
-  padding: "1px 7px",
+  padding: "2px 8px",
   borderRadius: 999,
   color: "#fff",
-  fontSize: 9,
+  fontSize: 11,
   fontWeight: 700,
   fontFamily: "var(--tmt-mono)",
   letterSpacing: "0.1em",
@@ -26,7 +26,7 @@ const BADGE_STYLE = {
 
 const TEXT_STYLE_TITLE = {
   margin: 0,
-  fontSize: 12,
+  fontSize: 14,
   lineHeight: 1.55,
   color: "var(--tmt-ink)",
   fontWeight: 600,

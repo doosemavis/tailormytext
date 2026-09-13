@@ -153,7 +153,7 @@ export default function EditChaptersModal({
             transform: "translate(-50%, -50%)",
             background: "var(--tmt-paper)",
             borderRadius: 22,
-            width: "min(960px, calc(100vw - 48px))",
+            width: "min(1180px, calc(100vw - 48px))",
             maxHeight: "calc(100vh - 64px)",
             display: "flex",
             flexDirection: "column",
@@ -185,7 +185,7 @@ export default function EditChaptersModal({
               <Dialog.Title
                 className="tmt-display"
                 style={{
-                  fontSize: 24,
+                  fontSize: 28,
                   fontWeight: 380,
                   color: "var(--tmt-ink)",
                   margin: 0,
@@ -198,7 +198,7 @@ export default function EditChaptersModal({
               <Dialog.Description
                 id="edit-chapters-desc"
                 style={{
-                  fontSize: 13,
+                  fontSize: 15,
                   color: "var(--tmt-ink-muted)",
                   margin: "6px 0 0",
                   fontFamily: "var(--tmt-sans)",
@@ -213,8 +213,8 @@ export default function EditChaptersModal({
               <button
                 aria-label="Close"
                 style={{
-                  width: 34,
-                  height: 34,
+                  width: 38,
+                  height: 38,
                   borderRadius: 8,
                   border: "none",
                   background: "transparent",
@@ -226,7 +226,7 @@ export default function EditChaptersModal({
                   flexShrink: 0,
                 }}
               >
-                <X size={16} strokeWidth={2} />
+                <X size={18} strokeWidth={2} />
               </button>
             </Dialog.Close>
           </div>
@@ -241,7 +241,7 @@ export default function EditChaptersModal({
             }}
           >
             {/* Left pane — paragraph list (~60%) */}
-            <div
+            <div className="rf-side-scroll"
               style={{
                 flex: "0 0 60%",
                 borderRight: `1px solid ${t.borderSoft}`,
@@ -251,17 +251,17 @@ export default function EditChaptersModal({
             >
               <div
                 style={{
-                  padding: "0 20px 10px",
+                  padding: "0 24px 12px",
                   display: "flex",
                   alignItems: "center",
                   gap: 6,
                 }}
               >
-                <AlignLeft size={13} style={{ color: t.icon }} />
+                <AlignLeft size={15} style={{ color: t.icon }} />
                 <span
                   style={{
                     fontFamily: "var(--tmt-mono)",
-                    fontSize: 10,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--tmt-ink-muted)",
                     letterSpacing: "0.12em",
@@ -276,7 +276,7 @@ export default function EditChaptersModal({
                 <p
                   style={{
                     padding: "24px 20px",
-                    fontSize: 13,
+                    fontSize: 15,
                     color: "var(--tmt-ink-muted)",
                     margin: 0,
                   }}
@@ -299,7 +299,7 @@ export default function EditChaptersModal({
             </div>
 
             {/* Right pane — live chapter preview (~40%) */}
-            <div
+            <div className="rf-side-scroll"
               style={{
                 flex: "0 0 40%",
                 overflowY: "auto",
@@ -308,17 +308,17 @@ export default function EditChaptersModal({
             >
               <div
                 style={{
-                  padding: "0 20px 10px",
+                  padding: "0 24px 12px",
                   display: "flex",
                   alignItems: "center",
                   gap: 6,
                 }}
               >
-                <BookOpen size={13} style={{ color: t.icon }} />
+                <BookOpen size={15} style={{ color: t.icon }} />
                 <span
                   style={{
                     fontFamily: "var(--tmt-mono)",
-                    fontSize: 10,
+                    fontSize: 12,
                     fontWeight: 600,
                     color: "var(--tmt-ink-muted)",
                     letterSpacing: "0.12em",
@@ -334,7 +334,7 @@ export default function EditChaptersModal({
                 <p
                   style={{
                     padding: "24px 20px",
-                    fontSize: 13,
+                    fontSize: 15,
                     color: "var(--tmt-ink-muted)",
                     margin: 0,
                   }}
@@ -387,7 +387,7 @@ export default function EditChaptersModal({
                   role="alert"
                   style={{
                     margin: 0,
-                    fontSize: 12,
+                    fontSize: 14,
                     color: "#E25C5C",
                     lineHeight: 1.4,
                   }}
@@ -402,13 +402,13 @@ export default function EditChaptersModal({
                 onClick={onClose}
                 disabled={saving}
                 style={{
-                  padding: "10px 20px",
+                  padding: "12px 24px",
                   borderRadius: 10,
                   border: `1px solid ${t.border}`,
                   background: "transparent",
                   color: t.fg,
                   cursor: saving ? "not-allowed" : "pointer",
-                  fontSize: 13,
+                  fontSize: 15,
                   fontWeight: 550,
                   fontFamily: "var(--tmt-sans)",
                   opacity: saving ? 0.6 : 1,
@@ -422,13 +422,13 @@ export default function EditChaptersModal({
                 aria-disabled={saving}
                 aria-busy={saving}
                 style={{
-                  padding: "10px 20px",
+                  padding: "12px 24px",
                   borderRadius: 10,
                   border: "none",
                   background: saving ? `${t.accent}99` : t.accent,
                   color: "#fff",
                   cursor: saving ? "not-allowed" : "pointer",
-                  fontSize: 13,
+                  fontSize: 15,
                   fontWeight: 660,
                   fontFamily: "var(--tmt-sans)",
                   minWidth: 80,
