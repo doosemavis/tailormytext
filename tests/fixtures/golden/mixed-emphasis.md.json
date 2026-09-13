@@ -1,0 +1,8 @@
+[
+  {
+    "type": "chapter",
+    "title": "Mixed emphasis patterns",
+    "number": 1,
+    "content": "This paragraph has **bold text** in it.\n\nThis one has __italic text__ using single asterisks.\n\nAnd this one has __italic text__ using single underscores.\n\nAnd here is **bold __and italic__ together** for fun.\n\nA sentence with strikethrough for completeness.\n\nA code span here too."
+  }
+]

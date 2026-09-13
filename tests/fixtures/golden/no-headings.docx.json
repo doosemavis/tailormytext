@@ -1,0 +1,8 @@
+[
+  {
+    "type": "document",
+    "title": null,
+    "number": 1,
+    "content": "This document has no headings. The parser should fall back to extractRawText and emit a single section.\n\nA second paragraph in the same body, just to make sure the whole text survives the fallback path.\n\nA third paragraph for good measure."
+  }
+]

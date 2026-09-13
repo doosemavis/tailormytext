@@ -1,0 +1,32 @@
+[
+  {
+    "type": "chapter",
+    "title": "Prologue",
+    "number": 1,
+    "content": "A short prologue that hints at what is to come."
+  },
+  {
+    "type": "chapter",
+    "title": "Departure",
+    "number": 2,
+    "content": "The protagonist leaves home for the first time, uncertain but determined."
+  },
+  {
+    "type": "chapter",
+    "title": "The Encounter",
+    "number": 3,
+    "content": "An unexpected meeting changes the course of the journey entirely."
+  },
+  {
+    "type": "chapter",
+    "title": "Return",
+    "number": 4,
+    "content": "The road home is longer than the road out."
+  },
+  {
+    "type": "chapter",
+    "title": "Epilogue",
+    "number": 5,
+    "content": "Years later, the events of that summer are remembered differently by each who lived them."
+  }
+]

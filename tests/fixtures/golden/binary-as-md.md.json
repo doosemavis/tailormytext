@@ -1,0 +1,8 @@
+[
+  {
+    "type": "chapter",
+    "title": "A Normal Markdown Document",
+    "number": 1,
+    "content": "This is a real Markdown file. The sniffer should NOT upgrade it to anything else, since the extension already matches the content.\n\nThe point of this fixture is verifying the no-op case: a correctly-extensioned text file goes through unchanged. If the sniffer started flipping correctly-typed files unnecessarily, this would surface as drift.\n\n## Some Heading\n\nA paragraph with **bold** and a link."
+  }
+]

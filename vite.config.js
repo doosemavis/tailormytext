@@ -18,6 +18,12 @@ export default defineConfig({
           if (id.includes("/@radix-ui/")) return "radix";
           if (id.includes("/mammoth/")) return "mammoth";
           if (id.includes("/lucide-react/")) return "lucide";
+          // marked is consumed only by parser.worker.js (Phase 3 MD parse).
+          // The worker build is a separate entry; this manualChunks rule
+          // only affects the MAIN bundle, so if marked ever sneaks into
+          // an app-side import by mistake it lands in its own async chunk
+          // instead of bloating index-*.js.
+          if (id.includes("/marked/")) return "marked";
           if (/[\\/]node_modules[\\/](react|react-dom|scheduler|use-sync-external-store)[\\/]/.test(id)) return "react";
           return "vendor";
         },

@@ -1,0 +1,20 @@
+[
+  {
+    "type": "chapter",
+    "title": "Introduction",
+    "number": 1,
+    "content": "The first section sets up the topic."
+  },
+  {
+    "type": "chapter",
+    "title": "Findings",
+    "number": 2,
+    "content": "The middle section presents what was found."
+  },
+  {
+    "type": "chapter",
+    "title": "Conclusion",
+    "number": 3,
+    "content": "The closing section wraps things up."
+  }
+]

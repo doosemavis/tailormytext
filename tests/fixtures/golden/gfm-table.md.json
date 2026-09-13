@@ -1,0 +1,14 @@
+[
+  {
+    "type": "chapter",
+    "title": "A document with a table",
+    "number": 1,
+    "content": "The data below summarizes the quarterly results:\n\nQ1 | $12K | 5%\nQ2 | $18K | 8%\nQ3 | $22K | 12%\nQ4 | $31K | 14%"
+  },
+  {
+    "type": "chapter",
+    "title": "Next chapter",
+    "number": 2,
+    "content": "Tables are a GFM extension. The current preprocessor flattens them to plain text."
+  }
+]

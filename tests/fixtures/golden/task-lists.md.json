@@ -1,0 +1,8 @@
+[
+  {
+    "type": "chapter",
+    "title": "Project Checklist",
+    "number": 1,
+    "content": "The release plan has the following outstanding items:\n\n- Finish the database migration\n- Update the documentation\n- Re-run the integration tests\n- Notify the team\n\n## Notes\n\nTask lists are a GitHub-flavored Markdown extension. Vanilla CommonMark doesn't recognize them."
+  }
+]

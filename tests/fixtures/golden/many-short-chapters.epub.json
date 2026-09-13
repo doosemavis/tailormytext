@@ -1,0 +1,62 @@
+[
+  {
+    "type": "chapter",
+    "title": "Section 1",
+    "number": 1,
+    "content": "Body text of section 1. Short, intentionally."
+  },
+  {
+    "type": "chapter",
+    "title": "Section 2",
+    "number": 2,
+    "content": "Body text of section 2. Short, intentionally."
+  },
+  {
+    "type": "chapter",
+    "title": "Section 3",
+    "number": 3,
+    "content": "Body text of section 3. Short, intentionally."
+  },
+  {
+    "type": "chapter",
+    "title": "Section 4",
+    "number": 4,
+    "content": "Body text of section 4. Short, intentionally."
+  },
+  {
+    "type": "chapter",
+    "title": "Section 5",
+    "number": 5,
+    "content": "Body text of section 5. Short, intentionally."
+  },
+  {
+    "type": "chapter",
+    "title": "Section 6",
+    "number": 6,
+    "content": "Body text of section 6. Short, intentionally."
+  },
+  {
+    "type": "chapter",
+    "title": "Section 7",
+    "number": 7,
+    "content": "Body text of section 7. Short, intentionally."
+  },
+  {
+    "type": "chapter",
+    "title": "Section 8",
+    "number": 8,
+    "content": "Body text of section 8. Short, intentionally."
+  },
+  {
+    "type": "chapter",
+    "title": "Section 9",
+    "number": 9,
+    "content": "Body text of section 9. Short, intentionally."
+  },
+  {
+    "type": "chapter",
+    "title": "Section 10",
+    "number": 10,
+    "content": "Body text of section 10. Short, intentionally."
+  }
+]

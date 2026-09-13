@@ -3,18 +3,14 @@ import { X, Crown, Calendar, CreditCard, TrendingUp } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { TRIAL_DAYS, PRICING } from "../config/constants";
 import { useToast } from "./Toast";
-import { Tip } from "./Primitives";
+import { Tip, MODAL_OVERLAY_STYLE } from "./Primitives";
 import PulsatingButton from "./PulsatingButton";
 import { supabase } from "../utils/supabase";
+import { marketingThemeVars } from "../utils/marketingTheme";
+import { formatDate } from "../utils/formatDate";
 
-const OVERLAY = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", zIndex: 1010 };
 
 // Format an absolute date as a friendly "Month D, YYYY" string.
-function formatDate(d) {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-}
-
 export default function SubscriptionModal({ open, onOpenChange, sub, onShowPricing, t }) {
   const { showToast } = useToast();
   const [confirmingCancel, setConfirmingCancel] = useState(false);
@@ -94,15 +90,20 @@ export default function SubscriptionModal({ open, onOpenChange, sub, onShowPrici
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay style={OVERLAY} />
+        <Dialog.Overlay style={MODAL_OVERLAY_STYLE} />
         <Dialog.Content
-          aria-describedby={undefined}
-          style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: t.bg, borderRadius: 20, maxWidth: 440, width: "calc(100% - 48px)", padding: 28, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", zIndex: 1011, outline: "none", fontFamily: "'DM Sans', sans-serif" }}
+          className="tmt-marketing"
+          style={{ ...marketingThemeVars(t), position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: "var(--tmt-paper)", borderRadius: 22, maxWidth: 440, width: "calc(100% - 48px)", padding: 32, boxShadow: "0 28px 70px rgba(0,0,0,0.28)", zIndex: 1011, fontFamily: "var(--tmt-sans)" }}
         >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-            <Dialog.Title style={{ fontSize: 20, fontWeight: 720, color: t.fg, margin: 0 }}>Manage subscription</Dialog.Title>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 22, gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <span className="tmt-label" style={{ display: "block", marginBottom: 8 }}>Account · Subscription</span>
+              <Dialog.Title className="tmt-display" style={{ fontSize: 28, fontWeight: 380, color: "var(--tmt-ink)", margin: 0, letterSpacing: "-0.015em", lineHeight: 1.15 }}>
+                Your plan
+              </Dialog.Title>
+            </div>
             <Dialog.Close asChild>
-              <button aria-label="Close" style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <button aria-label="Close" style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <X size={16} strokeWidth={2} />
               </button>
             </Dialog.Close>
@@ -111,14 +112,14 @@ export default function SubscriptionModal({ open, onOpenChange, sub, onShowPrici
           {/* Free user */}
           {isFree && (
             <>
-              <div style={{ padding: 16, borderRadius: 12, background: t.surface, marginBottom: 16 }}>
-                <p style={{ fontSize: 13, color: t.fgSoft, margin: "0 0 6px" }}>Current plan</p>
-                <p style={{ fontSize: 18, fontWeight: 700, color: t.fg, margin: 0 }}>Free</p>
+              <div style={{ padding: 18, borderRadius: 14, background: "var(--tmt-paper-card)", border: `1px solid ${t.borderSoft}`, marginBottom: 18 }}>
+                <span style={{ fontFamily: "var(--tmt-mono)", fontSize: 10, fontWeight: 600, color: "var(--tmt-ink-muted)", letterSpacing: "0.14em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Current plan</span>
+                <p className="tmt-display" style={{ fontSize: 22, fontWeight: 380, color: "var(--tmt-ink)", margin: 0, letterSpacing: "-0.01em" }}>Free</p>
               </div>
-              <p style={{ fontSize: 14, color: t.fgSoft, lineHeight: 1.55, margin: "0 0 16px" }}>
-                Unlock unlimited uploads, every theme, and the full feature set with ReadFlow Pro. Subscribe today for {PRICING.monthly.label} or {PRICING.annual.label} and save 25%!
+              <p style={{ fontFamily: "var(--tmt-serif-body)", fontSize: 15, color: "var(--tmt-ink-soft)", lineHeight: 1.6, margin: "0 0 18px" }}>
+                Unlock unlimited uploads, every theme, and the full feature set with TailorMyText Pro. Subscribe for {PRICING.monthly.label} or {PRICING.annual.label} and save 25%.
               </p>
-              <button onClick={() => { onOpenChange(false); onShowPricing(); }} className="rf-btn-solid" style={{ width: "100%", padding: "12px 24px", borderRadius: 12, border: "none", background: t.accent, color: "#fff", cursor: "pointer", fontSize: 14, fontWeight: 670, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              <button onClick={() => { onOpenChange(false); onShowPricing(); }} className="rf-btn-solid tmt-btn" style={{ width: "100%", padding: "12px 24px", borderRadius: 12, border: "none", background: t.accent, color: "#fff", cursor: "pointer", fontSize: 14, fontWeight: 670, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                 <Crown size={15} /> See Pro plans
               </button>
             </>
@@ -127,14 +128,14 @@ export default function SubscriptionModal({ open, onOpenChange, sub, onShowPrici
           {/* Trial user */}
           {isTrial && (
             <>
-              <div style={{ padding: 16, borderRadius: 12, background: `${t.accent}14`, border: `1px solid ${t.accent}33`, marginBottom: 16 }}>
-                <p style={{ fontSize: 13, color: t.accent, margin: "0 0 6px", fontWeight: 600 }}>Current plan</p>
-                <p style={{ fontSize: 18, fontWeight: 700, color: t.fg, margin: "0 0 10px" }}>{TRIAL_DAYS}-day free trial of Pro</p>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: t.fgSoft, marginBottom: 6 }}>
+              <div style={{ padding: 18, borderRadius: 14, background: `${t.accent}14`, border: `1px solid ${t.accent}40`, marginBottom: 18 }}>
+                <span style={{ fontFamily: "var(--tmt-mono)", fontSize: 10, fontWeight: 700, color: t.accent, letterSpacing: "0.14em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Current plan · Trial</span>
+                <p className="tmt-display" style={{ fontSize: 22, fontWeight: 380, color: "var(--tmt-ink)", margin: "0 0 14px", letterSpacing: "-0.01em" }}>{TRIAL_DAYS}-day Pro trial</p>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--tmt-ink-soft)", marginBottom: 6 }}>
                   <Calendar size={13} style={{ color: t.icon }} />
-                  Trial ends {formatDate(trialEnd)} ({sub.trialDaysLeft} day{sub.trialDaysLeft === 1 ? "" : "s"} left)
+                  Trial ends {formatDate(trialEnd)} · {sub.trialDaysLeft} day{sub.trialDaysLeft === 1 ? "" : "s"} left
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: t.fgSoft }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--tmt-ink-soft)" }}>
                   <CreditCard size={13} style={{ color: t.icon }} />
                   After trial: {cyclePricing.label}{sub.billingCycle === "annual" && cyclePricing.effectiveMonthly ? ` (${cyclePricing.effectiveMonthly} effective)` : ""}
                 </div>
@@ -178,15 +179,15 @@ export default function SubscriptionModal({ open, onOpenChange, sub, onShowPrici
           {/* Paid Pro user */}
           {isPro && (
             <>
-              <div style={{ padding: 16, borderRadius: 12, background: `${t.accent}14`, border: `1px solid ${t.accent}33`, marginBottom: 16 }}>
-                <p style={{ fontSize: 13, color: t.accent, margin: "0 0 6px", fontWeight: 600 }}>Current plan</p>
-                <p style={{ fontSize: 18, fontWeight: 700, color: t.fg, margin: "0 0 10px" }}>
+              <div style={{ padding: 18, borderRadius: 14, background: `${t.accent}14`, border: `1px solid ${t.accent}40`, marginBottom: 18 }}>
+                <span style={{ fontFamily: "var(--tmt-mono)", fontSize: 10, fontWeight: 700, color: t.accent, letterSpacing: "0.14em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Current plan · Pro</span>
+                <p className="tmt-display" style={{ fontSize: 22, fontWeight: 380, color: "var(--tmt-ink)", margin: "0 0 14px", letterSpacing: "-0.01em" }}>
                   {sub.hasStripeHistory
-                    ? `Pro · ${sub.billingCycle === "annual" ? "Annual" : "Monthly"} · ${cyclePricing.label}`
-                    : "Pro (admin bypass)"}
+                    ? `${sub.billingCycle === "annual" ? "Annual" : "Monthly"} · ${cyclePricing.label}`
+                    : "Admin bypass"}
                 </p>
                 {sub.hasStripeHistory && proPeriodEnd && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: t.fgSoft, marginBottom: 4 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--tmt-ink-soft)", marginBottom: 4 }}>
                     <CreditCard size={13} style={{ color: t.icon }} />
                     Next billing: {cyclePricing.display} on {formatDate(proPeriodEnd)}
                   </div>
@@ -194,7 +195,9 @@ export default function SubscriptionModal({ open, onOpenChange, sub, onShowPrici
               </div>
               {!sub.hasStripeHistory ? (
                 <div style={{ padding: 14, borderRadius: 12, background: t.surface, fontSize: 13, color: t.fgSoft, lineHeight: 1.55 }}>
-                  Admin bypass is active — there's no real Stripe subscription to manage.{" "}
+                  Admin bypass is{" "}
+                  <span style={{ display: "inline-flex", alignItems: "center", padding: "2px 8px", borderRadius: 999, background: "#10B98118", color: "#10B981", border: "1px solid #10B98144", fontSize: 11, fontWeight: 700, fontFamily: "'DM Sans', sans-serif" }}>active</span>
+                  {" "}— there's no real Stripe subscription to manage.{" "}
                   <a
                     href="#start-test-subscription"
                     onClick={(e) => { e.preventDefault(); onOpenChange(false); onShowPricing(); }}

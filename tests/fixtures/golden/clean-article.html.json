@@ -1,0 +1,20 @@
+[
+  {
+    "type": "chapter",
+    "title": "Chapter 1",
+    "number": 1,
+    "content": "The article opens with a tidy structure. h1 marks the chapter, p tags carry the prose.\n\nA second paragraph in the first chapter. Quiet, conversational prose."
+  },
+  {
+    "type": "chapter",
+    "title": "Chapter 2",
+    "number": 2,
+    "content": "The second chapter follows the same pattern.\n\nTwo paragraphs is enough for the parser to confirm the section boundary.\n\n## A sub-section\n\nWithin a chapter, h2 marks sub-sections. The renderer should treat these as inline headings."
+  },
+  {
+    "type": "chapter",
+    "title": "Chapter 3",
+    "number": 3,
+    "content": "Final chapter of the test fixture."
+  }
+]

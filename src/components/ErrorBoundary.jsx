@@ -46,21 +46,21 @@ export default class ErrorBoundary extends Component {
     };
 
     return (
-      <div style={{ padding: 32, display: "flex", flexDirection: "column", alignItems: "center", gap: 16, textAlign: "center", color: t.fgSoft, fontFamily: "'DM Sans', sans-serif", maxWidth: 520, margin: "0 auto" }}>
-        <div style={{ width: 56, height: 56, borderRadius: 28, background: "#EF444420", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-          <AlertTriangle size={28} style={{ color: "#EF4444" }} />
-        </div>
+      <div style={{ padding: 48, display: "flex", flexDirection: "column", alignItems: "center", gap: 18, textAlign: "center", color: t.fgSoft, fontFamily: "'DM Sans', sans-serif", maxWidth: 540, margin: "0 auto" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', ui-monospace, monospace", fontSize: 10.5, fontWeight: 700, color: "#EF4444", letterSpacing: "0.18em", textTransform: "uppercase", display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <AlertTriangle size={13} strokeWidth={2.2} /> Render error
+        </span>
         <div>
-          <h2 style={{ fontSize: 18, fontWeight: 720, color: t.fg, margin: "0 0 6px" }}>
+          <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 30, fontWeight: 360, color: t.fg, margin: "0 0 8px", letterSpacing: "-0.015em", lineHeight: 1.15 }}>
             {this.props.title ?? "Something went wrong"}
           </h2>
-          <p style={{ fontSize: 14, color: t.fgSoft, margin: 0, lineHeight: 1.55 }}>
-            {this.props.description ?? "ReadFlow hit an unexpected error rendering this. You can reset and try again."}
+          <p style={{ fontFamily: "'Newsreader', serif", fontSize: 16, fontStyle: "italic", color: t.fgSoft, margin: 0, lineHeight: 1.6 }}>
+            {this.props.description ?? "TailorMyText hit an unexpected error rendering this. You can reset and try again."}
           </p>
         </div>
         <button
           onClick={this.reset}
-          style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 16px", borderRadius: 10, border: `1px solid ${t.border}`, background: t.surface, color: t.fg, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}
+          style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 12, border: `1px solid ${t.border}`, background: t.surface, color: t.fg, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}
         >
           <RefreshCw size={13} /> Reset
         </button>

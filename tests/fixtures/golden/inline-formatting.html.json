@@ -1,0 +1,14 @@
+[
+  {
+    "type": "chapter",
+    "title": "Document with rich inline formatting",
+    "number": 1,
+    "content": "This paragraph has bold text and italic text and inline code.\n\nIt also has chemical formulas like H2O and exponents like x2.\n\nAnd a link with a label embedded in prose."
+  },
+  {
+    "type": "chapter",
+    "title": "A second chapter",
+    "number": 2,
+    "content": "The current parser flattens all of these to plain text via .textContent. Phase 6 work on EPUB will revisit the renderer contract to preserve inline semantics."
+  }
+]

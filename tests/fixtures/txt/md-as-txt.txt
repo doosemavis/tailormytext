@@ -1,0 +1,24 @@
+# Chapter One: The Opening
+
+This file is real Markdown saved with a .txt extension by mistake. The sniffer should upgrade it to the Markdown parser via the multi-signal score.
+
+- A bulleted list
+- Another bullet
+- A third bullet
+
+Here is some **bold text** and a [link to somewhere](https://example.com).
+
+```js
+const code = "fenced block";
+```
+
+# Chapter Two: The Middle
+
+> A blockquote line
+> Continued blockquote
+
+More body text.
+
+# Chapter Three: The End
+
+Closing thoughts.

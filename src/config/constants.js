@@ -25,6 +25,15 @@ export const PALETTES = {
   lavender: { label: "Lavender", colors: ["#7B2D8E","#9B59B6","#BB8FCE","#D2B4DE","#EBDEF0"] },
   ember:    { label: "Ember",    colors: ["#D62828","#E85D04","#F48C06","#FAA307","#FCBF49"] },
   mono:     { label: "Mono",     colors: ["#333","#555","#777","#999","#BBB"] },
+  // Colorblind-safe gradients sampled from established CVD-friendly
+  // colormaps. Each stays distinguishable across deuteranopia,
+  // protanopia, and tritanopia by combining hue shift with monotonic
+  // luminance — so even when hue collapses for a given vision type,
+  // the lightness gradient still cues word position across a line.
+  aurora:   { label: "Aurora",   colors: ["#440154","#3B528B","#21918C","#5EC962","#FDE725"], cvdSafe: true }, // Viridis
+  beacon:   { label: "Beacon",   colors: ["#00224E","#404C6B","#7C7B78","#B6A565","#FEE838"], cvdSafe: true }, // Cividis
+  prism:    { label: "Prism",    colors: ["#0072B2","#56B4E9","#009E73","#F0E442","#E69F00"], cvdSafe: true }, // Okabe-Ito
+  vivid:    { label: "Vivid",    colors: ["#4477AA","#66CCEE","#228833","#CCBB44","#EE6677"], cvdSafe: true }, // Tol Bright
 };
 
 export const GUIDE_COLORS = {
@@ -44,11 +53,45 @@ export const FONTS = [
   { name: "Source Sans 3",        css: "'Source Sans 3', sans-serif",         href: "Source+Sans+3:wght@400;600;700" },
   { name: "Merriweather",         css: "'Merriweather', serif",              href: "Merriweather:ital,wght@0,400;0,700;1,400" },
   { name: "OpenDyslexic",         css: "'OpenDyslexic', sans-serif",          href: null },
+  { name: "Arial",                css: "Arial, 'Helvetica Neue', Helvetica, sans-serif", href: null },
+  { name: "Helvetica",            css: "'Helvetica Neue', Helvetica, Arial, sans-serif", href: null },
+  { name: "Verdana",              css: "Verdana, Geneva, Tahoma, sans-serif", href: null },
+  { name: "Geist Mono",           css: "'Geist Mono', ui-monospace, monospace", href: "Geist+Mono:wght@400;500;600;700" },
 ];
 
 export const FREE_UPLOAD_LIMIT = 3;
 export const TRIAL_DAYS = 14;
 export const MAX_RECENT_DOCS = 5;
+
+// Sidebar panel geometry. The inner content wrapper is sized to fit beside the
+// thin scrollbar (see .rf-side-scroll in global.css) so nothing clips on the
+// right when the scrollbar is present; the 1px accounts for the panel border.
+export const SIDEBAR_WIDTH = 296;
+export const SIDEBAR_SCROLLBAR_WIDTH = 6;
+export const SIDEBAR_CONTENT_WIDTH = SIDEBAR_WIDTH - 1 - SIDEBAR_SCROLLBAR_WIDTH;
+
+// Phase 3 of the parser rewrite. When true, .md uploads go through
+// parseMarkdownTokens (marked.lexer + adapter). When false, they go
+// through the legacy parseMarkdownStructured (regex preprocessor +
+// detectTextStructure). Both paths emit the same Section[] shape per
+// PARSER_CONTRACT.md so the renderer is unaffected by the flip.
+//
+// Flag exists to allow a fast rollback if the new parser regresses on
+// real-world Markdown after deploy. Task 3.4 (deferred) removes the
+// legacy path after a soak period with the flag on.
+export const USE_MARKDOWN_TOKEN_PARSER = true;
+
+// Supabase plan caps for the AdminPanel capacity widgets. Bump together
+// when promoting Free → Pro (1 GB → 100 GB storage; 500 MB → 8 GB DB).
+//
+// Storage:  Free 1 * 1024**3 = 1073741824
+//           Pro  100 * 1024**3 = 107374182400
+// Database: Free 500 * 1024**2 = 524288000
+//           Pro  8 * 1024**3 = 8589934592
+export const SUPABASE_STORAGE_LIMIT_BYTES = 1 * 1024 * 1024 * 1024;
+export const SUPABASE_STORAGE_PLAN_LABEL = "Free (1 GB)";
+export const SUPABASE_DB_LIMIT_BYTES = 500 * 1024 * 1024;
+export const SUPABASE_DB_PLAN_LABEL = "Free (500 MB)";
 
 // Pro tier pricing. Single source of truth — used by PricingModal,
 // SubscriptionModal, and any future Stripe Price ID mapping in Phase 9.

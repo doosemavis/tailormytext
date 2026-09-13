@@ -1,5 +1,14 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* Body inherits an accessibility-tuned typeface so anything not explicitly
+   styled lands on Atkinson Hyperlegible instead of the OS serif fallback.
+   Atkinson was designed by the Braille Institute for low-vision readers
+   and is the strongest brand-aligned default before the user picks a font. */
+body {
+  font-family: 'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+}
+
 /* ── Game button mechanic — all interactive buttons ── */
 button {
   -webkit-tap-highlight-color: transparent;
@@ -29,8 +38,74 @@ button:active {
   filter: none !important;
 }
 
+/* Global focus indicator — WCAG 2.4.11 Focus Appearance.
+   currentColor guarantees AA contrast against any container since text
+   inherits a contrast-checked theme color. `!important` overrides the
+   inline `outline: none` left on many interactive elements; a11y wins
+   over cosmetic outline suppression. Inline declarations on
+   Dialog.Content + the chapter dropdown trigger were stripped too so
+   the rule doesn't have to fight specificity for the surfaces most
+   load-bearing for keyboard nav. */
+:focus-visible {
+  outline: 2px solid currentColor !important;
+  outline-offset: 3px;
+}
+
+/* Radix DropdownMenu / Select / Toolbar items already render a
+   data-highlighted background tint for the focused row. Exempt the
+   ARIA roles they emit so the global outline doesn't double up on top
+   of their existing highlight (read as a stray black ring on the
+   focused menu row in UserMenu / chapter dropdown / library cards).
+   Radix still manages focus correctly; AT users just see the highlight
+   instead of the outline + highlight. */
+[role="menu"]:focus-visible,
+[role="menuitem"]:focus-visible,
+[role="menuitemcheckbox"]:focus-visible,
+[role="menuitemradio"]:focus-visible,
+[role="option"]:focus-visible,
+[role="combobox"][data-state="open"]:focus-visible {
+  outline: none !important;
+}
+
+/* Icon-prefixed search pill: the wrapping <label> is the focusable
+   unit. Its child <input> is bare (border:none, background:transparent),
+   so the global :focus-visible outline would land inside the pill —
+   reads as a stray black ring crowded against the pill border. Move
+   the focus indicator onto the wrapper via :focus-within so keyboard
+   users see the whole pill light up. */
+.tmt-search-pill:focus-within {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.tmt-search-pill input:focus-visible {
+  outline: none !important;
+}
+
 /* Inline text-link styled buttons — underline on hover */
 .rf-link:hover { text-decoration: underline; }
+
+/* Anchor elements styled as buttons. The global `button {}` rule above
+   only matches <button>; React-Router <Link>s render as <a> and miss it.
+   Apply the same game-button mechanic (raised ledge + press-down) to
+   any anchor with .rf-link-btn so navigation Links feel tactile too. */
+a.rf-link-btn {
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.12);
+  transition: transform 0.15s ease, box-shadow 0.15s ease,
+              filter 0.15s ease, background-color 0.15s ease;
+}
+a.rf-link-btn:where(:hover:not(:active)) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 0 rgba(0,0,0,0.12);
+  filter: brightness(1.05);
+}
+a.rf-link-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 rgba(0,0,0,0.12);
+  filter: brightness(0.93);
+  transition: transform 0.07s ease-out, box-shadow 0.07s ease-out,
+              filter 0.07s ease-out;
+}
 
 
 /* ── Solid CTA buttons: gradient sheen over accent color ── */
@@ -145,10 +220,23 @@ button:active {
 }
 
 .rf-reader-scroll { scroll-behavior: smooth; }
-.rf-reader-scroll::-webkit-scrollbar { width: 6px; }
-.rf-reader-scroll::-webkit-scrollbar-track { background: transparent; }
-.rf-reader-scroll::-webkit-scrollbar-thumb { background: rgba(128,128,128,0.25); border-radius: 3px; }
-.rf-reader-scroll::-webkit-scrollbar-thumb:hover { background: rgba(128,128,128,0.4); }
+
+/* Thin, low-contrast scrollbar shared by the reader and the sidebar so a
+   native track never appears as a thick light bar on dark themes. The
+   sidebar reserves its gutter so content width is stable whether or not
+   the panel currently scrolls (SIDEBAR_SCROLLBAR_WIDTH in constants.js
+   must match the 6px here). */
+.rf-reader-scroll,
+.rf-side-scroll { scrollbar-width: thin; scrollbar-color: rgba(128,128,128,0.25) transparent; }
+.rf-side-scroll { scrollbar-gutter: stable; }
+.rf-reader-scroll::-webkit-scrollbar,
+.rf-side-scroll::-webkit-scrollbar { width: 6px; }
+.rf-reader-scroll::-webkit-scrollbar-track,
+.rf-side-scroll::-webkit-scrollbar-track { background: transparent; }
+.rf-reader-scroll::-webkit-scrollbar-thumb,
+.rf-side-scroll::-webkit-scrollbar-thumb { background: rgba(128,128,128,0.25); border-radius: 3px; }
+.rf-reader-scroll::-webkit-scrollbar-thumb:hover,
+.rf-side-scroll::-webkit-scrollbar-thumb:hover { background: rgba(128,128,128,0.4); }
 
 .rf-no-select { user-select: none; -webkit-user-select: none; }
 
@@ -163,80 +251,135 @@ button:active {
 
 .rf-para { opacity: 1; transition: opacity 0.35s ease; content-visibility: auto; contain-intrinsic-size: auto 120px; }
 
+/* Chapter jumps un-skip only the target section (utils/sectionJump.js sets
+   an inline content-visibility on it) rather than the whole book. */
+
+/* Chapter reveal — two-layer fade:
+   1. Wrapper fades 0 → 1 over 280ms (envelope; title becomes visible).
+   2. Paragraphs additionally fade 0 → 1 over 800ms with 200ms delay
+      (body materialises slowly behind the title).
+   Effective: title appears in ~280ms, body finishes around 1000ms. Title
+   leads because paragraph opacity multiplies with wrapper opacity — the
+   paragraph fade is invisible while the wrapper is still ramping up.
+   This replaced the DiaTextReveal sweep on titles, which was costing a
+   ~900ms RAF gradient loop on every chapter jump. */
+@keyframes rf-wrapper-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes rf-body-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.rf-doc-wrapper.rf-chapter-reveal {
+  animation: rf-wrapper-fade-in 280ms ease-out backwards;
+}
+.rf-doc-wrapper.rf-chapter-reveal .rf-para {
+  animation: rf-body-fade-in 800ms ease-out 200ms backwards;
+}
+
+/* Short wrapper-only fade for user-initiated chapter jumps. Skips the
+   body fade so paragraphs stay visible instantly while the wrapper
+   provides click-feedback. ~6x shorter perceived delay than rf-chapter-
+   reveal on long books (Don Quixote, Moby Dick). */
+.rf-doc-wrapper.rf-chapter-snap {
+  animation: rf-wrapper-fade-in 180ms ease-out backwards;
+}
+
+/* WCAG 2.3.3 — chapter-reveal fires on every chapter navigation, which is
+   the core reading action. Disable for users who request reduced motion;
+   they go straight from old-chapter to new without the fade-in pass. */
+@media (prefers-reduced-motion: reduce) {
+  .rf-doc-wrapper.rf-chapter-reveal,
+  .rf-doc-wrapper.rf-chapter-reveal .rf-para,
+  .rf-doc-wrapper.rf-chapter-snap {
+    animation: none;
+  }
+  /* Same gate for the column-width slider transition in DocumentBody —
+     the wrapper reads --rf-wrapper-width-transition via its inline style. */
+  .rf-doc-wrapper {
+    --rf-wrapper-width-transition: none;
+  }
+}
+
 /* FocusMode: cursor activated by CSS class, not re-render */
 .rf-focus-mode .rf-para { cursor: pointer; }
 
-/* HueGuide: color activated by CSS class, not re-render */
+/* HueGuide: color activated by CSS class, not re-render.
+   --rf-hue-intensity (0–1) blends inherited theme fg with the palette
+   color via color-mix. 0 = pure plain text, 1 = pure palette color.
+   currentColor in `color` resolves to the inherited value, so the
+   blend's "low" anchor is always whatever theme is active. */
 .rf-word { color: inherit; }
-.rf-hueguide .rf-word { color: var(--hue-color); }
+.rf-hueguide .rf-word {
+  color: color-mix(in oklab, currentColor, var(--hue-color) calc(var(--rf-hue-intensity, 1) * 100%));
+}
 
 /* NeuroDiv: bold activated by CSS class, not re-render */
 .rf-word strong { font-weight: inherit; }
 .rf-neurodiv .rf-word strong { font-weight: 700; }
 
-@keyframes spin { to { transform: rotate(360deg); } }
+/* Paragraph markup classes (utils/paragraphHtml.js builds the HTML, so
+   per-word and per-line styling lives here instead of inline style
+   objects — smaller markup, no style attribute per word).
+   data-hue is the word's palette slot; the wrapper carries --rf-hue-0..4. */
+.rf-word[data-hue="0"] { --hue-color: var(--rf-hue-0); }
+.rf-word[data-hue="1"] { --hue-color: var(--rf-hue-1); }
+.rf-word[data-hue="2"] { --hue-color: var(--rf-hue-2); }
+.rf-word[data-hue="3"] { --hue-color: var(--rf-hue-3); }
+.rf-word[data-hue="4"] { --hue-color: var(--rf-hue-4); }
+.rf-word.rf-md-b { font-weight: 700; }
+.rf-word.rf-md-i { font-style: italic; }
+.rf-line { margin: 0 0 0.25em 0; }
+.rf-h2 {
+  font-size: calc(var(--rf-font-size, 18px) * 1.3);
+  font-weight: 740;
+  margin: calc(var(--rf-line-height, 1.8) * 0.8em) 0 calc(var(--rf-line-height, 1.8) * 0.35em);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+.rf-h3 {
+  font-size: calc(var(--rf-font-size, 18px) * 1.12);
+  font-weight: 700;
+  margin: calc(var(--rf-line-height, 1.8) * 0.6em) 0 calc(var(--rf-line-height, 1.8) * 0.25em);
+  line-height: 1.3;
+}
+.rf-ul, .rf-ol { margin: calc(var(--rf-line-height, 1.8) * 0.35em) 0; padding-left: 1.6em; }
+.rf-ul { list-style-type: disc; }
+.rf-ol { list-style-type: decimal; }
+.rf-li { margin: 0 0 0.25em 0; }
 
-/* ── Cat loader (CatLoader.jsx) ──
-   Four absolute-positioned divs each show a 50%×50% slice of a 2×2 sprite.
-   Each slice rotates around a corner anchor with staggered delays, producing
-   the "cat assembling itself" effect. --rf-cat-img is set inline by the
-   component so Vite's hashed asset URL flows through correctly. */
-.rf-cat {
-  position: relative;
-  width: var(--rf-cat-size, 220px);
-  max-width: 100%;
-  aspect-ratio: 1 / 1;
-  /* Sprite was re-encoded with alpha so the cream background can drop out. */
-  pointer-events: none;
-}
-.rf-cat__head,
-.rf-cat__body,
-.rf-cat__tail {
-  position: absolute;
-  inset: 0;
-  animation: rf-cat-rotating 2.79s cubic-bezier(.65, .54, .12, .93) infinite;
-  pointer-events: none;
-}
-.rf-cat__head::before,
-.rf-cat__body::before,
-.rf-cat__tail::before {
-  content: '';
-  position: absolute;
-  width: 50%;
-  height: 50%;
-  background-image: var(--rf-cat-img);
-  background-size: 200%;
-  background-repeat: no-repeat;
-}
-.rf-cat__head::before {
-  top: 0; right: 0;
-  background-position: 100% 0%;
-  transform-origin: 0% 100%;
-  transform: rotate(90deg);
-}
-.rf-cat__tail { animation-delay: 0.2s; }
-.rf-cat__tail::before {
-  left: 0; bottom: 0;
-  background-position: 0% 100%;
-  transform-origin: 100% 0%;
-  transform: rotate(-30deg);
-}
-.rf-cat__body { animation-delay: 0.1s; }
-.rf-cat__body:nth-of-type(2) { animation-delay: 0.2s; }
-.rf-cat__body::before {
-  right: 0; bottom: 0;
-  background-position: 100% 100%;
-  transform-origin: 0% 0%;
-}
-@keyframes rf-cat-rotating {
-  from { transform: rotate(720deg); }
-  to   { transform: none; }
-}
+/* WPM Pacer: current word + 3-word fading trail + paused-cursor outline.
+   Driven by classList writes from usePacer, never by React re-render.
+   --rf-pace-color is the active theme accent, written on the reader
+   scroll container by App.jsx; alpha is applied here so the same colour
+   serves the outline (solid) and the fills (translucent). */
+/* No background transition: at 250 wpm a word lasts ~240ms, so even a
+   180ms fade-in reads as the highlight arriving late. The trail already
+   fades spatially across three words; class swaps must be instant. */
+.rf-word { border-radius: 3px; }
+.rf-pace-current { background: color-mix(in oklab, var(--rf-pace-color, currentColor) 28%, transparent); }
+.rf-pace-trail-1 { background: color-mix(in oklab, var(--rf-pace-color, currentColor) 18%, transparent); }
+.rf-pace-trail-2 { background: color-mix(in oklab, var(--rf-pace-color, currentColor) 11%, transparent); }
+.rf-pace-trail-3 { background: color-mix(in oklab, var(--rf-pace-color, currentColor) 5%, transparent); }
+.rf-pace-cursor  { outline: 2px solid var(--rf-pace-color, currentColor); outline-offset: 1px; }
+
+/* Ring clip room. content-visibility:auto on .rf-para / .rf-section implies
+   paint containment, which clips at their padding box, so a ring on a word
+   flush against a paragraph edge lost that side (2px ring + 1px offset).
+   4px of padding cancelled by matching negative margins keeps every word
+   exactly where it was at any column width while giving the clip box room.
+   The paragraph gap (0.7 line-heights, formerly an inline style in
+   DocumentBody) lives here so the bottom 4px can be subtracted from it;
+   sections need no bottom padding because their last paragraph's own
+   margin already keeps its ring inside. */
+.rf-section { padding: 4px 4px 0; margin: -4px -4px 0; }
+.rf-para    { padding: 4px; margin: -4px -4px calc(var(--rf-line-height, 1.8) * 0.7em - 4px); }
 @media (prefers-reduced-motion: reduce) {
-  .rf-cat__head,
-  .rf-cat__body,
-  .rf-cat__tail { animation: none; }
+  .rf-pace-trail-1, .rf-pace-trail-2, .rf-pace-trail-3 { background: transparent; }
 }
+
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* ── Pulsating button (PulsatingButton.jsx) ──
    Two variants: "pulse" softly expands a same-color shadow each cycle;
@@ -305,6 +448,16 @@ button:active {
 }
 [data-rf-theme-vt="active"]::view-transition-old(root) { z-index: 1; }
 [data-rf-theme-vt="active"]::view-transition-new(root) { z-index: 2; }
+/* The "new" side of the reveal is the live DOM, not a snapshot. Without
+   this, every button/toggle/border keeps fading between themes for the
+   first 150-200ms of the 450ms circle (28 transitions measured on the
+   demo article), so the revealed area visibly changes a second time
+   mid-wipe and reads as a stutter. The attribute is only present for the
+   duration of the reveal, so the new theme snaps in and the circle is the
+   only thing moving. */
+[data-rf-theme-vt="active"] *,
+[data-rf-theme-vt="active"] *::before,
+[data-rf-theme-vt="active"] *::after { transition: none !important; }
 
 
 @font-face {
@@ -324,4 +477,314 @@ button:active {
   src: url('https://cdn.jsdelivr.net/gh/antijingoist/opendyslexic@master/compiled/OpenDyslexic-Italic.woff2') format('woff2'),
        url('https://cdn.jsdelivr.net/gh/antijingoist/opendyslexic@master/compiled/OpenDyslexic-Italic.woff') format('woff');
   font-weight: 400; font-style: italic; font-display: swap;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   MARKETING AESTHETIC (.tmt-marketing scope)
+
+   Editorial soft-organic look used on pre-auth surfaces: landing
+   marketing sections, AuthModal, PricingModal, PaywallModal,
+   CheckoutModal loader, ContactModal, LegalLayout, Footer.
+
+   Scoped to .tmt-marketing so it can't bleed into the reader,
+   theme-aware modals, or the AdminPanel. Inside this scope the
+   typography defaults to Newsreader serif; headings use Fraunces;
+   labels use IBM Plex Mono.
+
+   Use .tmt-static on any <button> inside .tmt-marketing that should
+   opt out of the global game-button ledge mechanic (most marketing
+   pill buttons want the cleaner editorial look).
+   ──────────────────────────────────────────────────────────────────── */
+
+.tmt-marketing {
+  --tmt-paper:        #F2EBDD;
+  --tmt-paper-deep:   #E8DEC9;
+  --tmt-paper-card:   #F8F2E5;
+  --tmt-ink:          #1F1812;
+  --tmt-ink-soft:     #4A3F33;
+  --tmt-ink-muted:    #7C6E5C;
+  --tmt-rule:         #D6C9B1;
+
+  --tmt-terra:        #B0512E;
+  --tmt-terra-deep:   #8A3E22;
+  --tmt-sage:         #4F7156;
+  --tmt-sand:         #D9B07F;
+
+  --tmt-serif-display: 'Fraunces', 'Times New Roman', serif;
+  --tmt-serif-body:    'Newsreader', Georgia, serif;
+  --tmt-mono:          'IBM Plex Mono', ui-monospace, monospace;
+
+  --tmt-radius:        14px;
+  --tmt-radius-lg:     28px;
+  --tmt-easing:        cubic-bezier(.22,.61,.36,1);
+
+  font-family: var(--tmt-serif-body);
+  font-optical-sizing: auto;
+  color: var(--tmt-ink);
+}
+
+/* Atmosphere — paper grain overlay positioned by the page wrapper */
+.tmt-grain {
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.12  0 0 0 0 0.09  0 0 0 0 0.07  0 0 0 0.5 0'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.32'/></svg>");
+  mix-blend-mode: multiply;
+  opacity: 0.5;
+}
+.tmt-blobs {
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+.tmt-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.4;
+  animation: tmt-drift 42s cubic-bezier(.22,.61,.36,1) infinite alternate;
+}
+.tmt-blob.b1 {
+  width: 620px; height: 620px; top: -180px; left: -160px;
+  background: radial-gradient(circle at 30% 30%, #D9B07F, transparent 70%);
+}
+.tmt-blob.b2 {
+  width: 540px; height: 540px; top: 38%; right: -180px;
+  background: radial-gradient(circle at 50% 50%, #C97A5A, transparent 70%);
+  animation-duration: 48s; animation-delay: -8s; opacity: 0.28;
+}
+.tmt-blob.b3 {
+  width: 700px; height: 700px; bottom: -260px; left: 25%;
+  background: radial-gradient(circle at 40% 60%, #A8BC9C, transparent 70%);
+  animation-duration: 54s; animation-delay: -22s; opacity: 0.24;
+}
+@keyframes tmt-drift {
+  0%   { transform: translate(0,0)         scale(1); }
+  50%  { transform: translate(40px,-30px)  scale(1.06); }
+  100% { transform: translate(-30px,40px)  scale(0.96); }
+}
+
+
+/* Typographic primitives */
+.tmt-marketing .tmt-eyebrow {
+  font-family: var(--tmt-mono);
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--tmt-terra);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.tmt-marketing .tmt-eyebrow.sage   { color: var(--tmt-sage); }
+.tmt-marketing .tmt-eyebrow.muted  { color: var(--tmt-ink-muted); }
+.tmt-marketing .tmt-eyebrow.lead::before {
+  content: '';
+  width: 22px; height: 1px;
+  background: currentColor;
+}
+
+.tmt-marketing .tmt-display {
+  font-family: var(--tmt-serif-display);
+  font-weight: 380;
+  letter-spacing: -0.025em;
+  color: var(--tmt-ink);
+  font-variation-settings: "opsz" 144, "SOFT" 80;
+  line-height: 1.05;
+}
+.tmt-marketing .tmt-display em {
+  font-style: italic;
+  font-weight: 380;
+  color: var(--tmt-terra);
+  font-variation-settings: "opsz" 144, "SOFT" 100;
+}
+.tmt-marketing .tmt-display .underline {
+  position: relative;
+  white-space: nowrap;
+}
+.tmt-marketing .tmt-display .underline::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: -2px;
+  height: 14px;
+  background: var(--tmt-sand);
+  opacity: 0.55;
+  z-index: -1;
+  transform: skewX(-4deg);
+}
+
+.tmt-marketing .tmt-label {
+  font-family: var(--tmt-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--tmt-ink-muted);
+}
+
+/* Marketing CTA — editorial typography (Fraunces/mono cap label) but the
+   tactile game-button mechanic from the rest of the app (raised ledge +
+   press-down + brightness shift). Compose with `.rf-btn-solid` to get the
+   gradient sheen + inset rim lighting on top of the terra base. Button
+   radius is 12px (matches the existing app's button language), not the
+   999px pill from the original landing-concept mock. */
+.tmt-marketing .tmt-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--tmt-terra);
+  color: var(--tmt-paper);
+  font-family: var(--tmt-mono);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  text-decoration: none;
+  padding: 13px 22px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap; /* Keep editorial pills on a single line so labels
+                          never wrap into a taller button than their siblings. */
+  /* No box-shadow / transform declared here — the global `button` rule and
+     `.rf-btn-solid` (when composed) provide the raised ledge + press-down
+     game-button mechanic. This keeps the editorial CTA tactile instead of
+     flat. */
+}
+.tmt-marketing .tmt-btn.ghost {
+  background: var(--tmt-paper-card);
+  color: var(--tmt-ink);
+  border: 1px solid var(--tmt-rule);
+}
+.tmt-marketing .tmt-btn.ghost:hover {
+  background: var(--tmt-paper-deep);
+  border-color: var(--tmt-ink-muted);
+}
+.tmt-marketing .tmt-btn.ink {
+  background: var(--tmt-ink);
+  color: var(--tmt-paper);
+}
+.tmt-marketing .tmt-btn.ink:hover {
+  background: #2A2118;
+}
+
+/* Italic ghost link (e.g. "See what changes →") */
+.tmt-marketing .tmt-ghost-link {
+  font-family: var(--tmt-serif-body);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--tmt-ink-soft);
+  text-decoration: none;
+  border-bottom: 1px solid var(--tmt-rule);
+  padding-bottom: 2px;
+  transition: color 0.25s cubic-bezier(.22,.61,.36,1),
+              border-color 0.25s cubic-bezier(.22,.61,.36,1);
+}
+.tmt-marketing .tmt-ghost-link:hover {
+  color: var(--tmt-ink);
+  border-color: var(--tmt-ink);
+}
+
+/* Pill for trust badges, plan tags, etc. */
+.tmt-marketing .tmt-pill {
+  display: inline-block;
+  font-family: var(--tmt-mono);
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--tmt-ink-muted);
+  border: 1px solid var(--tmt-rule);
+  border-radius: 999px;
+  padding: 6px 12px;
+}
+
+/* Warning pill — shown in the reader top bar when text-parser confidence < 0.70.
+   Solid amber background + white text satisfies WCAG AA contrast (~4.6:1).
+   Inset highlight gives the "vibrant solid" look consistent with internal
+   status badges (see feedback_status_badges_solid.md). */
+.tmt-pill--warning {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--tmt-mono, 'IBM Plex Mono', ui-monospace, monospace);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #fff;
+  background: #B45309;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  border: none;
+  border-radius: 999px;
+  padding: 5px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1;
+  outline-offset: 2px;
+}
+.tmt-pill--warning:hover {
+  background: #92400E;
+}
+.tmt-pill--warning:focus-visible {
+  outline: 2px solid #B45309;
+}
+
+/* Card surface — used by hero copy panels, condition tiles, plan cards. */
+.tmt-marketing .tmt-card {
+  background: var(--tmt-paper-card);
+  border: 1px solid var(--tmt-rule);
+  border-radius: var(--tmt-radius);
+  padding: 32px;
+}
+
+/* Neutralize the inherited button-ledge transforms on .tmt-static so
+   .tmt-btn keeps its own editorial shadow language across all variants. */
+.tmt-marketing .tmt-static,
+.tmt-marketing .tmt-static:hover,
+.tmt-marketing .tmt-static:active {
+  filter: none !important;
+}
+.tmt-marketing .tmt-btn.tmt-static {
+  box-shadow: 0 1px 0 rgba(255,255,255,0.25) inset,
+              0 12px 28px -12px rgba(176,81,46,0.55) !important;
+}
+.tmt-marketing .tmt-btn.tmt-static:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.25) inset,
+              0 18px 36px -14px rgba(138,62,34,0.65) !important;
+}
+.tmt-marketing .tmt-btn.tmt-static:active {
+  transform: translateY(0) !important;
+}
+.tmt-marketing .tmt-btn.ink.tmt-static {
+  box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset,
+              0 12px 28px -14px rgba(31,24,18,0.55) !important;
+}
+.tmt-marketing .tmt-btn.ghost.tmt-static,
+.tmt-marketing .tmt-btn.ghost.tmt-static:hover,
+.tmt-marketing .tmt-btn.ghost.tmt-static:active {
+  box-shadow: none !important;
+}
+
+/* Landing hero — 2-column editorial layout, stacks at narrow widths. */
+.tmt-marketing .tmt-hero {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 72px;
+  align-items: start;
+  padding: 64px 40px 80px;
+  max-width: 1240px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+@media (max-width: 980px) {
+  .tmt-marketing .tmt-hero {
+    grid-template-columns: 1fr;
+    gap: 48px;
+    padding: 40px 24px 60px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tmt-blob { animation: none; }
 }

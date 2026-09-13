@@ -1,0 +1,50 @@
+[
+  {
+    "type": "chapter",
+    "title": "Section 1",
+    "number": 1,
+    "content": "Short body for section 1."
+  },
+  {
+    "type": "chapter",
+    "title": "Section 2",
+    "number": 2,
+    "content": "Short body for section 2."
+  },
+  {
+    "type": "chapter",
+    "title": "Section 3",
+    "number": 3,
+    "content": "Short body for section 3."
+  },
+  {
+    "type": "chapter",
+    "title": "Section 4",
+    "number": 4,
+    "content": "Short body for section 4."
+  },
+  {
+    "type": "chapter",
+    "title": "Section 5",
+    "number": 5,
+    "content": "Short body for section 5."
+  },
+  {
+    "type": "chapter",
+    "title": "Section 6",
+    "number": 6,
+    "content": "Short body for section 6."
+  },
+  {
+    "type": "chapter",
+    "title": "Section 7",
+    "number": 7,
+    "content": "Short body for section 7."
+  },
+  {
+    "type": "chapter",
+    "title": "Section 8",
+    "number": 8,
+    "content": "Short body for section 8."
+  }
+]

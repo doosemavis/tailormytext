@@ -1,0 +1,8 @@
+[
+  {
+    "type": "chapter",
+    "title": "A document with escaped characters",
+    "number": 1,
+    "content": "This paragraph has _underscores_ that should NOT be italicized. The backslash escapes them.\n\nThis one has *asterisks* that should NOT be bold.\n\nBut this paragraph has __real__ emphasis and **real** bold. Those should be rendered.\n\nAnd here is some inline code which should remain literal."
+  }
+]

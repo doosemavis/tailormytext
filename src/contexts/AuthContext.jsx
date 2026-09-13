@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef } f
 import { supabase } from "../utils/supabase";
 import { getRolePermissions } from "../config/roles";
 import { setUserScope, clearUserScope } from "../utils/storage";
+import { track } from "../utils/track";
 
 const SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPA_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -78,7 +79,16 @@ export function AuthProvider({ children }) {
         // before setUser runs, and the second subscription doesn't re-fire
         // INITIAL_SESSION because the SDK already delivered it. Fetch the
         // role + deletion status in the background and update separately.
-        setUser(session.user);
+        // Keep the same object when nothing meaningful changed (routine
+        // TOKEN_REFRESHED / INITIAL_SESSION re-deliveries). Effects keyed on
+        // `user` otherwise re-run on every refresh — the reading-position
+        // restore, for one, forces a whole-book layout each time.
+        const next = session.user;
+        setUser((prev) => (
+          prev && prev.id === next.id && prev.updated_at === next.updated_at && prev.email_confirmed_at === next.email_confirmed_at
+            ? prev
+            : next
+        ));
         setUserScope(session.user.id);
         fetchProfile(session.user.id).then(profile => {
           if (!mounted) return;
@@ -186,6 +196,7 @@ export function AuthProvider({ children }) {
           setDeletionRequestedAt(profile.deletion_requested_at ?? null);
           setDeletionEffectiveAt(profile.deletion_effective_at ?? null);
         });
+        track("signup");
       }
       return { data: json, error: null };
     } catch (err) {

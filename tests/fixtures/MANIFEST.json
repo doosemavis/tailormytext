@@ -1,0 +1,458 @@
+{
+  "_README": "See tests/fixtures/README.md for curation rules. fixtureMissing:true means the failure mode is documented but the binary file hasn't been sourced yet (mostly PDF/EPUB/DOCX). The eval harness skips those with a warning.",
+
+  "clean-novel.txt": {
+    "format": "txt",
+    "purpose": "Happy-path baseline: CHAPTER 1/2/3 with proper blank-line separation",
+    "expectedSections": 3
+  },
+  "allcaps-false-positive.txt": {
+    "format": "txt",
+    "purpose": "Bait the ALL-CAPS heading false-positive in detectStructure.js:17-19",
+    "expectedSections": 1,
+    "expectedFailureMode": "Current parser produces 2 sections; the all-caps sentence in the middle is misidentified as a chapter heading"
+  },
+  "roman-numerals.txt": {
+    "format": "txt",
+    "purpose": "Roman-numeral chapter detection (CHAPTER I, II, III, IV)",
+    "expectedSections": 4
+  },
+  "numbered-clauses.txt": {
+    "format": "txt",
+    "purpose": "Legal/technical doc with hierarchical numbered headings (1, 1.1, 1.2, 2, 2.1) — should NOT be parsed as chapters",
+    "expectedSections": 1,
+    "expectedFailureMode": "Current parser may misidentify '1. Introduction', '1.1 Background' as chapter breaks"
+  },
+  "prologue-epilogue.txt": {
+    "format": "txt",
+    "purpose": "Prologue + chapter + epilogue (named front/back matter handling)",
+    "expectedSections": 4
+  },
+  "ornamental-titles.txt": {
+    "format": "txt",
+    "purpose": "Chapter titles that look like sentences ('The Day Everything Changed') — currently miss",
+    "expectedSections": 2,
+    "expectedFailureMode": "Current parser produces 1 section because the headings don't match CHAPTER/PART regex"
+  },
+  "no-structure.txt": {
+    "format": "txt",
+    "purpose": "Plain prose with no headings at all — should produce a single 'document' section",
+    "expectedSections": 1
+  },
+  "acronyms-isolated.txt": {
+    "format": "txt",
+    "purpose": "Short isolated acronym (NASA) on its own line surrounded by blank lines — should NOT split the paragraph",
+    "expectedSections": 1,
+    "expectedFailureMode": "Current parser splits at the NASA line because it matches ALL-CAPS heuristic"
+  },
+  "hyphenated-newline.txt": {
+    "format": "txt",
+    "purpose": "Soft-hyphen line-break joining ('para-\\ngraph') — text-format parsers don't currently rejoin",
+    "expectedSections": 1,
+    "expectedFailureMode": "Words split across newlines stay split; reader sees 'exam-' and 'ple' as separate tokens"
+  },
+  "page-numbered.txt": {
+    "format": "txt",
+    "purpose": "Page-of-N markers (Page 1 of 200) embedded in body text — should NOT be section breaks",
+    "expectedSections": 1
+  },
+  "html-as-txt.txt": {
+    "format": "txt",
+    "purpose": "HTML body saved with .txt extension — content sniffer (Phase 2) should upgrade dispatch to parseHTMLStructured",
+    "expectedSections": 3,
+    "expectedSniff": "html"
+  },
+  "md-as-txt.txt": {
+    "format": "txt",
+    "purpose": "Markdown body saved with .txt extension — content sniffer (Phase 2) should upgrade dispatch to parseMarkdownStructured",
+    "expectedSections": 3,
+    "expectedSniff": "md"
+  },
+
+  "clean-doc.md": {
+    "format": "md",
+    "purpose": "Happy-path Markdown with # headings",
+    "expectedSections": 3
+  },
+  "binary-as-md.md": {
+    "format": "md",
+    "purpose": "Correctly-typed .md — content sniffer (Phase 2) confirms 'md' but App.jsx skips the route-change log since sniff matches extension. Single h1 + h2 inline = 1 section under new convention.",
+    "expectedSections": 1,
+    "expectedSniff": "md"
+  },
+  "escape-sequences.md": {
+    "format": "md",
+    "purpose": "Bait the escape-character bug in preprocessMarkdown — \\_underscore\\_ and \\*asterisk\\* should NOT trigger emphasis",
+    "expectedSections": 1,
+    "expectedFailureMode": "Current preprocessMarkdown rewrites escaped chars as emphasis markers; renderer shows them italicized/bolded"
+  },
+  "nested-code-fence.md": {
+    "format": "md",
+    "purpose": "Code blocks containing backticks; preprocessMarkdown's greedy code-fence regex can corrupt",
+    "expectedSections": 1,
+    "expectedFailureMode": "Nested fence regex breaks; placeholder restoration on whitespace-only blocks is fragile"
+  },
+  "frontmatter-yaml.md": {
+    "format": "md",
+    "purpose": "YAML front matter at top — should not appear as document body",
+    "expectedSections": 2,
+    "expectedFailureMode": "Current parser includes the --- block as body text"
+  },
+  "setext-headings.md": {
+    "format": "md",
+    "purpose": "Setext-style headings (=== and --- underlines) — recognized by full MD parsers but not by the custom preprocessor",
+    "expectedSections": 1,
+    "expectedFailureMode": "Phase 3 (marked.lexer swap) will handle setext correctly; current preprocessor does not"
+  },
+  "task-lists.md": {
+    "format": "md",
+    "purpose": "GitHub-flavored task lists ([ ] / [x])",
+    "expectedSections": 1
+  },
+  "gfm-table.md": {
+    "format": "md",
+    "purpose": "Pipe-syntax GFM table",
+    "expectedSections": 2
+  },
+  "mixed-emphasis.md": {
+    "format": "md",
+    "purpose": "Mix of **bold**, *italic*, _italic_, ~~strike~~, `code`",
+    "expectedSections": 1
+  },
+  "blockquote-deep.md": {
+    "format": "md",
+    "purpose": "Single and nested blockquotes",
+    "expectedSections": 1
+  },
+  "links-images.md": {
+    "format": "md",
+    "purpose": "Inline links, reference links, and images — labels should survive, URLs dropped",
+    "expectedSections": 1
+  },
+
+  "clean-article.html": {
+    "format": "html",
+    "purpose": "Happy-path HTML article with h1 chapter breaks",
+    "expectedSections": 3
+  },
+  "h4-only.html": {
+    "format": "html",
+    "purpose": "Document using h4 as chapter heading — silent flatten in current parser (detectStructure.js:160)",
+    "expectedSections": 3,
+    "expectedFailureMode": "Phase 4 fix expands h[1-3] regex to h[1-6]; current parser produces 1 wall-of-text section"
+  },
+  "script-leak.html": {
+    "format": "html",
+    "purpose": "Script and style tags in body — currently leak into rendered text via .textContent",
+    "expectedSections": 1,
+    "expectedFailureMode": "JavaScript and CSS source code appears as paragraph text; Phase 4 strips these before walking"
+  },
+  "semantic-sections.html": {
+    "format": "html",
+    "purpose": "HTML5 article/section/header/footer semantic structure",
+    "expectedSections": 3
+  },
+  "malformed.html": {
+    "format": "html",
+    "purpose": "Malformed HTML — unclosed tags. text/html DOMParser auto-corrects; behavior should be predictable",
+    "expectedSections": 1
+  },
+  "inline-formatting.html": {
+    "format": "html",
+    "purpose": "Inline em/strong/code/sub/sup/a — currently flattened to plain text",
+    "expectedSections": 2,
+    "expectedFailureMode": "Inline semantics lost; H₂O renders as 'H2O', chemical formulas degrade"
+  },
+  "no-headings.html": {
+    "format": "html",
+    "purpose": "Plain paragraphs with no headings — should produce a single section",
+    "expectedSections": 1
+  },
+  "deeply-nested.html": {
+    "format": "html",
+    "purpose": "Chapter heading buried 4 divs deep — current parser walks body.children only",
+    "expectedSections": 1,
+    "expectedFailureMode": "Parser misses deeply-nested headings entirely"
+  },
+  "comments-preserved.html": {
+    "format": "html",
+    "purpose": "HTML comments interspersed with content — should be ignored",
+    "expectedSections": 2
+  },
+  "preformatted-code.html": {
+    "format": "html",
+    "purpose": "pre/code blocks where whitespace matters",
+    "expectedSections": 2
+  },
+
+  "clean-3-chapter.epub": {
+    "format": "epub",
+    "purpose": "Happy-path EPUB2: 3 chapters with NCX-derived titles. Generated by scripts/gen-epub-fixtures.mjs.",
+    "expectedSections": 3
+  },
+  "longer-5-chapter.epub": {
+    "format": "epub",
+    "purpose": "5 chapters (prologue + 3 + epilogue) with NCX titles, slightly longer bodies",
+    "expectedSections": 5
+  },
+  "no-ncx.epub": {
+    "format": "epub",
+    "purpose": "EPUB without NCX — parseEPUB falls back to h1 inside the XHTML body for titles",
+    "expectedSections": 3
+  },
+  "single-chapter.epub": {
+    "format": "epub",
+    "purpose": "Single-chapter EPUB — one spine entry, one section",
+    "expectedSections": 1
+  },
+  "many-short-chapters.epub": {
+    "format": "epub",
+    "purpose": "10 short chapters — stresses numbering and section accumulation",
+    "expectedSections": 10
+  },
+  "multi-chapter-per-file.epub": {
+    "format": "epub",
+    "purpose": "Project Gutenberg pattern: 2 spine files, 3 NCX navPoints — chunk-a.xhtml has two chapters at #ch1 (Etymology) and #ch2 (Chapter 1. Loomings); chunk-b.xhtml has one chapter at #ch3. Parser must split by fragment anchor, not by spine file.",
+    "expectedSections": 3,
+    "expectedTitles": ["Etymology", "Chapter 1. Loomings", "Chapter 2. The Carpet-Bag"]
+  },
+  "pg-pride-and-prejudice.epub": {
+    "format": "epub",
+    "purpose": "Happy-path EPUB2 with NCX TOC (from PG library: pg1342)",
+    "expectedSections": 61,
+    "fixtureMissing": true
+  },
+  "pg-great-gatsby.epub": {
+    "format": "epub",
+    "purpose": "Happy-path EPUB with chapter titles in NCX (pg64317)",
+    "expectedSections": 9,
+    "fixtureMissing": true
+  },
+  "epub3-nav-xhtml.epub": {
+    "format": "epub",
+    "purpose": "EPUB3 with nav.xhtml instead of NCX — current parser misses titles",
+    "expectedSections": 5,
+    "expectedFailureMode": "EPUB3 books get fallback 'Chapter 1/2/3' titles; real titles in nav.xhtml are ignored",
+    "fixtureMissing": true
+  },
+  "epub-missing-idref.epub": {
+    "format": "epub",
+    "purpose": "Spine references an idref not present in manifest — silently skipped today",
+    "expectedSections": 4,
+    "expectedFailureMode": "Spine entries with missing idref silently dropped without error",
+    "fixtureMissing": true
+  },
+  "epub-malformed-opf.epub": {
+    "format": "epub",
+    "purpose": "OPF XML has a parsererror — DOMParser returns parsererror node silently; current parser doesn't check",
+    "expectedSections": "throws",
+    "expectedFailureMode": "Phase 1 fix throws 'malformed OPF'; current parser returns empty sections",
+    "fixtureMissing": true
+  },
+  "epub-all-image-chapter.epub": {
+    "format": "epub",
+    "purpose": "Chapter with only img tags, no text — silently disappears",
+    "expectedSections": 5,
+    "expectedFailureMode": "Image-only chapter silently skipped; chapter dropdown jumps from 2 to 4",
+    "fixtureMissing": true
+  },
+  "epub-inline-semantics.epub": {
+    "format": "epub",
+    "purpose": "Chapters with em/strong/sub/sup — currently stripped to plain text",
+    "expectedSections": 3,
+    "expectedFailureMode": "Chemical formulas (H₂O) render as plain text (H2O)",
+    "fixtureMissing": true
+  },
+  "epub-rtl-arabic.epub": {
+    "format": "epub",
+    "purpose": "Right-to-left script (Arabic or Hebrew)",
+    "expectedSections": 3,
+    "fixtureMissing": true
+  },
+  "epub-bom-utf8.epub": {
+    "format": "epub",
+    "purpose": "EPUB with UTF-8 BOM in OPF/NCX/XHTML — encoding handling",
+    "expectedSections": 5,
+    "fixtureMissing": true
+  },
+  "epub-frontmatter-spine.epub": {
+    "format": "epub",
+    "purpose": "Frontmatter (title page, copyright, dedication) in spine — currently numbered as chapters 1/2/3",
+    "expectedSections": 8,
+    "fixtureMissing": true
+  },
+
+  "clean-3-page.pdf": {
+    "format": "pdf",
+    "purpose": "Happy-path PDF: 3 pages, each with a chapter heading + body. Generated by scripts/gen-pdf-fixtures.mjs.",
+    "expectedSections": 3
+  },
+  "longer-5-page.pdf": {
+    "format": "pdf",
+    "purpose": "5 pages with chapter-style headings (prologue/middle/epilogue)",
+    "expectedSections": 5
+  },
+  "single-page.pdf": {
+    "format": "pdf",
+    "purpose": "Single-page PDF — one section",
+    "expectedSections": 1
+  },
+  "no-titles.pdf": {
+    "format": "pdf",
+    "purpose": "PDF with no heading metadata — body-only pages. Parser emits one type:'page' section per page with title:null; navigation falls back to page numbers in the reader.",
+    "expectedSections": 2
+  },
+  "academic-multicolumn.pdf": {
+    "format": "pdf",
+    "purpose": "Multi-column academic paper — text columns scramble word-by-word in current parser",
+    "expectedSections": "varies",
+    "expectedFailureMode": "Column-detection histogram fails on wide-margin papers; output is interleaved garbage",
+    "fixtureMissing": true
+  },
+  "scanned-image-only.pdf": {
+    "format": "pdf",
+    "purpose": "Scanned PDF with no extractable text — should report 'needs OCR'",
+    "expectedSections": "throws",
+    "expectedFailureMode": "Current parser returns empty content with generic 'no readable text' error",
+    "fixtureMissing": true
+  },
+  "encrypted-password.pdf": {
+    "format": "pdf",
+    "purpose": "Password-protected PDF — should report 'password required'",
+    "expectedSections": "throws",
+    "expectedFailureMode": "pdf.js throws PasswordException with raw message; user sees generic error",
+    "fixtureMissing": true
+  },
+  "with-outline.pdf": {
+    "format": "pdf",
+    "purpose": "PDF with outline (bookmarks) — happy path for chapter detection",
+    "expectedSections": 8,
+    "fixtureMissing": true
+  },
+  "no-outline.pdf": {
+    "format": "pdf",
+    "purpose": "PDF without outline — falls back to per-page sections",
+    "expectedSections": "varies",
+    "fixtureMissing": true
+  },
+  "with-tables.pdf": {
+    "format": "pdf",
+    "purpose": "PDF with embedded tables — currently flattened to text soup",
+    "expectedSections": 3,
+    "expectedFailureMode": "Table structure lost; rows concatenate into unreadable jumble",
+    "fixtureMissing": true
+  },
+  "with-footnotes.pdf": {
+    "format": "pdf",
+    "purpose": "PDF with footnotes and running headers — currently leak into body",
+    "expectedSections": 5,
+    "expectedFailureMode": "Page-number lines and running headers appear as body paragraphs",
+    "fixtureMissing": true
+  },
+  "soft-hyphen-linebreak.pdf": {
+    "format": "pdf",
+    "purpose": "PDF with soft-hyphen line-break joining (U+00AD)",
+    "expectedSections": 3,
+    "expectedFailureMode": "Hyphenation regex only matches ASCII hyphen; soft-hyphen stays split",
+    "fixtureMissing": true
+  },
+  "large-1000-pages.pdf": {
+    "format": "pdf",
+    "purpose": "Performance fixture: 1000-page PDF — current parser freezes main thread",
+    "expectedSections": "varies",
+    "fixtureMissing": true
+  },
+
+  "clean-3-chapter.docx": {
+    "format": "docx",
+    "purpose": "Happy-path DOCX with 3 h1 chapter headings. Generated by scripts/gen-docx-fixtures.mjs.",
+    "expectedSections": 3
+  },
+  "longer-5-chapter.docx": {
+    "format": "docx",
+    "purpose": "5 chapters (prologue + 3 + epilogue), multiple body paragraphs",
+    "expectedSections": 5
+  },
+  "no-headings.docx": {
+    "format": "docx",
+    "purpose": "Body-only DOCX, no h1-h6 — parseDOCX falls back to extractRawText + detectTextStructure (1 section)",
+    "expectedSections": 1
+  },
+  "mixed-heading-levels.docx": {
+    "format": "docx",
+    "purpose": "h1 + h2 + h3 mix — verifies h1 splits while h2/h3 stay inline (dynamic-depth rule)",
+    "expectedSections": 2
+  },
+  "many-short-chapters.docx": {
+    "format": "docx",
+    "purpose": "8 short chapters — stresses numbering",
+    "expectedSections": 8
+  },
+  "headings-styled.docx": {
+    "format": "docx",
+    "purpose": "Word doc with Heading 1/2/3 styles applied — current parser produces flat output",
+    "expectedSections": 5,
+    "expectedFailureMode": "Heading styles collapse to plain p; document hierarchy lost",
+    "fixtureMissing": true
+  },
+  "list-heavy.docx": {
+    "format": "docx",
+    "purpose": "Bullet + numbered lists — flattened to paragraphs currently",
+    "expectedSections": 1,
+    "expectedFailureMode": "Lists lose semantics; render as continuous prose",
+    "fixtureMissing": true
+  },
+  "table-heavy.docx": {
+    "format": "docx",
+    "purpose": "Tables — converted to row-by-row text soup",
+    "expectedSections": 2,
+    "expectedFailureMode": "Table cells concatenate in DOM order; unreadable output",
+    "fixtureMissing": true
+  },
+  "track-changes.docx": {
+    "format": "docx",
+    "purpose": "Word doc with unaccepted track changes",
+    "expectedSections": 3,
+    "expectedFailureMode": "Deleted text and reviewer comments leak into body content",
+    "fixtureMissing": true
+  },
+  "math-equations.docx": {
+    "format": "docx",
+    "purpose": "OMML math equations",
+    "expectedSections": 2,
+    "expectedFailureMode": "Equations rendered as garbled XML text or stripped silently",
+    "fixtureMissing": true
+  },
+  "doc-binary-mis-extension.doc": {
+    "format": "docx",
+    "purpose": "Old binary .doc renamed .docx — should fail with friendly error",
+    "expectedSections": "throws",
+    "expectedFailureMode": "Cryptic mammoth error; no 'convert to .docx first' message",
+    "fixtureMissing": true
+  },
+  "headers-footers.docx": {
+    "format": "docx",
+    "purpose": "Page headers and footers — currently stripped silently",
+    "expectedSections": 4,
+    "fixtureMissing": true
+  },
+  "footnotes.docx": {
+    "format": "docx",
+    "purpose": "Footnotes — currently inline-rendered or stripped inconsistently",
+    "expectedSections": 3,
+    "fixtureMissing": true
+  },
+  "rtl-arabic.docx": {
+    "format": "docx",
+    "purpose": "Right-to-left text — bidi attributes stripped by mammoth",
+    "expectedSections": 2,
+    "fixtureMissing": true
+  },
+  "empty-paragraphs.docx": {
+    "format": "docx",
+    "purpose": "Intentional spacing (scene breaks in fiction) via empty paragraphs",
+    "expectedSections": 3,
+    "expectedFailureMode": "Empty paragraphs collapsed; visual rhythm lost",
+    "fixtureMissing": true
+  }
+}

@@ -1,0 +1,20 @@
+[
+  {
+    "type": "chapter",
+    "title": "Chapter 1: The Beginning",
+    "number": 1,
+    "content": "This is the first paragraph of an article that was saved with a .txt extension by mistake."
+  },
+  {
+    "type": "chapter",
+    "title": "Chapter 2: The Middle",
+    "number": 2,
+    "content": "Here is the second part. The sniffer should route this to the HTML parser instead of plain text."
+  },
+  {
+    "type": "chapter",
+    "title": "Chapter 3: The End",
+    "number": 3,
+    "content": "And the closing thoughts of the piece."
+  }
+]

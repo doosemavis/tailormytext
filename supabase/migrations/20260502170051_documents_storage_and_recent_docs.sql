@@ -51,7 +51,7 @@ CREATE POLICY "users delete own documents"
 -- 2. recent_docs table — the per-user list of which docs are "recent"
 --    Mirrors the shape of the localStorage entries we save today:
 --      { id, name, timestamp, chunks }
---    The `id` is the client-generated slug ReadFlow already uses
+--    The `id` is the client-generated slug TailorMyText already uses
 --    (e.g. "fitzgerald_great_gatsby_epub_momzo9ed"); keeping it as the
 --    PK lets the localStorage→Supabase migration script preserve the
 --    same identity, so storage-bucket file paths can reuse it.

@@ -2,18 +2,38 @@
   "permissions": {
     "allow": [
       "Bash(gh api:*)",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "Bash(git -C /Users/moosedavis/dev/tailormytext log --all --oneline -- supabase/migrations/20260506000000_marketing_events.sql src/utils/track.js)",
+      "Bash(git -C /Users/moosedavis/dev/tailormytext ls-tree theme-enhancement -- supabase/migrations/20260506000000_marketing_events.sql src/utils/track.js)",
+      "Bash(git *)",
+      "Bash(cat)",
+      "Read(//tmp/**)",
+      "WebSearch",
+      "WebFetch(domain:claripage.app)",
+      "WebFetch(domain:claripage.com)",
+      "WebFetch(domain:anchorpage.app)",
+      "WebFetch(domain:anchorpage.com)",
+      "WebFetch(domain:tailortext.app)",
+      "WebFetch(domain:tailortext.com)",
+      "WebFetch(domain:texttailor.app)",
+      "WebFetch(domain:texttailor.com)",
+      "WebFetch(domain:www.namecheap.com)",
+      "WebFetch(domain:who.is)"
     ]
   },
+  "enabledMcpjsonServers": [
+    "context7",
+    "magicui"
+  ],
   "hooks": {
     "Stop": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "/Library/Frameworks/Python.framework/Versions/3.14/bin/mempalace mine /Users/moosedavis/.claude/projects/-Users-moosedavis-dev-readflow/ --mode convos --wing readflow >> /tmp/mempalace-mine.log 2>&1",
-            "async": true,
-            "statusMessage": "MemPalace: indexing session"
+            "command": "/Library/Frameworks/Python.framework/Versions/3.14/bin/mempalace mine /Users/moosedavis/.claude/projects/-Users-moosedavis-dev-tailormytext/ --mode convos --wing tailormytext >> /tmp/mempalace-mine.log 2>&1",
+            "statusMessage": "MemPalace: indexing session",
+            "async": true
           }
         ]
       }

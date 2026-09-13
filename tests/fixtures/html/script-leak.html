@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script>alert('this should not appear in the rendered text');</script>
+<style>body { color: red; }</style>
+</head>
+<body>
+<h1>The Real Article</h1>
+<p>This is the actual content the reader should see.</p>
+<script>
+  // Inline script in body - should also be stripped
+  console.log("ignored");
+</script>
+<p>Another real paragraph after the inline script.</p>
+<noscript>
+  <p>This noscript block should also be ignored by the parser.</p>
+</noscript>
+</body>
+</html>

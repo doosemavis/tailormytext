@@ -12,3 +12,10 @@ export const FREE_GUIDE_COLORS = ["yellow", "blue", "accent"];
 export const isThemeFree = (key) => FREE_THEMES.includes(key);
 export const isPaletteFree = (key) => FREE_PALETTES.includes(key);
 export const isGuideColorFree = (key) => FREE_GUIDE_COLORS.includes(key);
+
+// WPM Pacer is free for everyone up to this ceiling; faster is Pro. The
+// pacer itself is an accessibility aid, so the feature is never gated —
+// only the top of the speed range is.
+export const PACER_FREE_MAX_WPM = 400;
+export const clampWpmForTier = (wpm, isPro) =>
+  isPro ? wpm : Math.min(wpm, PACER_FREE_MAX_WPM);

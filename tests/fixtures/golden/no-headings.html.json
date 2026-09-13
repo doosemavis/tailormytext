@@ -1,0 +1,8 @@
+[
+  {
+    "type": "document",
+    "title": null,
+    "number": 1,
+    "content": "This document has no heading tags at all. It's a wall of plain paragraphs, like a copy-pasted blog post that lost its structure during paste.\n\nThe parser should produce a single section covering everything, since there are no section breaks.\n\nThree paragraphs in total. One section."
+  }
+]

@@ -1,10 +1,16 @@
 import { useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X, Mail, Copy, Check, ExternalLink } from "lucide-react";
+import { marketingThemeVars } from "../utils/marketingTheme";
 
-const SUPPORT_EMAIL = "support@myreadflow.com";
+const SUPPORT_EMAIL = "support@tailormytext.com";
 
-const OVERLAY = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", zIndex: 1010 };
+const OVERLAY = {
+  position: "fixed", inset: 0,
+  background: "rgba(31, 24, 18, 0.55)",
+  backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+  zIndex: 1010,
+};
 
 // Click "Contact" in the footer → this modal. Avoids the mailto:-silently-
 // fails-when-no-default-mail-client problem; gives the user the address as
@@ -24,58 +30,114 @@ export default function ContactModal({ open, onOpenChange, t }) {
     }
   };
 
+  const mailLink = {
+    display: "inline-flex", alignItems: "center", gap: 4,
+    color: "var(--tmt-ink-soft)", textDecoration: "none",
+    fontFamily: "var(--tmt-serif-body)", fontStyle: "italic",
+    transition: "color 0.2s ease",
+  };
+
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay style={OVERLAY} />
         <Dialog.Content
-          aria-describedby={undefined}
-          style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: t.bg, borderRadius: 18, maxWidth: 420, width: "calc(100% - 48px)", padding: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", zIndex: 1011, outline: "none", fontFamily: "'DM Sans', sans-serif" }}
+          className="tmt-marketing"
+          style={{
+            ...marketingThemeVars(t),
+            position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+            background: "var(--tmt-paper-card)",
+            border: "1px solid var(--tmt-rule)",
+            borderRadius: 22,
+            maxWidth: 440, width: "calc(100% - 48px)",
+            padding: "28px 28px 24px",
+            boxShadow: "0 28px 80px -20px rgba(31, 24, 18, 0.45), 0 6px 16px -8px rgba(31, 24, 18, 0.2)",
+            zIndex: 1011,
+          }}
         >
           <Dialog.Close asChild>
-            <button aria-label="Close" style={{ position: "absolute", top: 14, right: 14, width: 32, height: 32, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <button aria-label="Close" className="rf-static" style={{ position: "absolute", top: 14, right: 14, width: 32, height: 32, borderRadius: 8, border: "none", background: "transparent", color: "var(--tmt-ink-muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "none" }}>
               <X size={16} strokeWidth={2} />
             </button>
           </Dialog.Close>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: t.accentSoft, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Mail size={17} style={{ color: t.accent }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(176, 81, 46, 0.15)", border: "1px solid rgba(176, 81, 46, 0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Mail size={18} style={{ color: "var(--tmt-terra)" }} />
             </div>
-            <Dialog.Title style={{ fontSize: 17, fontWeight: 720, color: t.fg, margin: 0 }}>
-              Get in touch
-            </Dialog.Title>
+            <div>
+              <div style={{ marginBottom: 2 }}>
+                <span className="tmt-eyebrow lead">Contact</span>
+              </div>
+              <Dialog.Title className="tmt-display" style={{ fontSize: 22, fontWeight: 400, letterSpacing: "-0.015em", margin: 0 }}>
+                Get in touch
+              </Dialog.Title>
+            </div>
           </div>
 
-          <p style={{ fontSize: 13, color: t.fgSoft, margin: "0 0 16px", lineHeight: 1.55 }}>
-            Questions, feedback, billing issues, or feature requests — email us and we'll get back to you as soon as we can.
+          <p style={{ fontFamily: "var(--tmt-serif-body)", fontSize: 14.5, color: "var(--tmt-ink-soft)", margin: "14px 0 18px", lineHeight: 1.55 }}>
+            Questions, feedback, billing issues, or feature requests &mdash; email us and we'll get back to you as soon as we can.
           </p>
 
-          <div style={{ display: "flex", alignItems: "stretch", gap: 8, marginBottom: 12 }}>
+          <div style={{ display: "flex", alignItems: "stretch", gap: 8, marginBottom: 14 }}>
             <input
               type="text"
               value={SUPPORT_EMAIL}
               readOnly
               onFocus={e => e.target.select()}
-              style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: `1px solid ${t.border}`, background: t.surface, color: t.fg, fontSize: 13, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", outline: "none", boxSizing: "border-box" }}
+              style={{
+                flex: 1, padding: "11px 14px",
+                borderRadius: 10, border: "1px solid var(--tmt-rule)",
+                background: "var(--tmt-paper)", color: "var(--tmt-ink)",
+                fontFamily: "var(--tmt-mono)", fontSize: 13,
+                outline: "none", boxSizing: "border-box",
+              }}
             />
             <button
               onClick={handleCopy}
-              className="rf-static"
-              style={{ padding: "10px 14px", borderRadius: 8, border: "none", background: copied ? "#22C55E" : t.accent, color: "#fff", fontSize: 13, fontWeight: 660, fontFamily: "'DM Sans', sans-serif", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, transition: "background 0.2s ease", outline: "none" }}
+              className="rf-btn-solid tmt-btn"
+              style={{
+                padding: "0 16px",
+                background: copied ? "var(--tmt-sage)" : "var(--tmt-terra)",
+              }}
             >
               {copied ? <><Check size={13} /> Copied</> : <><Copy size={13} /> Copy</>}
             </button>
           </div>
 
-          <a
-            href={`mailto:${SUPPORT_EMAIL}`}
-            style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: t.fgSoft, fontFamily: "'DM Sans', sans-serif", textDecoration: "none" }}
-            onMouseEnter={e => e.currentTarget.style.color = t.accent}
-            onMouseLeave={e => e.currentTarget.style.color = t.fgSoft}
-          >
-            Open in your mail client <ExternalLink size={11} />
-          </a>
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px 14px", fontFamily: "var(--tmt-mono)", fontSize: 11, color: "var(--tmt-ink-muted)", textTransform: "uppercase", letterSpacing: "0.14em" }}>
+            <span>Or open in</span>
+            <a
+              href={`https://mail.google.com/mail/?view=cm&fs=1&to=${SUPPORT_EMAIL}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={mailLink}
+              onMouseEnter={e => (e.currentTarget.style.color = "var(--tmt-terra)")}
+              onMouseLeave={e => (e.currentTarget.style.color = "var(--tmt-ink-soft)")}
+            >
+              Gmail <ExternalLink size={11} />
+            </a>
+            <span aria-hidden="true" style={{ color: "var(--tmt-rule)" }}>·</span>
+            <a
+              href={`https://outlook.live.com/owa/?path=/mail/action/compose&to=${SUPPORT_EMAIL}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={mailLink}
+              onMouseEnter={e => (e.currentTarget.style.color = "var(--tmt-terra)")}
+              onMouseLeave={e => (e.currentTarget.style.color = "var(--tmt-ink-soft)")}
+            >
+              Outlook <ExternalLink size={11} />
+            </a>
+            <span aria-hidden="true" style={{ color: "var(--tmt-rule)" }}>·</span>
+            <a
+              href={`mailto:${SUPPORT_EMAIL}`}
+              style={mailLink}
+              onMouseEnter={e => (e.currentTarget.style.color = "var(--tmt-terra)")}
+              onMouseLeave={e => (e.currentTarget.style.color = "var(--tmt-ink-soft)")}
+            >
+              Default Mail App <ExternalLink size={11} />
+            </a>
+          </div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

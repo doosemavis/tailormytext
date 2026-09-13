@@ -11,6 +11,19 @@ import { getTooltipColors } from "../config/themeColors";
 
 const DARK_BGS = new Set(["#111116", "#0B0E14", "#100E18", "#080806", "#0D1410"]);
 
+// Shared modal backdrop style. Previously duplicated verbatim in 4 modals
+// (Avatar / Delete / Subscription / EditChapters). The other modal overlays
+// intentionally diverge (warm tint, blur radius, zIndex layer) and stay
+// inline — see the modal files for those.
+export const MODAL_OVERLAY_STYLE = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(0,0,0,0.55)",
+  backdropFilter: "blur(6px)",
+  WebkitBackdropFilter: "blur(6px)",
+  zIndex: 1010,
+};
+
 export const Toggle = memo(function Toggle({ on, onChange, label, icon: Icon, t }) {
   return (
     <div
@@ -64,9 +77,9 @@ export const Slider = memo(function Slider({ value, min, max, step, onChange, on
 
   return (
     <div style={{ padding: "6px 12px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, alignItems: "baseline" }}>
         <span style={{ fontSize: 12, color: t.fgSoft, fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}>{label}</span>
-        <span style={{ fontSize: 12, color: t.accent, fontFamily: "'DM Sans', sans-serif", fontWeight: 600, minWidth: 40, textAlign: "right" }}>{display}</span>
+        <span style={{ fontSize: 11, color: t.accent, fontFamily: "'IBM Plex Mono', ui-monospace, monospace", fontWeight: 500, minWidth: 40, textAlign: "right", letterSpacing: "0.04em" }}>{display}</span>
       </div>
       <SliderPrimitive.Root
         value={[localValue]}
@@ -156,7 +169,7 @@ export const Segment = memo(function Segment({ options, value, onChange, t }) {
   );
 });
 
-export function Section({ title, icon: Icon, children, t, open: defaultOpen = true }) {
+export function Section({ title, icon: Icon, children, t, open: defaultOpen = true, active = false }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <Collapsible.Root open={open} onOpenChange={setOpen} style={{ borderBottom: `1px solid ${t.borderSoft}` }}>
@@ -166,8 +179,26 @@ export function Section({ title, icon: Icon, children, t, open: defaultOpen = tr
           padding: "12px 14px", border: "none", cursor: "pointer", background: "transparent", color: t.fg,
           outline: "none",
         }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, fontWeight: 650, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "'DM Sans', sans-serif" }}>
-            <Icon size={14} strokeWidth={2.2} style={{ color: t.icon }} />{title}
+          <span style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 10.5, fontWeight: 500, letterSpacing: "0.16em", textTransform: "uppercase", fontFamily: "'IBM Plex Mono', ui-monospace, monospace", color: t.fgSoft }}>
+            <Icon size={13} strokeWidth={2.2} style={{ color: t.accent }} />{title}
+            {/* Active-setting dot — appears when this section has a toggle
+                or non-default state in use, so users can spot it at a glance
+                in the collapsed panel without expanding every section to
+                find what they left on. Subtle accent ring matches the
+                notification-badge metaphor without shouting. */}
+            {active && (
+              <span
+                aria-label="Settings active in this section"
+                title="Settings active in this section"
+                style={{
+                  width: 7, height: 7, borderRadius: "50%",
+                  background: t.accent,
+                  boxShadow: `0 0 0 2px ${t.accentSoft}`,
+                  marginLeft: 2,
+                  flexShrink: 0,
+                }}
+              />
+            )}
           </span>
           <ChevronDown size={14} style={{ color: t.icon, transform: open ? "rotate(0)" : "rotate(-90deg)", transition: "transform 320ms cubic-bezier(0.4, 0, 0.2, 1)" }} />
         </button>

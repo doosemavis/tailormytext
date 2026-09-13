@@ -1,5 +1,12 @@
 import { useState, useCallback, useEffect } from "react";
-import { cloudListRecent, cloudSaveDoc, cloudLoadDoc, cloudRemoveDoc, migrateLocalToCloud } from "../utils/cloudDocs";
+import {
+  cloudListRecent,
+  cloudListBookshelf,
+  cloudSaveDoc,
+  cloudLoadDoc,
+  cloudRemoveDoc,
+  migrateLocalToCloud,
+} from "../utils/cloudDocs";
 
 // Recent-docs index, backed by Supabase (recent_docs table + documents
 // storage bucket). userId is passed in by the caller (from useAuth's
@@ -9,13 +16,30 @@ import { cloudListRecent, cloudSaveDoc, cloudLoadDoc, cloudRemoveDoc, migrateLoc
 // user out on page load. authReady gates the initial fetch so we don't
 // query Supabase before the session has been restored.
 export function useRecentDocs(authReady, userId) {
+  // Two parallel surfaces:
+  //   - recentList    — uploaded docs (source != 'library'), bounded by
+  //                     MAX_RECENT_DOCS. Maps to "Continue Reading".
+  //   - bookshelfList — library books opened (source = 'library'). Bounded
+  //                     by the catalog (~20 books). Maps to "Your Bookshelf".
   const [recentList, setRecentList] = useState([]);
+  const [bookshelfList, setBookshelfList] = useState([]);
   const [loaded, setLoaded] = useState(false);
+
+  const refresh = useCallback(async (uid) => {
+    const [recents, shelf] = await Promise.all([
+      cloudListRecent(uid),
+      cloudListBookshelf(uid),
+    ]);
+    setRecentList(recents);
+    setBookshelfList(shelf);
+  }, []);
 
   useEffect(() => {
     if (!authReady) return;
     if (!userId) {
-      setRecentList([]); setLoaded(true);
+      setRecentList([]);
+      setBookshelfList([]);
+      setLoaded(true);
       return;
     }
     let cancelled = false;
@@ -28,8 +52,7 @@ export function useRecentDocs(authReady, userId) {
         if (result.migrated || result.failed) {
           console.info(`[migration] localStorage→Supabase: migrated=${result.migrated} failed=${result.failed}`);
         }
-        const list = await cloudListRecent(userId);
-        if (!cancelled) setRecentList(list);
+        if (!cancelled) await refresh(userId);
       } catch (e) {
         if (!cancelled) console.warn("Failed to load recent docs:", e.message);
       } finally {
@@ -37,17 +60,17 @@ export function useRecentDocs(authReady, userId) {
       }
     })();
     return () => { cancelled = true; };
-  }, [authReady, userId]);
+  }, [authReady, userId, refresh]);
 
   const saveDoc = useCallback(async (name, sections, fullText) => {
     if (!userId) throw new Error("Not signed in");
-    await cloudSaveDoc(userId, name, sections, fullText);
+    const saved = await cloudSaveDoc(userId, name, sections, fullText);
     // Refresh from the server — cloudSaveDoc handles dedup-by-name and
     // trim-to-MAX_RECENT_DOCS server-side, so the authoritative state
     // lives there. Cheaper than rebuilding the same logic client-side.
-    const list = await cloudListRecent(userId);
-    setRecentList(list);
-  }, [userId]);
+    await refresh(userId);
+    return saved;
+  }, [userId, refresh]);
 
   const loadDoc = useCallback(async (entry) => {
     if (!userId) return null;
@@ -57,9 +80,16 @@ export function useRecentDocs(authReady, userId) {
   const removeDoc = useCallback(async (id) => {
     if (!userId) return;
     await cloudRemoveDoc(userId, id);
-    const list = await cloudListRecent(userId);
-    setRecentList(list);
-  }, [userId]);
+    await refresh(userId);
+  }, [userId, refresh]);
 
-  return { recentList, loaded, saveDoc, loadDoc, removeDoc };
+  // Caller invokes this after a successful cloudOpenLibraryBook so the new
+  // bookshelf entry appears immediately in the UI without waiting for the
+  // next mount.
+  const refreshLists = useCallback(async () => {
+    if (!userId) return;
+    await refresh(userId);
+  }, [userId, refresh]);
+
+  return { recentList, bookshelfList, loaded, saveDoc, loadDoc, removeDoc, refreshLists };
 }

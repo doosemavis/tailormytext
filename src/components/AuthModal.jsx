@@ -2,24 +2,42 @@ import { useState } from "react";
 import { X, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import * as Dialog from "@radix-ui/react-dialog";
+import { marketingThemeVars } from "../utils/marketingTheme";
 
-const OVERLAY = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", zIndex: 1000 };
+// Editorial overlay — dark warm tint instead of pure black, plus the paper
+// grain peeks through the blur. Matches the marketing aesthetic.
+const OVERLAY = {
+  position: "fixed", inset: 0,
+  background: "rgba(31, 24, 18, 0.55)",
+  backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+  zIndex: 1000,
+};
 
-const INPUT_STYLE = (t) => ({
-  width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${t.border}`,
-  background: t.surface, color: t.fg, fontSize: 14, fontFamily: "'DM Sans', sans-serif",
-  outline: "none", boxSizing: "border-box",
-});
+const INPUT_STYLE = {
+  width: "100%",
+  padding: "13px 14px",
+  borderRadius: 10,
+  border: "1px solid var(--tmt-rule)",
+  background: "var(--tmt-paper)",
+  color: "var(--tmt-ink)",
+  fontSize: 15,
+  fontFamily: "var(--tmt-serif-body)",
+  outline: "none",
+  boxSizing: "border-box",
+  transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+};
 
-const PRIMARY_BTN = (t) => ({
-  width: "100%", padding: "12px 24px", borderRadius: 12, border: "none", background: t.accent,
-  color: "#fff", fontSize: 14, fontWeight: 650, fontFamily: "'DM Sans', sans-serif", cursor: "pointer",
-});
-
-const LINK_STYLE = (t) => ({
-  color: t.accent, cursor: "pointer", textDecoration: "none",
-  fontSize: 14, fontWeight: 500, fontFamily: "'DM Sans', sans-serif",
-});
+const LABEL_LINK = {
+  color: "var(--tmt-ink-soft)",
+  cursor: "pointer",
+  textDecoration: "none",
+  fontFamily: "var(--tmt-serif-body)",
+  fontStyle: "italic",
+  fontSize: 14,
+  borderBottom: "1px solid var(--tmt-rule)",
+  paddingBottom: 1,
+  transition: "color 0.2s ease, border-color 0.2s ease",
+};
 
 // Lenient password rules per project decision (NIST 2024 style).
 // Min length is the only hard gate; the strength meter is visual
@@ -31,11 +49,8 @@ const MIN_PASSWORD_LENGTH = 8;
 // is just MIN_PASSWORD_LENGTH.
 function passwordStrength(pw) {
   if (!pw) return 0;
-  // Length curve: 8→25, 12→55, 16→85, 20+→100
   const len = pw.length;
   let score = Math.min(100, Math.max(0, (len - 4) * 6));
-  // Diversity bonuses, only applied above min length so very short
-  // passwords don't appear "Strong" just because they have a symbol.
   if (len >= MIN_PASSWORD_LENGTH) {
     if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score += 8;
     if (/\d/.test(pw)) score += 8;
@@ -45,23 +60,23 @@ function passwordStrength(pw) {
 }
 
 function strengthLabel(score) {
-  if (score < 25) return { label: "Weak", color: "#E25C5C" };
-  if (score < 55) return { label: "Fair", color: "#F59E0B" };
-  if (score < 80) return { label: "Good", color: "#22C55E" };
-  return { label: "Strong", color: "#10B981" };
+  if (score < 25) return { label: "Weak",   color: "#B0512E" };
+  if (score < 55) return { label: "Fair",   color: "#D9B07F" };
+  if (score < 80) return { label: "Good",   color: "#4F7156" };
+  return            { label: "Strong", color: "#3A5C42" };
 }
 
-function StrengthMeter({ password, t }) {
+function StrengthMeter({ password, id }) {
   if (!password) return null;
   const score = passwordStrength(password);
   const { label, color } = strengthLabel(score);
   const tooShort = password.length < MIN_PASSWORD_LENGTH;
   return (
-    <div style={{ marginTop: -4 }}>
-      <div style={{ height: 4, borderRadius: 2, background: t.border, overflow: "hidden" }}>
-        <div style={{ width: `${score}%`, height: "100%", background: tooShort ? t.fgSoft : color, transition: "width 0.2s ease, background 0.2s ease" }} />
+    <div id={id} role="status" aria-live="polite" style={{ marginTop: -4 }}>
+      <div style={{ height: 4, borderRadius: 2, background: "var(--tmt-rule)", overflow: "hidden" }}>
+        <div style={{ width: `${score}%`, height: "100%", background: tooShort ? "var(--tmt-ink-muted)" : color, transition: "width 0.2s ease, background 0.2s ease" }} />
       </div>
-      <div style={{ fontSize: 11, color: tooShort ? t.fgSoft : color, fontFamily: "'DM Sans', sans-serif", marginTop: 4 }}>
+      <div style={{ fontSize: 11, color: tooShort ? "var(--tmt-ink-muted)" : color, fontFamily: "var(--tmt-mono)", textTransform: "uppercase", letterSpacing: "0.14em", marginTop: 6 }}>
         {tooShort
           ? `${MIN_PASSWORD_LENGTH - password.length} more character${MIN_PASSWORD_LENGTH - password.length === 1 ? "" : "s"} to meet minimum`
           : label}
@@ -70,20 +85,25 @@ function StrengthMeter({ password, t }) {
   );
 }
 
-function MatchBadge({ password, confirm }) {
-  // Only renders when both fields are non-empty AND match — pure success
-  // signal per design. Mismatch stays silent (caught on submit).
-  if (!password || !confirm || password !== confirm) return null;
+function MatchBadge({ password, confirm, id }) {
+  // Live match indicator — terra while passwords differ, sage when they
+  // line up. Hidden until the user has typed in confirm so we don't nag
+  // before they've had a chance.
+  if (!confirm) return null;
+  const matches = password === confirm && password.length > 0;
+  const color  = matches ? "#3A5C42" : "#B0512E";
+  const bg     = matches ? "#3A5C4218" : "#B0512E18";
+  const border = matches ? "#3A5C4244" : "#B0512E44";
   return (
-    <div style={{
+    <div id={id} role="status" aria-live="polite" style={{
       display: "inline-flex", alignItems: "center", gap: 6,
       padding: "4px 10px", borderRadius: 999,
-      background: "#10B98118", color: "#10B981",
-      border: "1px solid #10B98144",
-      fontSize: 11, fontWeight: 600, fontFamily: "'DM Sans', sans-serif",
+      background: bg, color, border: `1px solid ${border}`,
+      fontFamily: "var(--tmt-mono)", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.14em",
       marginTop: -4, alignSelf: "flex-start",
     }}>
-      <span aria-hidden="true">✓</span> Passwords match
+      <span aria-hidden="true">{matches ? "✓" : "✗"}</span>
+      {matches ? "Passwords match" : "Passwords do not match"}
     </div>
   );
 }
@@ -103,6 +123,10 @@ const OAUTH_PROVIDERS = [
   },
 ];
 
+// `t` (active theme tokens) is spread as CSS custom properties on the
+// Dialog.Content via marketingThemeVars so the modal re-skins itself to
+// the active theme while keeping editorial typography (Fraunces/Newsreader/
+// Plex Mono) constant.
 export default function AuthModal({ onClose, t, initialView = "login" }) {
   const { signIn, signUp, resetPassword, signInWithOAuth, updatePassword, signOut, clearRecovery } = useAuth();
   const [view, setView] = useState(initialView);
@@ -176,119 +200,172 @@ export default function AuthModal({ onClose, t, initialView = "login" }) {
     if (error) setError(error.message);
   };
 
-  const title = view === "login" ? "Sign in"
-    : view === "signup" ? "Create account"
+  const title = view === "login" ? "Welcome back"
+    : view === "signup" ? "Create your account"
     : view === "setPassword" ? "Set a new password"
     : "Reset password";
+
+  const eyebrow = view === "login" ? "Sign in"
+    : view === "signup" ? "Get started"
+    : view === "setPassword" ? "Account recovery"
+    : "Password reset";
 
   // In recovery mode, hide the close button and offer "Sign out" instead.
   // Closing the modal mid-recovery would leave the user signed in via the
   // recovery token without ever having reset their password — confusing.
   const isRecoveryMode = view === "setPassword";
 
+  const pwToggleStyle = {
+    position: "absolute", right: 12, top: 0, bottom: 0,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    background: "none", border: "none", cursor: "pointer",
+    color: "var(--tmt-ink-muted)", padding: "0 4px",
+  };
+
   return (
     <Dialog.Root open onOpenChange={o => { if (!o && !isRecoveryMode) onClose(); }}>
       <Dialog.Portal>
         <Dialog.Overlay style={OVERLAY} />
         <Dialog.Content
-          aria-describedby={undefined}
           onPointerDownOutside={(e) => { if (isRecoveryMode) e.preventDefault(); }}
           onEscapeKeyDown={(e) => { if (isRecoveryMode) e.preventDefault(); }}
-          style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: t.bg, borderRadius: 20, width: "calc(100% - 48px)", maxWidth: 380, padding: 28, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", zIndex: 1001, outline: "none" }}
+          className="tmt-marketing"
+          style={{
+            ...marketingThemeVars(t),
+            position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+            background: "var(--tmt-paper-card)",
+            border: "1px solid var(--tmt-rule)",
+            borderRadius: 24,
+            width: "calc(100% - 48px)", maxWidth: 420,
+            padding: "36px 36px 32px",
+            // Cap height so the modal always fits the viewport with 24px
+            // breathing room top + bottom; scroll inside when signup +
+            // strength meter + match badge make the form taller than the
+            // viewport on short windows.
+            maxHeight: "calc(100vh - 48px)",
+            overflowY: "auto",
+            boxShadow: "0 28px 80px -20px rgba(31, 24, 18, 0.45), 0 6px 16px -8px rgba(31, 24, 18, 0.2)",
+            zIndex: 1001,
+          }}
         >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-            <Dialog.Title style={{ fontSize: 20, fontWeight: 720, color: t.fg, fontFamily: "'DM Sans', sans-serif", margin: 0 }}>
-              {title}
-            </Dialog.Title>
+          {/* Title block — eyebrow + Fraunces display */}
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
+            <div>
+              <div style={{ marginBottom: 8 }}>
+                <span className="tmt-eyebrow lead">{eyebrow}</span>
+              </div>
+              <Dialog.Title className="tmt-display" style={{ fontSize: 28, fontWeight: 380, letterSpacing: "-0.02em", margin: 0 }}>
+                {title}
+              </Dialog.Title>
+            </div>
             {!isRecoveryMode && (
               <Dialog.Close asChild>
-                <button aria-label="Close" style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <button aria-label="Close" style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: "transparent", color: "var(--tmt-ink-muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <X size={16} strokeWidth={2} />
                 </button>
               </Dialog.Close>
             )}
           </div>
 
-          {error && <div style={{ padding: "10px 12px", borderRadius: 8, background: "#E25C5C18", border: "1px solid #E25C5C44", color: "#E25C5C", fontSize: 13, fontFamily: "'DM Sans', sans-serif", marginBottom: 14 }}>{error}</div>}
-          {info && <div style={{ padding: "10px 12px", borderRadius: 8, background: `${t.accent}18`, border: `1px solid ${t.accent}44`, color: t.accent, fontSize: 13, fontFamily: "'DM Sans', sans-serif", marginBottom: 14 }}>{info}</div>}
+          {error && (
+            <div style={{ padding: "10px 14px", borderRadius: 10, background: "#B0512E18", border: "1px solid #B0512E44", color: "#8A3E22", fontFamily: "var(--tmt-serif-body)", fontSize: 14, marginBottom: 16 }}>{error}</div>
+          )}
+          {info && (
+            <div style={{ padding: "10px 14px", borderRadius: 10, background: "#4F715618", border: "1px solid #4F715644", color: "#3A5C42", fontFamily: "var(--tmt-serif-body)", fontSize: 14, marginBottom: 16 }}>{info}</div>
+          )}
 
           {view !== "reset" && (
             <>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
-                {OAUTH_PROVIDERS.map(({ id, label, bg, color, border, icon }) => (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
+                {OAUTH_PROVIDERS.map(({ id, label, icon }) => (
                   <button
-                    key={id} type="button" disabled={oauthBusy !== null} onClick={() => handleOAuth(id)}
-                    style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${border}`, background: bg, color, fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans', sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, opacity: oauthBusy && oauthBusy !== id ? 0.5 : 1, transition: "opacity 0.15s" }}
+                    key={id}
+                    type="button"
+                    disabled={oauthBusy !== null}
+                    onClick={() => handleOAuth(id)}
+                    className="tmt-btn ghost"
+                    style={{
+                      // Matches the editorial pill shape (12px radius, paper bg,
+                      // raised game-button feel from the global button rule)
+                      // used by every other CTA in the marketing modals. Google's
+                      // brand G icon stays full-color so the provider is still
+                      // immediately recognizable — only the button container
+                      // adopts the theme paper aesthetic.
+                      width: "100%",
+                      justifyContent: "center",
+                      opacity: oauthBusy && oauthBusy !== id ? 0.5 : 1,
+                      transition: "opacity 0.15s, background 0.2s, border-color 0.2s",
+                    }}
                   >
                     {icon}{oauthBusy === id ? "Redirecting…" : label}
                   </button>
                 ))}
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-                <div style={{ flex: 1, height: 1, background: t.border }} />
-                <span style={{ fontSize: 12, color: t.fgSoft, fontFamily: "'DM Sans', sans-serif" }}>or</span>
-                <div style={{ flex: 1, height: 1, background: t.border }} />
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
+                <div style={{ flex: 1, height: 1, background: "var(--tmt-rule)" }} />
+                <span style={{ fontFamily: "var(--tmt-mono)", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.16em", color: "var(--tmt-ink-muted)" }}>or with email</span>
+                <div style={{ flex: 1, height: 1, background: "var(--tmt-rule)" }} />
               </div>
             </>
           )}
 
           {view === "login" && (
             <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required style={INPUT_STYLE(t)} />
+              <input type="email" placeholder="Email" aria-label="Email" value={email} onChange={e => setEmail(e.target.value)} required style={INPUT_STYLE} />
               <div style={{ position: "relative" }}>
-                <input type={showPw ? "text" : "password"} placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required style={{ ...INPUT_STYLE(t), paddingRight: 40 }} />
-                <button type="button" onClick={() => setShowPw(v => !v)} aria-label="Toggle password visibility" className="rf-static" style={{ position: "absolute", right: 10, top: 0, bottom: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", color: t.icon, padding: "0 4px" }}>{showPw ? <EyeOff size={15} /> : <Eye size={15} />}</button>
+                <input type={showPw ? "text" : "password"} placeholder="Password" aria-label="Password" value={password} onChange={e => setPassword(e.target.value)} required style={{ ...INPUT_STYLE, paddingRight: 44 }} />
+                <button type="button" onClick={() => setShowPw(v => !v)} aria-label="Toggle password visibility" className="rf-static" style={pwToggleStyle}>{showPw ? <EyeOff size={15} /> : <Eye size={15} />}</button>
               </div>
-              <button type="submit" disabled={busy} className="rf-btn-solid" style={PRIMARY_BTN(t)}>{busy ? "Signing in…" : "Sign in"}</button>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
-                <a href="#" className="rf-link" onClick={(e) => { e.preventDefault(); setView("reset"); clear(); }} style={LINK_STYLE(t)}>Forgot password?</a>
-                <a href="#" className="rf-link" onClick={(e) => { e.preventDefault(); setView("signup"); clear(); }} style={LINK_STYLE(t)}>Create account</a>
+              <button type="submit" disabled={busy} className="rf-btn-solid tmt-btn" style={{ width: "100%", justifyContent: "center", marginTop: 6 }}>{busy ? "Signing in…" : "Sign in"}</button>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+                <a href="#" className="rf-link" onClick={(e) => { e.preventDefault(); setView("reset"); clear(); }} style={LABEL_LINK}>Forgot password?</a>
+                <a href="#" className="rf-link" onClick={(e) => { e.preventDefault(); setView("signup"); clear(); }} style={LABEL_LINK}>Create account</a>
               </div>
             </form>
           )}
 
           {view === "signup" && (
             <form onSubmit={handleSignUp} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required style={INPUT_STYLE(t)} />
+              <input type="email" placeholder="Email" aria-label="Email" value={email} onChange={e => setEmail(e.target.value)} required style={INPUT_STYLE} />
               <div style={{ position: "relative" }}>
-                <input type={showPw ? "text" : "password"} placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required minLength={MIN_PASSWORD_LENGTH} style={{ ...INPUT_STYLE(t), paddingRight: 40 }} />
-                <button type="button" onClick={() => setShowPw(v => !v)} aria-label="Toggle password visibility" className="rf-static" style={{ position: "absolute", right: 10, top: 0, bottom: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", color: t.icon, padding: "0 4px" }}>{showPw ? <EyeOff size={15} /> : <Eye size={15} />}</button>
+                <input type={showPw ? "text" : "password"} placeholder="Password" aria-label="Password" aria-describedby="auth-password-strength" value={password} onChange={e => setPassword(e.target.value)} required minLength={MIN_PASSWORD_LENGTH} style={{ ...INPUT_STYLE, paddingRight: 44 }} />
+                <button type="button" onClick={() => setShowPw(v => !v)} aria-label="Toggle password visibility" className="rf-static" style={pwToggleStyle}>{showPw ? <EyeOff size={15} /> : <Eye size={15} />}</button>
               </div>
-              <StrengthMeter password={password} t={t} />
-              <input type={showPw ? "text" : "password"} placeholder="Confirm password" value={confirm} onChange={e => setConfirm(e.target.value)} required style={INPUT_STYLE(t)} />
-              <MatchBadge password={password} confirm={confirm} />
-              <button type="submit" disabled={busy} className="rf-btn-solid" style={PRIMARY_BTN(t)}>{busy ? "Creating account…" : "Create account"}</button>
-              <div style={{ textAlign: "center", marginTop: 4 }}>
-                <a href="#" className="rf-link" onClick={(e) => { e.preventDefault(); setView("login"); clear(); }} style={LINK_STYLE(t)}>Already have an account? Sign in</a>
+              <StrengthMeter password={password} id="auth-password-strength" />
+              <input type={showPw ? "text" : "password"} placeholder="Confirm password" aria-label="Confirm password" aria-describedby="auth-password-match" value={confirm} onChange={e => setConfirm(e.target.value)} required style={INPUT_STYLE} />
+              <MatchBadge password={password} confirm={confirm} id="auth-password-match" />
+              <button type="submit" disabled={busy} className="rf-btn-solid tmt-btn" style={{ width: "100%", justifyContent: "center", marginTop: 6 }}>{busy ? "Creating account…" : "Create account"}</button>
+              <div style={{ textAlign: "center", marginTop: 8 }}>
+                <a href="#" className="rf-link" onClick={(e) => { e.preventDefault(); setView("login"); clear(); }} style={LABEL_LINK}>Already have an account? Sign in</a>
               </div>
             </form>
           )}
 
           {view === "reset" && (
             <form onSubmit={handleReset} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required style={INPUT_STYLE(t)} />
-              <button type="submit" disabled={busy} className="rf-btn-solid" style={PRIMARY_BTN(t)}>{busy ? "Sending…" : "Send reset link"}</button>
-              <div style={{ textAlign: "center", marginTop: 4 }}>
-                <a href="#" className="rf-link" onClick={(e) => { e.preventDefault(); setView("login"); clear(); }} style={LINK_STYLE(t)}>Back to sign in</a>
+              <input type="email" placeholder="Email" aria-label="Email" value={email} onChange={e => setEmail(e.target.value)} required style={INPUT_STYLE} />
+              <button type="submit" disabled={busy} className="rf-btn-solid tmt-btn" style={{ width: "100%", justifyContent: "center", marginTop: 6 }}>{busy ? "Sending…" : "Send reset link"}</button>
+              <div style={{ textAlign: "center", marginTop: 8 }}>
+                <a href="#" className="rf-link" onClick={(e) => { e.preventDefault(); setView("login"); clear(); }} style={LABEL_LINK}>Back to sign in</a>
               </div>
             </form>
           )}
 
           {view === "setPassword" && (
             <form onSubmit={handleSetPassword} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <p style={{ fontSize: 13, color: t.fgSoft, fontFamily: "'DM Sans', sans-serif", margin: "0 0 4px", lineHeight: 1.5 }}>
+              <p style={{ fontFamily: "var(--tmt-serif-body)", fontSize: 14.5, color: "var(--tmt-ink-soft)", margin: "0 0 6px", lineHeight: 1.55 }}>
                 Choose a new password for your account. You'll be signed in automatically.
               </p>
               <div style={{ position: "relative" }}>
-                <input type={showPw ? "text" : "password"} placeholder="New password" value={password} onChange={e => setPassword(e.target.value)} required minLength={MIN_PASSWORD_LENGTH} autoFocus style={{ ...INPUT_STYLE(t), paddingRight: 40 }} />
-                <button type="button" onClick={() => setShowPw(v => !v)} aria-label="Toggle password visibility" className="rf-static" style={{ position: "absolute", right: 10, top: 0, bottom: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", color: t.icon, padding: "0 4px" }}>{showPw ? <EyeOff size={15} /> : <Eye size={15} />}</button>
+                <input type={showPw ? "text" : "password"} placeholder="New password" aria-label="New password" aria-describedby="auth-password-strength" value={password} onChange={e => setPassword(e.target.value)} required minLength={MIN_PASSWORD_LENGTH} autoFocus style={{ ...INPUT_STYLE, paddingRight: 44 }} />
+                <button type="button" onClick={() => setShowPw(v => !v)} aria-label="Toggle password visibility" className="rf-static" style={pwToggleStyle}>{showPw ? <EyeOff size={15} /> : <Eye size={15} />}</button>
               </div>
-              <StrengthMeter password={password} t={t} />
-              <input type={showPw ? "text" : "password"} placeholder="Confirm new password" value={confirm} onChange={e => setConfirm(e.target.value)} required style={INPUT_STYLE(t)} />
-              <MatchBadge password={password} confirm={confirm} />
-              <button type="submit" disabled={busy} className="rf-btn-solid" style={PRIMARY_BTN(t)}>{busy ? "Updating…" : "Set new password"}</button>
-              <div style={{ textAlign: "center", marginTop: 4 }}>
-                <a href="#" className="rf-link" onClick={(e) => { e.preventDefault(); clearRecovery?.(); signOut(); onClose(); }} style={{ ...LINK_STYLE(t), color: t.fgSoft, fontSize: 12 }}>
+              <StrengthMeter password={password} id="auth-password-strength" />
+              <input type={showPw ? "text" : "password"} placeholder="Confirm new password" aria-label="Confirm new password" aria-describedby="auth-password-match" value={confirm} onChange={e => setConfirm(e.target.value)} required style={INPUT_STYLE} />
+              <MatchBadge password={password} confirm={confirm} id="auth-password-match" />
+              <button type="submit" disabled={busy} className="rf-btn-solid tmt-btn" style={{ width: "100%", justifyContent: "center", marginTop: 6 }}>{busy ? "Updating…" : "Set new password"}</button>
+              <div style={{ textAlign: "center", marginTop: 8 }}>
+                <a href="#" className="rf-link" onClick={(e) => { e.preventDefault(); clearRecovery?.(); signOut(); onClose(); }} style={{ ...LABEL_LINK, color: "var(--tmt-ink-muted)", fontSize: 12 }}>
                   Cancel and sign out
                 </a>
               </div>

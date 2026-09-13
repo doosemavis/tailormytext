@@ -1,11 +1,18 @@
 -- Document TTL (7-day auto-deletion after last access) + Tier 1 hardening
 -- constraints. Idempotent: safe to re-run.
 --
--- PREREQUISITE: pg_cron must be enabled on this Supabase project. Enable
--- via Dashboard → Database → Extensions → search "pg_cron" → toggle on.
--- Without it, the cron schedule at the bottom of this migration will fail.
+-- Enables pg_cron at the top so fresh Supabase environments (preview
+-- branches, replays from scratch) install the extension before any
+-- cron.* statement below runs. On environments where pg_cron was
+-- pre-enabled via the dashboard (e.g. production), `CREATE EXTENSION
+-- IF NOT EXISTS` is a no-op.
 --
 -- Run this in the Supabase SQL Editor (Dashboard → SQL Editor → New query).
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 0. Ensure pg_cron is available for the schedule at step 5.
+-- ─────────────────────────────────────────────────────────────────────────
+CREATE EXTENSION IF NOT EXISTS pg_cron;
 
 -- ─────────────────────────────────────────────────────────────────────────
 -- 1. recent_docs: add last_accessed_at column for TTL tracking

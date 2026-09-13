@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { FREE_UPLOAD_LIMIT } from "../config/constants";
 import { getRolePermissions } from "../config/roles";
 import { supabase } from "../utils/supabase";
+import { storageGet, storageSet } from "../utils/storage";
 
 // Plan/status come from the public.subscriptions table, populated by the
 // stripe-webhook edge function. The client never writes to that table —
@@ -30,6 +31,21 @@ export function useSubscription(role, user) {
   // ISO timestamp; treated as Pro while in the future. No real Stripe sub.
   const [proGrantUntil, setProGrantUntil] = useState(null);
   const [proGrantLoaded, setProGrantLoaded] = useState(false);
+
+  // Owner-only "view as Free" toggle — lets the owner test the Free-tier UX
+  // without losing their admin bypass. Persisted to localStorage so it
+  // survives reloads. Has no effect for non-owners (they can't be Pro via
+  // bypass anyway).
+  const [mockFreeMode, setMockFreeMode] = useState(false);
+
+  useEffect(() => {
+    storageGet("mock-free-mode").then(val => setMockFreeMode(val === "true"));
+  }, [user?.id]);
+
+  const toggleMockFreeMode = useCallback((next) => {
+    setMockFreeMode(next);
+    storageSet("mock-free-mode", String(next));
+  }, []);
 
   // Refetches upload allowance from the server. Single source of truth —
   // server resets the monthly counter at the calendar boundary, so we don't
@@ -159,9 +175,12 @@ export function useSubscription(role, user) {
   const isProGrantActive = !!proGrantUntil &&
     new Date(proGrantUntil).getTime() > Date.now();
 
-  const isPro = adminBypass || isTrialing || isActiveOrPastDue || isProGrantActive;
-  const isTrial = isTrialing && !adminBypass;
-  const plan = adminBypass
+  // Owner can opt out of admin bypass for UI-testing the Free experience.
+  // Doesn't affect non-owners — they couldn't use bypass anyway.
+  const effectiveAdminBypass = adminBypass && !mockFreeMode;
+  const isPro = effectiveAdminBypass || isTrialing || isActiveOrPastDue || isProGrantActive;
+  const isTrial = isTrialing && !effectiveAdminBypass;
+  const plan = effectiveAdminBypass
     ? "pro"
     : isTrialing
       ? "trial"
@@ -183,13 +202,15 @@ export function useSubscription(role, user) {
   // Post-deletion lockout: free-tier features suspended until the date passes
   // OR the user subscribes (Pro/Trial bypasses the lockout — they're paying).
   // adminBypass also bypasses (owner shouldn't be locked out by their own data).
-  const isLockedOut = !!lockoutUntil && !isPro && !adminBypass &&
+  // effectiveAdminBypass respects the owner's mockFreeMode toggle.
+  const isLockedOut = !!lockoutUntil && !isPro && !effectiveAdminBypass &&
     new Date(lockoutUntil).getTime() > Date.now();
 
   // Server-derived limit (uploadLimit) wins over the role-based override.
-  // adminBypass still short-circuits to Infinity for our owner account.
+  // adminBypass short-circuits to Infinity for our owner account; if the
+  // owner has toggled Free view, fall through to the real upload limit.
   // Lockout zeroes the limit so canUpload is false regardless of count.
-  const effectiveLimit = adminBypass ? Infinity : (isLockedOut ? 0 : uploadLimit);
+  const effectiveLimit = effectiveAdminBypass ? Infinity : (isLockedOut ? 0 : uploadLimit);
   const canUpload = !isLockedOut && uploadsUsed < effectiveLimit;
 
   const loaded = subLoaded && uploadsLoaded && lockoutLoaded && proGrantLoaded;
@@ -253,6 +274,9 @@ export function useSubscription(role, user) {
     recordUpload,
     refetchUploadAllowance,
     cancelSubscription,
+    // Owner-only Free/Pro view toggle for UI testing.
+    mockFreeMode,
+    toggleMockFreeMode,
     // Alias retained because SubscriptionModal currently calls cancelTrial()
     // for both trial and Pro cancellations. Edge function branches internally.
     cancelTrial: cancelSubscription,

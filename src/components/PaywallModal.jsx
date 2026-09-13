@@ -1,30 +1,71 @@
+import { useEffect } from "react";
 import { Lock, Crown } from "lucide-react";
 import { FREE_UPLOAD_LIMIT } from "../config/constants";
 import * as Dialog from "@radix-ui/react-dialog";
 import PulsatingButton from "./PulsatingButton";
+import { track } from "../utils/track";
+import { marketingThemeVars } from "../utils/marketingTheme";
 
-const OVERLAY = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", zIndex: 1000 };
+const OVERLAY = {
+  position: "fixed", inset: 0,
+  background: "rgba(31, 24, 18, 0.55)",
+  backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+  zIndex: 1000,
+};
 
-export default function PaywallModal({ uploadsUsed, onUpgrade, onClose, t }) {
+// `uploadsUsed` accepted for API compatibility but unused — copy uses
+// FREE_UPLOAD_LIMIT directly. `t` is spread as CSS custom properties so
+// the modal re-skins to the active theme.
+export default function PaywallModal({ uploadsUsed: _uploadsUsed, onUpgrade, onClose, t }) {
+  useEffect(() => { track("paywall_view"); }, []);
+
   return (
     <Dialog.Root open onOpenChange={o => { if (!o) onClose(); }}>
       <Dialog.Portal>
         <Dialog.Overlay style={OVERLAY} />
         <Dialog.Content
-          aria-describedby={undefined}
-          style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: t.bg, borderRadius: 24, maxWidth: 420, width: "calc(100% - 48px)", boxShadow: "0 32px 80px rgba(0,0,0,0.25)", padding: "40px 32px", textAlign: "center", zIndex: 1001, outline: "none", fontFamily: "'DM Sans', sans-serif" }}
+          className="tmt-marketing"
+          style={{
+            ...marketingThemeVars(t),
+            position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+            background: "var(--tmt-paper-card)",
+            border: "1px solid var(--tmt-rule)",
+            borderRadius: 24,
+            maxWidth: 440, width: "calc(100% - 48px)",
+            padding: "44px 36px 32px",
+            textAlign: "center",
+            boxShadow: "0 32px 80px -20px rgba(31, 24, 18, 0.45), 0 6px 16px -8px rgba(31, 24, 18, 0.2)",
+            zIndex: 1001,
+          }}
         >
-          <Dialog.Title style={{ fontSize: 22, fontWeight: 740, color: t.fg, margin: "0 0 8px", fontFamily: "'DM Sans', sans-serif" }}>Upload limit reached</Dialog.Title>
-          <div style={{ width: 60, height: 60, borderRadius: 18, background: t.accentSoft, display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
-            <Lock size={28} style={{ color: t.accent }} />
+          <div style={{ width: 64, height: 64, borderRadius: 20, background: "rgba(176, 81, 46, 0.15)", border: "1px solid rgba(176, 81, 46, 0.3)", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 22 }}>
+            <Lock size={28} style={{ color: "var(--tmt-terra)" }} />
           </div>
-          <p style={{ fontSize: 14, color: t.fgSoft, margin: "0 0 8px", lineHeight: 1.6 }}>You've used all {FREE_UPLOAD_LIMIT} free documents this month.</p>
-          <p style={{ fontSize: 13, color: t.fgSoft, margin: "0 0 28px", lineHeight: 1.5 }}>Upgrade to Pro for unlimited uploads starting at $3.75/mo.</p>
-          <PulsatingButton variant="ripple" pulseColor={t.accent} duration="1.6s" distance="10px" onClick={onUpgrade} className="rf-btn-bubble" style={{ width: "100%", padding: "22px 32px", borderRadius: 999, border: "none", background: t.accent, color: "#fff", cursor: "pointer", fontSize: 15, fontWeight: 700, fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12, boxSizing: "border-box" }}>
-            <Crown size={16} /> See plans &amp; pricing
+          <div style={{ marginBottom: 10 }}>
+            <span className="tmt-eyebrow lead">Free limit reached</span>
+          </div>
+          <Dialog.Title className="tmt-display" style={{ fontSize: 28, fontWeight: 380, letterSpacing: "-0.02em", margin: "0 0 14px", lineHeight: 1.1 }}>
+            You've read your <em>first {FREE_UPLOAD_LIMIT}</em>.
+          </Dialog.Title>
+          <p style={{ fontFamily: "var(--tmt-serif-body)", fontSize: 16, color: "var(--tmt-ink-soft)", margin: "0 0 8px", lineHeight: 1.55 }}>
+            That was your monthly free quota of {FREE_UPLOAD_LIMIT} documents.
+          </p>
+          <p style={{ fontFamily: "var(--tmt-serif-body)", fontSize: 15, color: "var(--tmt-ink-muted)", margin: "0 0 28px", lineHeight: 1.55, fontStyle: "italic" }}>
+            Upgrade to Pro for unlimited uploads — from $3.75&thinsp;/&thinsp;mo on the annual plan.
+          </p>
+          <PulsatingButton
+            variant="ripple"
+            pulseColor="rgba(176, 81, 46, 0.55)"
+            duration="1.6s"
+            distance="10px"
+            onClick={onUpgrade}
+            className="rf-btn-solid tmt-btn"
+            style={{ width: "100%", justifyContent: "center", marginBottom: 12 }}
+          >
+            <Crown size={15} /> See plans &amp; pricing
           </PulsatingButton>
           <Dialog.Close asChild>
-            <button style={{ width: "100%", padding: "11px 20px", borderRadius: 12, border: `1px solid ${t.border}`, background: "transparent", color: t.fgSoft, cursor: "pointer", fontSize: 13, fontWeight: 550, fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box" }}>
+            <button className="tmt-btn ghost" style={{ width: "100%", justifyContent: "center" }}>
               Maybe later
             </button>
           </Dialog.Close>

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<body>
+<h1>Tutorial: Sorting algorithms</h1>
+<p>Quicksort is a divide-and-conquer algorithm.</p>
+<pre><code>def quicksort(arr):
+    if len(arr) &lt;= 1:
+        return arr
+    pivot = arr[0]
+    rest = arr[1:]
+    less = [x for x in rest if x &lt; pivot]
+    greater = [x for x in rest if x &gt;= pivot]
+    return quicksort(less) + [pivot] + quicksort(greater)</code></pre>
+<p>Preformatted whitespace inside pre/code should be preserved by the renderer.</p>
+
+<h1>Chapter 2: Merge sort</h1>
+<p>Merge sort takes a different approach.</p>
+</body>
+</html>

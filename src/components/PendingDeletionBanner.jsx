@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { AlertTriangle, X } from "lucide-react";
 import { supabase } from "../utils/supabase";
 import { useToast } from "./Toast";
+import { formatDate } from "../utils/formatDate";
 
 // Persistent top-of-app banner shown to users with a pending account
 // deletion. Shows a live countdown to the effective date and a one-click
@@ -21,10 +22,6 @@ function formatRelative(target) {
   if (hours === 1) return "in 1 hour";
   const minutes = Math.max(1, Math.floor(ms / 60000));
   return `in ${minutes} minute${minutes === 1 ? "" : "s"}`;
-}
-
-function formatDate(d) {
-  return new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 }
 
 export default function PendingDeletionBanner({ user, effectiveAt, onReactivated, t }) {
@@ -63,26 +60,33 @@ export default function PendingDeletionBanner({ user, effectiveAt, onReactivated
     }
   };
 
+  const SANS = "'DM Sans', sans-serif";
+  const MONO = "'IBM Plex Mono', ui-monospace, monospace";
   return (
     <div
       role="alert"
       style={{
         position: "sticky", top: 0, left: 0, right: 0, zIndex: 1900,
         background: "#F59E0B", color: "#1A1500",
-        padding: "10px 16px",
-        display: "flex", alignItems: "center", gap: 12,
-        fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600,
+        padding: "12px 18px",
+        display: "flex", alignItems: "center", gap: 14,
+        fontFamily: SANS, fontSize: 13, fontWeight: 550,
         boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
       }}
     >
       <AlertTriangle size={16} style={{ flexShrink: 0 }} />
-      <span style={{ flex: 1, lineHeight: 1.4 }}>
-        Your account will be deleted on <strong>{formatDate(effectiveAt)}</strong> ({formatRelative(effectiveAt)}).
-      </span>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, lineHeight: 1.35 }}>
+        <span style={{ fontFamily: MONO, fontSize: 10, fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", opacity: 0.78 }}>
+          Deletion pending
+        </span>
+        <span>
+          Your account will be deleted on <strong>{formatDate(effectiveAt)}</strong> · {formatRelative(effectiveAt)}.
+        </span>
+      </div>
       {!confirming ? (
         <button
           onClick={() => setConfirming(true)}
-          style={{ padding: "6px 12px", borderRadius: 6, border: "none", background: "#1A1500", color: "#fff", cursor: "pointer", fontSize: 12, fontWeight: 660, fontFamily: "'DM Sans', sans-serif", flexShrink: 0 }}
+          style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: "#1A1500", color: "#fff", cursor: "pointer", fontSize: 12, fontWeight: 620, fontFamily: SANS, letterSpacing: "0.01em", flexShrink: 0 }}
         >
           Reactivate
         </button>
@@ -91,14 +95,14 @@ export default function PendingDeletionBanner({ user, effectiveAt, onReactivated
           <button
             onClick={() => setConfirming(false)}
             disabled={busy}
-            style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid rgba(0,0,0,0.3)", background: "transparent", color: "#1A1500", cursor: busy ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 580, fontFamily: "'DM Sans', sans-serif" }}
+            style={{ padding: "8px 12px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.3)", background: "transparent", color: "#1A1500", cursor: busy ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 560, fontFamily: SANS }}
           >
             Keep deletion
           </button>
           <button
             onClick={handleReactivate}
             disabled={busy}
-            style={{ padding: "6px 12px", borderRadius: 6, border: "none", background: "#1A1500", color: "#fff", cursor: busy ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 660, fontFamily: "'DM Sans', sans-serif" }}
+            style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: "#1A1500", color: "#fff", cursor: busy ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 620, fontFamily: SANS }}
           >
             {busy ? "…" : "Yes, reactivate"}
           </button>
@@ -107,7 +111,7 @@ export default function PendingDeletionBanner({ user, effectiveAt, onReactivated
       <button
         aria-label="Dismiss for this session"
         onClick={() => setDismissed(true)}
-        style={{ background: "transparent", border: "none", cursor: "pointer", color: "#1A1500", padding: 2, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, opacity: 0.6 }}
+        style={{ background: "transparent", border: "none", cursor: "pointer", color: "#1A1500", padding: 4, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, opacity: 0.55, borderRadius: 6 }}
       >
         <X size={14} />
       </button>

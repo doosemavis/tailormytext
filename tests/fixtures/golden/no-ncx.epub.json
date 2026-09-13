@@ -1,0 +1,20 @@
+[
+  {
+    "type": "chapter",
+    "title": "First",
+    "number": 1,
+    "content": "Body of the first chapter; the title should be recovered from the h1 inside the XHTML."
+  },
+  {
+    "type": "chapter",
+    "title": "Second",
+    "number": 2,
+    "content": "Body of the second chapter."
+  },
+  {
+    "type": "chapter",
+    "title": "Third",
+    "number": 3,
+    "content": "Body of the third chapter."
+  }
+]

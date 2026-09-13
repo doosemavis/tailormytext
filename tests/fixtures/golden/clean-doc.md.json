@@ -1,0 +1,20 @@
+[
+  {
+    "type": "chapter",
+    "title": "Chapter 1",
+    "number": 1,
+    "content": "The first chapter establishes the world. Setting, mood, and a hint of what's to come.\n\n## A subsection\n\nWithin chapters, sub-headings often divide longer passages. The parser should preserve these as inline ##  markers, not as new chapters."
+  },
+  {
+    "type": "chapter",
+    "title": "Chapter 2",
+    "number": 2,
+    "content": "The second chapter introduces conflict. Characters have wants; obstacles appear."
+  },
+  {
+    "type": "chapter",
+    "title": "Chapter 3",
+    "number": 3,
+    "content": "The third chapter raises the stakes."
+  }
+]

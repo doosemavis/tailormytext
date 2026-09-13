@@ -1,0 +1,8 @@
+[
+  {
+    "type": "chapter",
+    "title": "Document with links and images",
+    "number": 1,
+    "content": "This is a paragraph with a hyperlink to somewhere embedded in it. The renderer should display the label text, drop the URL.\n\nHere is an image: \n\nReference-style links: this some link uses a reference.\n\nLast paragraph for spacing."
+  }
+]

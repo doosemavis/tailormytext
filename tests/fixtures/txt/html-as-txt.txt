@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head><title>An Article</title></head>
+<body>
+<h1>Chapter 1: The Beginning</h1>
+<p>This is the first paragraph of an article that was saved with a .txt extension by mistake.</p>
+
+<h1>Chapter 2: The Middle</h1>
+<p>Here is the second part. The sniffer should route this to the HTML parser instead of plain text.</p>
+
+<h1>Chapter 3: The End</h1>
+<p>And the closing thoughts of the piece.</p>
+</body>
+</html>

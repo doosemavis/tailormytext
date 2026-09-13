@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<body>
+<div class="outer">
+  <div class="container">
+    <article>
+      <div class="content">
+        <h1>Chapter 1 buried in divs</h1>
+        <div>
+          <p>The heading is real but it's nested four divs deep.</p>
+          <p>The current parser walks body.children (direct children only) and may miss this entirely.</p>
+        </div>
+      </div>
+    </article>
+  </div>
+</div>
+</body>
+</html>

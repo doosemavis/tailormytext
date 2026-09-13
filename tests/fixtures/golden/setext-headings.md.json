@@ -1,0 +1,8 @@
+[
+  {
+    "type": "chapter",
+    "title": "Title in Setext Style",
+    "number": 1,
+    "content": "The line of equals signs below the title is the older Markdown heading syntax. Some parsers recognize it; many don't.\n\n## A Sub-Heading in Setext\n\nThe line of dashes is the level-2 equivalent.\n\nATX-style headings are more common today, but legacy documents often use setext."
+  }
+]

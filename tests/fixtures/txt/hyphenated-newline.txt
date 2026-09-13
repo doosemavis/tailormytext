@@ -1,0 +1,4 @@
+Some words wrap awkwardly when text is reflowed from a fixed-width source. For exam-
+ple, this sentence has a soft hyphen that should rejoin when the parser nor-
+malizes the text. Without that handling, "exam-" and "ple" appear as separate to-
+kens and the resulting prose reads strangely.

@@ -1,0 +1,14 @@
+[
+  {
+    "type": "chapter",
+    "title": "Chapter 1",
+    "number": 1,
+    "content": "The YAML front matter above should not be treated as document content. It's metadata that lives outside the prose.\n\nA well-behaved parser strips it or surfaces it separately from the section content."
+  },
+  {
+    "type": "chapter",
+    "title": "Chapter 2",
+    "number": 2,
+    "content": "Front matter is conventional in static-site generators (Jekyll, Hugo, Astro) and increasingly in Markdown-based writing tools."
+  }
+]

@@ -1,0 +1,32 @@
+{
+  "_source": "Project Gutenberg top-downloaded ebooks (last 30 days), fetched 2026-05-17 from https://www.gutenberg.org/browse/scores/top",
+  "_filters_applied": [
+    "Excluded multi-volume partial works (Hegel vol 3, City of God vol 1, Bradlaugh vol 1, Wagner vol 1)",
+    "Excluded non-English titles (Die Traumdeutung)"
+  ],
+  "_free_tier_count": 5,
+  "_total": 21,
+  "books": [
+    { "rank": 1,  "id": 84,    "title": "Frankenstein; or, The Modern Prometheus", "author": "Mary Wollstonecraft Shelley", "publication_date": "1818", "tier": "free" },
+    { "rank": 2,  "id": 2701,  "title": "Moby Dick; or, The Whale",                 "author": "Herman Melville",            "publication_date": "1851", "tier": "free" },
+    { "rank": 3,  "id": 1342,  "title": "Pride and Prejudice",                      "author": "Jane Austen",                "publication_date": "1813", "tier": "free" },
+    { "rank": 4,  "id": 1513,  "title": "Romeo and Juliet",                         "author": "William Shakespeare",        "publication_date": "1597", "tier": "free" },
+    { "rank": 5,  "id": 2554,  "title": "Crime and Punishment",                     "author": "Fyodor Dostoyevsky",         "publication_date": "1866", "tier": "free" },
+    { "rank": 6,  "id": 1184,  "title": "The Count of Monte Cristo",                "author": "Alexandre Dumas",            "publication_date": "1844", "tier": "pro"  },
+    { "rank": 7,  "id": 2641,  "title": "A Room with a View",                       "author": "E. M. Forster",              "publication_date": "1908", "tier": "pro"  },
+    { "rank": 8,  "id": 11,    "title": "Alice's Adventures in Wonderland",         "author": "Lewis Carroll",              "publication_date": "1865", "tier": "pro"  },
+    { "rank": 9,  "id": 43,    "title": "The Strange Case of Dr. Jekyll and Mr. Hyde", "author": "Robert Louis Stevenson", "publication_date": "1886", "tier": "pro"  },
+    { "rank": 10, "id": 100,   "title": "The Complete Works of William Shakespeare", "author": "William Shakespeare",       "publication_date": "1623", "tier": "pro"  },
+    { "rank": 11, "id": 145,   "title": "Middlemarch",                              "author": "George Eliot",               "publication_date": "1871", "tier": "pro"  },
+    { "rank": 12, "id": 64317, "title": "The Great Gatsby",                         "author": "F. Scott Fitzgerald",        "publication_date": "1925", "tier": "pro"  },
+    { "rank": 13, "id": 67979, "title": "The Blue Castle",                          "author": "L. M. Montgomery",           "publication_date": "1926", "tier": "pro"  },
+    { "rank": 14, "id": 8492,  "title": "The King in Yellow",                       "author": "Robert W. Chambers",         "publication_date": "1895", "tier": "pro"  },
+    { "rank": 15, "id": 37106, "title": "Little Women",                             "author": "Louisa May Alcott",          "publication_date": "1868", "tier": "pro"  },
+    { "rank": 16, "id": 1260,  "title": "Jane Eyre: An Autobiography",              "author": "Charlotte Brontë",           "publication_date": "1847", "tier": "pro"  },
+    { "rank": 17, "id": 76,    "title": "Adventures of Huckleberry Finn",           "author": "Mark Twain",                 "publication_date": "1884", "tier": "pro"  },
+    { "rank": 18, "id": 345,   "title": "Dracula",                                  "author": "Bram Stoker",                "publication_date": "1897", "tier": "pro"  },
+    { "rank": 19, "id": 1661,  "title": "The Adventures of Sherlock Holmes",        "author": "Arthur Conan Doyle",         "publication_date": "1892", "tier": "pro"  },
+    { "rank": 20, "id": 996,   "title": "Don Quixote",                              "author": "Miguel de Cervantes Saavedra","publication_date": "1605", "tier": "pro"  },
+    { "rank": 21, "id": 174,   "title": "The Picture of Dorian Gray",               "author": "Oscar Wilde",                "publication_date": "1890", "tier": "pro"  }
+  ]
+}

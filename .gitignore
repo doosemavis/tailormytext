@@ -6,3 +6,22 @@ dist/
 # MemPalace per-project files (issue #185)
 mempalace.yaml
 entities.json
+
+# Claude Desktop context bundle — kept local; uploaded to Claude Projects
+# manually. Not pushed to GitHub or deployed.
+TAILORMYTEXT_CONTEXT.md
+
+# Strategic / launch planning notes — local reference only.
+TAILORMYTEXT_LAUNCH_PLAN.md
+.gstack/
+
+# Gutenberg ingest pipeline — binary caches (large) and per-book reports.
+# library_seed.json + ingest_gutenberg.mjs ARE committed; only working outputs are ignored.
+scripts/.cache/
+scripts/.cache-stripped/
+scripts/validation-report/
+
+# Phase D-8 parser-confidence calibration corpus — fetched PG plain-text files.
+# pg-corpus-urls.json + the fetch/calibrate scripts ARE committed; the heavy
+# .txt files are not. Re-fetch with: node scripts/fetch-pg-corpus.mjs
+tests/fixtures/pg-corpus/

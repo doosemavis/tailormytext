@@ -1,0 +1,20 @@
+[
+  {
+    "type": "chapter",
+    "title": "Chapter One",
+    "number": 1,
+    "content": "The first chapter sets the scene with quiet, conversational prose."
+  },
+  {
+    "type": "chapter",
+    "title": "Chapter Two",
+    "number": 2,
+    "content": "The second chapter introduces conflict and a complication that demands resolution."
+  },
+  {
+    "type": "chapter",
+    "title": "Chapter Three",
+    "number": 3,
+    "content": "The third chapter raises the stakes and points toward the resolution."
+  }
+]

@@ -71,13 +71,13 @@ export function useToast() {
 }
 
 const TYPE_STYLES = {
-  error:   { accent: "#E25C5C", icon: AlertTriangle },
-  success: { accent: "#22C55E", icon: CheckCircle2 },
-  info:    { accent: "#3B82F6", icon: Info },
+  error:   { accent: "#E25C5C", icon: AlertTriangle, label: "Error" },
+  success: { accent: "#22C55E", icon: CheckCircle2, label: "Success" },
+  info:    { accent: "#3B82F6", icon: Info, label: "Note" },
 };
 
 function ToastView({ message, type, duration, onClose }) {
-  const { accent, icon: Icon } = TYPE_STYLES[type] ?? TYPE_STYLES.error;
+  const { accent, icon: Icon, label } = TYPE_STYLES[type] ?? TYPE_STYLES.error;
   return (
     <RadixToast.Root
       className="rf-toast"
@@ -87,9 +87,9 @@ function ToastView({ message, type, duration, onClose }) {
         background: "#1A1A1A",
         color: "#fff",
         borderLeft: `4px solid ${accent}`,
-        borderRadius: 10,
-        boxShadow: "0 12px 32px rgba(0,0,0,0.32)",
-        padding: "14px 14px 14px 18px",
+        borderRadius: 12,
+        boxShadow: "0 18px 44px rgba(0,0,0,0.36)",
+        padding: "14px 16px 14px 18px",
         display: "flex",
         alignItems: "flex-start",
         gap: 12,
@@ -98,15 +98,20 @@ function ToastView({ message, type, duration, onClose }) {
         lineHeight: 1.4,
       }}
     >
-      <Icon size={18} style={{ color: accent, flexShrink: 0, marginTop: 1 }} />
-      <RadixToast.Description style={{ flex: 1, margin: 0 }}>{message}</RadixToast.Description>
+      <Icon size={18} style={{ color: accent, flexShrink: 0, marginTop: 2 }} />
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 3 }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', ui-monospace, monospace", fontSize: 10, fontWeight: 700, color: accent, letterSpacing: "0.16em", textTransform: "uppercase" }}>
+          {label}
+        </span>
+        <RadixToast.Description style={{ margin: 0 }}>{message}</RadixToast.Description>
+      </div>
       <RadixToast.Close
         aria-label="Dismiss"
         style={{
           background: "transparent", border: "none", cursor: "pointer",
-          color: "rgba(255,255,255,0.7)", padding: 2, borderRadius: 4,
+          color: "rgba(255,255,255,0.7)", padding: 4, borderRadius: 6,
           display: "flex", alignItems: "center", justifyContent: "center",
-          flexShrink: 0,
+          flexShrink: 0, marginTop: -2,
         }}
       >
         <X size={16} />

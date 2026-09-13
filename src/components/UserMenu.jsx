@@ -1,4 +1,5 @@
-import { LogOut, Settings, ChevronDown, ChevronRight, User, ImageIcon, Palette, CreditCard, Trash2, Receipt, ExternalLink } from "lucide-react";
+import { LogOut, Settings, ChevronDown, ChevronRight, User, UserCircle, ImageIcon, Palette, CreditCard, Trash2, Receipt, ExternalLink, Map, Gift } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { ROLES } from "../config/roles";
 import { PremadeAvatarSvg } from "./PremadeAvatarSvg";
@@ -10,6 +11,11 @@ const ROLE_COLORS = {
   elevated: { bg: "#22C55E18", text: "#22C55E" },
   user:     { bg: "transparent", text: "inherit" },
 };
+
+// Gift badge — sits alongside the role badge under the user's email when
+// they have an active Pro grant. Amber tones differentiate it from the
+// blue admin badge. Background uses 12% alpha to match ROLE_COLORS shape.
+const GIFT_BADGE = { bg: "#D9770618", text: "#D97706" };
 
 function Avatar({ avatar, initial, accent, size = 28 }) {
   const br = Math.round(size * 0.28);
@@ -26,8 +32,9 @@ function Avatar({ avatar, initial, accent, size = 28 }) {
   );
 }
 
-export default function UserMenu({ t, onShowAuth, onShowAdmin, onShowAvatarSettings, onShowSubscription, onShowPaymentReceipts, showPaymentReceipts, onShowDeleteAccount, avatar, themePersistEnabled, onToggleThemePersist }) {
+export default function UserMenu({ t, onShowAuth, onShowAvatarSettings, onShowSubscription, onShowPaymentReceipts, showPaymentReceipts, onShowDeleteAccount, avatar, themePersistEnabled, onToggleThemePersist, mockFreeMode, onToggleMockFreeMode, isProGrantActive }) {
   const { user, role, isOwner, signOut } = useAuth();
+  const navigate = useNavigate();
 
   if (!user) {
     return (
@@ -57,16 +64,58 @@ export default function UserMenu({ t, onShowAuth, onShowAdmin, onShowAvatarSetti
         <DropdownMenu.Content
           align="end"
           sideOffset={6}
-          style={{ background: t.bg, border: `1px solid ${t.border}`, borderRadius: 12, boxShadow: "0 12px 36px rgba(0,0,0,0.18)", minWidth: 220, overflow: "hidden", zIndex: 999, outline: "none" }}
+          style={{ background: t.bg, border: `1px solid ${t.border}`, borderRadius: 14, boxShadow: "0 18px 44px rgba(0,0,0,0.22)", minWidth: 240, overflow: "hidden", zIndex: 999, outline: "none" }}
         >
           {/* Profile header — not interactive */}
-          <div style={{ padding: "12px 14px", borderBottom: `1px solid ${t.borderSoft}`, display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ padding: "14px 14px", borderBottom: `1px solid ${t.borderSoft}`, display: "flex", alignItems: "center", gap: 12 }}>
             <Avatar avatar={avatar} initial={initial} accent={t.accent} size={36} />
-            <div style={{ minWidth: 0 }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontFamily: "'IBM Plex Mono', ui-monospace, monospace", fontSize: 9.5, fontWeight: 600, color: t.fgSoft, letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 2 }}>Signed in</div>
               <div style={{ fontSize: 13, fontWeight: 600, color: t.fg, fontFamily: "'DM Sans', sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.email}</div>
-              {role !== "user" && (
-                <span style={{ display: "inline-flex", alignItems: "center", marginTop: 3, padding: "2px 8px", borderRadius: 10, fontSize: 11, fontWeight: 650, fontFamily: "'DM Sans', sans-serif", background: roleColor.bg, color: roleColor.text }}>{roleLabel}</span>
-              )}
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                {role !== "user" && (
+                  <span style={{ display: "inline-flex", alignItems: "center", padding: "2px 8px", borderRadius: 8, fontSize: 9.5, fontWeight: 700, fontFamily: "'IBM Plex Mono', ui-monospace, monospace", letterSpacing: "0.1em", textTransform: "uppercase", background: roleColor.bg, color: roleColor.text }}>{roleLabel}</span>
+                )}
+                {isProGrantActive && (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 8, fontSize: 9.5, fontWeight: 700, fontFamily: "'IBM Plex Mono', ui-monospace, monospace", letterSpacing: "0.1em", textTransform: "uppercase", background: GIFT_BADGE.bg, color: GIFT_BADGE.text }}>
+                    <Gift size={11} /> Gift
+                  </span>
+                )}
+                {/* Owner-only Pro/Free view toggle for UI testing.
+                    Pinned to the far right of the row via margin-left: auto so
+                    it sits under the email's right edge regardless of role
+                    badge presence/length.
+                    Switch ON  = Pro view (admin bypass active)
+                    Switch OFF = Free view (admin bypass overridden) */}
+                {isOwner && onToggleMockFreeMode && (
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
+                    <span style={{ fontSize: 10, fontWeight: 650, color: t.fgSoft, fontFamily: "'DM Sans', sans-serif" }}>
+                      {mockFreeMode ? "Free view" : "Pro view"}
+                    </span>
+                    <Switch.Root
+                      checked={!mockFreeMode}
+                      onCheckedChange={(checked) => onToggleMockFreeMode(!checked)}
+                      onClick={e => e.stopPropagation()}
+                      className="rf-static"
+                      aria-label="Toggle Pro/Free view"
+                      style={{
+                        width: 36, height: 20, borderRadius: 10, padding: 2, flexShrink: 0,
+                        background: !mockFreeMode ? (t.switchOn ?? t.accent) : t.border,
+                        border: "none", cursor: "pointer",
+                        transition: "background 0.2s ease",
+                        display: "flex", alignItems: "center", outline: "none",
+                      }}
+                    >
+                      <Switch.Thumb style={{
+                        display: "block", width: 16, height: 16, borderRadius: 8,
+                        background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+                        transition: "transform 0.2s cubic-bezier(0.4,0,0.2,1)",
+                        transform: !mockFreeMode ? "translateX(16px)" : "translateX(0)",
+                      }} />
+                    </Switch.Root>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -89,6 +138,14 @@ export default function UserMenu({ t, onShowAuth, onShowAdmin, onShowAvatarSetti
                 sideOffset={4}
                 style={{ minWidth: 200, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 12, padding: 4, boxShadow: "0 12px 32px rgba(0,0,0,0.15)", zIndex: 1100 }}
               >
+                <DropdownMenu.Item
+                  onSelect={() => navigate("/account")}
+                  onMouseEnter={e => e.currentTarget.style.background = t.surfaceHover}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                  style={{ padding: "10px 12px", cursor: "pointer", color: t.fg, fontSize: 13, fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 8, borderRadius: 8, outline: "none", userSelect: "none" }}
+                >
+                  <UserCircle size={14} style={{ color: t.icon }} /> Account
+                </DropdownMenu.Item>
                 <DropdownMenu.Item
                   onSelect={onShowAvatarSettings}
                   onMouseEnter={e => e.currentTarget.style.background = t.surfaceHover}
@@ -120,12 +177,22 @@ export default function UserMenu({ t, onShowAuth, onShowAdmin, onShowAvatarSetti
                 )}
                 {(role === "admin" || isOwner) && (
                   <DropdownMenu.Item
-                    onSelect={onShowAdmin}
+                    onSelect={() => navigate("/admin")}
                     onMouseEnter={e => e.currentTarget.style.background = t.surfaceHover}
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                     style={{ padding: "10px 12px", cursor: "pointer", color: t.fg, fontSize: 13, fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 8, borderRadius: 8, outline: "none", userSelect: "none" }}
                   >
                     <User size={14} style={{ color: t.icon }} /> Admin Panel
+                  </DropdownMenu.Item>
+                )}
+                {(role === "admin" || isOwner) && (
+                  <DropdownMenu.Item
+                    onSelect={() => navigate("/admin?tab=roadmap")}
+                    onMouseEnter={e => e.currentTarget.style.background = t.surfaceHover}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                    style={{ padding: "10px 12px", cursor: "pointer", color: t.fg, fontSize: 13, fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 8, borderRadius: 8, outline: "none", userSelect: "none" }}
+                  >
+                    <Map size={14} style={{ color: t.icon }} /> Roadmap
                   </DropdownMenu.Item>
                 )}
                 <DropdownMenu.Separator style={{ height: 1, background: t.borderSoft, margin: "4px 0" }} />

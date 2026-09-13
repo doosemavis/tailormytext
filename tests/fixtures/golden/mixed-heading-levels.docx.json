@@ -1,0 +1,14 @@
+[
+  {
+    "type": "chapter",
+    "title": "Chapter A",
+    "number": 1,
+    "content": "Body paragraph for chapter A.\n\n## A Subsection\n\nBody inside the subsection.\n\n### A Sub-Subsection\n\nBody inside the sub-subsection."
+  },
+  {
+    "type": "chapter",
+    "title": "Chapter B",
+    "number": 2,
+    "content": "Body paragraph for chapter B."
+  }
+]

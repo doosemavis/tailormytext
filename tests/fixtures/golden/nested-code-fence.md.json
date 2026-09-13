@@ -1,0 +1,8 @@
+[
+  {
+    "type": "chapter",
+    "title": "Code-fence edge cases",
+    "number": 1,
+    "content": "A regular code block:\n\ndef hello():\n    print(\"hello\")\n\nA code block that contains backticks inside it:\n\nYou can write nested code like ```js console.log(1) ``` inside a fenced block.\n\nA code block with the language tag missing:\n\nplain code, no language tag"
+  }
+]

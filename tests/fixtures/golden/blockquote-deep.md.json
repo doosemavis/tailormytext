@@ -1,0 +1,8 @@
+[
+  {
+    "type": "chapter",
+    "title": "A chapter with blockquotes",
+    "number": 1,
+    "content": "This is a quoted line. The parser should preserve the indentation marker.\n\nA nested blockquote. Some renderers handle this; others flatten.\n\nBack to normal prose between quotes.\n\nAnother single-level quote. Followed by:\nA second line of the same quote.\n\nEnd of chapter."
+  }
+]

@@ -1,0 +1,14 @@
+[
+  {
+    "type": "chapter",
+    "title": "Tutorial: Sorting algorithms",
+    "number": 1,
+    "content": "Quicksort is a divide-and-conquer algorithm.\n\ndef quicksort(arr):\n    if len(arr) <= 1:\n        return arr\n    pivot = arr[0]\n    rest = arr[1:]\n    less = [x for x in rest if x < pivot]\n    greater = [x for x in rest if x >= pivot]\n    return quicksort(less) + [pivot] + quicksort(greater)\n\nPreformatted whitespace inside pre/code should be preserved by the renderer."
+  },
+  {
+    "type": "chapter",
+    "title": "Chapter 2: Merge sort",
+    "number": 2,
+    "content": "Merge sort takes a different approach."
+  }
+]

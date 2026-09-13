@@ -1,0 +1,8 @@
+[
+  {
+    "type": "document",
+    "title": null,
+    "number": 1,
+    "content": "Some words wrap awkwardly when text is reflowed from a fixed-width source. For exam-\nple, this sentence has a soft hyphen that should rejoin when the parser nor-\nmalizes the text. Without that handling, \"exam-\" and \"ple\" appear as separate to-\nkens and the resulting prose reads strangely."
+  }
+]

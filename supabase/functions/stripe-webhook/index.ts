@@ -83,6 +83,36 @@ async function upsertSubscription(sub: Stripe.Subscription) {
   await recordHistoryEvents(userId, sub);
 }
 
+// Marketing funnel: record one checkout_succeeded event per user when their
+// first subscription is created. Idempotent — only inserts if no prior
+// checkout_succeeded row exists for this user_id, which protects against
+// Stripe webhook redeliveries.
+async function recordCheckoutSucceeded(sub: Stripe.Subscription) {
+  const userId = sub.metadata?.user_id;
+  if (!userId) return;
+
+  const { data: existing, error: selErr } = await admin
+    .from("events")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("name", "checkout_succeeded")
+    .limit(1);
+  if (selErr) {
+    console.error(`events checkout_succeeded existence check failed for ${userId}:`, selErr);
+    return;
+  }
+  if (existing && existing.length > 0) return;
+
+  const { error: insErr } = await admin.from("events").insert({
+    name: "checkout_succeeded",
+    session_id: `server:${userId}`,
+    user_id: userId,
+  });
+  if (insErr) {
+    console.error(`events checkout_succeeded insert failed for ${userId}:`, insErr);
+  }
+}
+
 // Mirror lifecycle events into account_history so the per-email anti-abuse
 // rules (no second free trial, 6-month post-deletion lockout) have a record
 // that survives auth.users deletion.
@@ -151,6 +181,9 @@ Deno.serve(async (req) => {
       case "customer.subscription.updated": {
         const sub = event.data.object as Stripe.Subscription;
         await upsertSubscription(sub);
+        if (event.type === "customer.subscription.created") {
+          await recordCheckoutSucceeded(sub);
+        }
         break;
       }
       case "customer.subscription.deleted": {

@@ -1,132 +1,141 @@
-import { loadScript } from "./scriptLoader";
+// CONTRACT: emits Section[] per docs/architecture/PARSER_CONTRACT.md.
+// Sections have type:"chapter" (outline-derived) or "page" (per-page),
+// title from PDF outline entry / first font-tiered heading (null if neither),
+// number from outline index or page number, content in the private
+// pseudo-Markdown format. Sets titleSizeRatio when measurable.
+//
+// Main-thread PDF orchestrator. Thin shell around pdf.js + the parser worker.
+//
+// Why split: the original ~720-line parsePDF lived entirely on the main
+// thread. pdf.js's *own* worker handles low-level PDF parsing, but the post-
+// extraction analysis (column histograms, font tiers, line stitching,
+// hyphenation, chrome stripping) ran in main-thread JS. On heavy PDFs that
+// pegged the main thread for hundreds of ms and starved the loader animation.
+//
+// Now the responsibility splits:
+//   - Main thread (this file): load pdf.js (DOM access required), getDocument,
+//     getPage/getTextContent for each page (small per-call work; pdf.js's
+//     worker does the heavy lifting), getOutline, resolve outline destinations
+//     to page numbers (needs doc.getDestination / doc.getPageIndex).
+//   - Parser worker (src/workers/pdfAnalysis.js via parserWorker dispatch):
+//     all the heuristics-heavy analysis on a serialized snapshot of the raw
+//     page data.
+//
+// The result for the rest of the app is the same: a sections[] array of
+// { type, title, number, content }. Callers (App.jsx, demos) don't see the
+// worker split.
 
-// pdf.js text-content items expose:
-//   item.str        — the text fragment
-//   item.transform  — affine matrix; transform[4] = x, transform[5] = y
-//   item.height     — font height in user units (≈ font size)
-//   item.width      — text width in user units
-// Items aren't always in reading order, so we group by line (same y) and
-// sort within page before stitching.
+import { loadScript } from "./scriptLoader.js";
+import { parseInWorker } from "./parserWorker.js";
 
-const TITLE_FONT_RATIO = 1.35;       // line is a title if median item height > median * this
-const PARAGRAPH_GAP_RATIO = 1.7;     // gap between lines that signals a paragraph break
-const SAME_LINE_Y_TOLERANCE = 1.5;   // items within this many user units share a line
-
-function median(nums) {
-  if (!nums.length) return 0;
-  const sorted = [...nums].sort((a, b) => a - b);
-  const mid = sorted.length >> 1;
-  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-}
-
-// Group raw pdf.js items into lines keyed by y-position. Items inside one
-// line are sorted left→right; lines themselves are sorted top→bottom.
-function groupIntoLines(items) {
-  const buckets = []; // { y, items }
+// Walk the pdf.js outline tree into a flat list. Each item: { title, dest, depth }.
+// dest is a pdf.js destination (either a string name or a [page-ref, fit, ...]
+// array). We resolve it to a page number on the main thread before posting to
+// the worker, so the worker never needs the live pdf.js doc.
+function flattenOutline(items, depth = 0, out = []) {
+  if (!items) return out;
   for (const item of items) {
-    if (item.str === undefined) continue;
-    const y = item.transform[5];
-    let bucket = buckets.find(b => Math.abs(b.y - y) <= SAME_LINE_Y_TOLERANCE);
-    if (!bucket) { bucket = { y, items: [] }; buckets.push(bucket); }
-    bucket.items.push(item);
+    out.push({ title: item.title?.trim() || "Untitled", dest: item.dest, depth });
+    if (item.items?.length) flattenOutline(item.items, depth + 1, out);
   }
-  for (const b of buckets) b.items.sort((a, c) => a.transform[4] - c.transform[4]);
-  buckets.sort((a, b) => b.y - a.y); // PDF y-coords increase upward
-  return buckets;
+  return out;
 }
 
-// Compute the typical vertical distance between consecutive lines.
-function medianLineGap(lines) {
-  const gaps = [];
-  for (let i = 1; i < lines.length; i++) {
-    const gap = lines[i - 1].y - lines[i].y;
-    if (gap > 0) gaps.push(gap);
-  }
-  return median(gaps);
-}
-
-// Stitch a line's text items, joining adjacent items with no space when
-// they touch and a single space otherwise (pdf.js sometimes emits one
-// glyph per item).
-function lineText(line) {
-  let out = "";
-  let prev = null;
-  for (const item of line.items) {
-    if (prev) {
-      const prevEnd = prev.transform[4] + (prev.width || 0);
-      const gap = item.transform[4] - prevEnd;
-      // Heuristic: tiny gap → no separator, larger gap → single space.
-      if (gap > 0.5 && !out.endsWith(" ") && !item.str.startsWith(" ")) out += " ";
+// Resolve a pdf.js destination to a 1-indexed page number. Returns null when
+// the destination can't be resolved (broken outline entry, dead link, etc.) —
+// the worker filters those out.
+//
+// Logs at warn level instead of swallowing. The aggregate warn (when many
+// entries fail) is emitted by resolveOutlineSafe, not here.
+export async function resolveDestToPage(doc, dest) {
+  try {
+    let resolved = dest;
+    if (typeof resolved === "string") resolved = await doc.getDestination(resolved);
+    if (Array.isArray(resolved) && resolved[0]) {
+      const pageIdx = await doc.getPageIndex(resolved[0]);
+      return pageIdx + 1;
     }
-    out += item.str;
-    prev = item;
+  } catch (err) {
+    console.warn("[parsePDF] outline destination resolution failed:", err.message);
   }
-  return out.trim();
+  return null;
 }
 
-// Median font height of items in a line (proxy for "this line's font size").
-function lineFontHeight(line) {
-  return median(line.items.map(i => i.height || 0));
+// Fetch + flatten + resolve the outline. Returns null on hard failure
+// (getOutline throws or returns nothing) so the caller falls back to the
+// per-page section path. When the outline is mostly broken (>50% of
+// entries can't be resolved to a page), emit a louder warn so we know
+// the outline is unreliable — useful telemetry as the parser rewrite
+// progresses.
+export async function resolveOutlineSafe(doc) {
+  let outline;
+  try {
+    outline = await doc.getOutline();
+  } catch (err) {
+    console.warn("[parsePDF] outline fetch failed:", err.message);
+    return null;
+  }
+  if (!outline || outline.length === 0) return null;
+
+  const flat = flattenOutline(outline);
+  const entries = await Promise.all(
+    flat.map(async (entry) => ({
+      title: entry.title,
+      depth: entry.depth,
+      page: await resolveDestToPage(doc, entry.dest),
+    })),
+  );
+  const dropped = entries.filter((e) => e.page === null).length;
+  if (entries.length >= 2 && dropped / entries.length > 0.5) {
+    console.warn(
+      `[parsePDF] outline is mostly broken: ${dropped}/${entries.length} entries could not be resolved`,
+    );
+  }
+  return entries;
 }
 
 export async function parsePDF(file) {
   await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js");
   const pdfjsLib = window["pdfjs-dist/build/pdf"] || window.pdfjsLib;
   if (!pdfjsLib) throw new Error("PDF library failed to load");
-  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
-  const buf = await file.arrayBuffer();
-  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
-  const sections = [];
+  // Browser path uses the CDN worker for off-main-thread parsing. In Node
+  // (eval harness), pdfjs auto-detects the missing Worker and runs
+  // synchronously; we just leave GlobalWorkerOptions alone there.
+  // Detect Node explicitly — checking `typeof Worker` isn't enough because
+  // happy-dom defines a Worker stub on its Window.
+  const isNode = typeof process !== "undefined" && process.versions?.node;
+  if (!isNode) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  }
+  const docOpts = { data: new Uint8Array(await file.arrayBuffer()) };
+  const doc = await pdfjsLib.getDocument(docOpts).promise;
 
+  // Pre-fetch raw text content per page. Each pdf.js call awaits its internal
+  // worker, so the main thread cooperatively yields between pages — RAF
+  // callbacks (the loader animation) get scheduled in the gaps. The per-page
+  // post-await work is small (just collecting { items, styles, viewport }).
+  const rawPages = [];
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
+    const viewport = page.getViewport({ scale: 1 });
     const tc = await page.getTextContent();
-    const lines = groupIntoLines(tc.items).filter(line => lineText(line));
-    if (!lines.length) continue;
-
-    const pageMedianFont = median(lines.map(lineFontHeight).filter(h => h > 0));
-    const pageMedianGap = medianLineGap(lines);
-
-    // First line that's noticeably larger than the page's body font is
-    // treated as the page title (catches "Frankenstein" or "Chapter 1"
-    // without needing the regex match below).
-    let title = null;
-    let bodyStartIdx = 0;
-    if (pageMedianFont > 0) {
-      const firstFont = lineFontHeight(lines[0]);
-      if (firstFont > pageMedianFont * TITLE_FONT_RATIO) {
-        title = lineText(lines[0]);
-        bodyStartIdx = 1;
-      }
-    }
-
-    // Fallback: regex against the first body line for chapter/part/section.
-    if (!title && lines[bodyStartIdx]) {
-      const firstBody = lineText(lines[bodyStartIdx]);
-      const m = firstBody.match(/^(chapter\s+[\divxlc]+[.:—\-\s]*.*|part\s+[\divxlc]+[.:—\-\s]*.*|section\s+[\divxlc]+[.:—\-\s]*.*)$/i);
-      if (m) { title = m[1].trim(); bodyStartIdx++; }
-    }
-
-    // Build content. Insert "\n\n" (paragraph break) when the vertical
-    // gap to the previous line is larger than ~1.7x the page's median
-    // line gap; otherwise "\n" (soft line break).
-    const parts = [];
-    for (let li = bodyStartIdx; li < lines.length; li++) {
-      const text = lineText(lines[li]);
-      if (!text) continue;
-      if (parts.length) {
-        const prev = lines[li - 1];
-        const gap = prev ? prev.y - lines[li].y : 0;
-        const isParaBreak = pageMedianGap > 0 && gap > pageMedianGap * PARAGRAPH_GAP_RATIO;
-        parts.push(isParaBreak ? "\n\n" : "\n");
-      }
-      parts.push(text);
-    }
-    const content = parts.join("").trim();
-    if (content || title) {
-      sections.push({ type: "page", title, number: i, content });
-    }
+    rawPages.push({
+      pageNum: i,
+      items: tc.items,
+      styles: tc.styles,
+      viewport: { width: viewport.width, height: viewport.height },
+    });
   }
-  return sections;
+
+  // Resolve outline destinations on the main thread (workers can't call
+  // doc.getDestination / doc.getPageIndex). The worker gets a flat list of
+  // { title, page, depth } and doesn't need pdf.js at all.
+  const resolvedOutline = await resolveOutlineSafe(doc);
+
+  // Diagnostics flag — the worker has no localStorage, so we read here and
+  // pass the resolved boolean across.
+  const debug = typeof window !== "undefined" && window.localStorage?.getItem("rf-pdf-debug") === "1";
+
+  return parseInWorker("parse-pdf", { rawPages, resolvedOutline, debug });
 }

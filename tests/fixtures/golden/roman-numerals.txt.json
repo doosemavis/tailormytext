@@ -1,0 +1,26 @@
+[
+  {
+    "type": "chapter",
+    "title": "Chapter i",
+    "number": 1,
+    "content": "The voyage began on a Tuesday. The captain raised the anchor and the ship pulled out of the harbor on a quiet sea."
+  },
+  {
+    "type": "chapter",
+    "title": "Chapter ii",
+    "number": 2,
+    "content": "Three days later, a storm gathered on the horizon. The crew battened down the hatches."
+  },
+  {
+    "type": "chapter",
+    "title": "Chapter iii",
+    "number": 3,
+    "content": "When the sun rose on the fourth day, the ship was alone on the open ocean. No land in sight."
+  },
+  {
+    "type": "chapter",
+    "title": "Chapter iv",
+    "number": 4,
+    "content": "Provisions were running low. The captain ordered rationing."
+  }
+]

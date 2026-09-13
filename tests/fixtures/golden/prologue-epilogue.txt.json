@@ -1,0 +1,26 @@
+[
+  {
+    "type": "chapter",
+    "title": "Prologue",
+    "number": 1,
+    "content": "Before the events of this story took place, there was a small girl who lived by the sea."
+  },
+  {
+    "type": "chapter",
+    "title": "Chapter 1",
+    "number": 2,
+    "content": "Twenty years later, the girl had become a woman, and she had returned home."
+  },
+  {
+    "type": "chapter",
+    "title": "Chapter 2",
+    "number": 3,
+    "content": "The house was just as she remembered it. Smaller, perhaps. Quieter, certainly."
+  },
+  {
+    "type": "chapter",
+    "title": "Epilogue",
+    "number": 4,
+    "content": "Many years passed after that summer. The cottage stood empty for a time. Eventually, others came."
+  }
+]

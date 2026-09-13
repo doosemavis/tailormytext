@@ -1,5 +1,94 @@
-import { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { GUIDE_COLORS } from "../config/constants";
+
+// Memoized overlay component — receives only primitives + stable ref objects so
+// React.memo's shallow equality check correctly skips re-renders when guide state
+// hasn't changed but a parent re-renders for unrelated reasons.
+const ReadingGuideOverlayContent = React.memo(function ReadingGuideOverlayContent({
+  guideMode,
+  guideColor,
+  guideDimOpacity,
+  fontSize,
+  lineHeight,
+  fgColor,
+  accentColor,
+  domRef,
+  guideYRef,
+  clientYRef,
+  readerLeftRef,
+  showGuide,
+}) {
+  if (guideMode === "none" || !showGuide) return null;
+
+  const lh = fontSize * lineHeight;
+  const y = guideYRef.current;
+  const cy = clientYRef.current;
+  const gc = GUIDE_COLORS[guideColor] || {};
+  const hl = gc.highlight || `${accentColor}35`;
+  const ul = gc.underline || accentColor;
+
+  if (guideMode === "highlight") return (
+    <div
+      ref={domRef}
+      style={{
+        position: "absolute",
+        left: 0,
+        right: 0,
+        pointerEvents: "none",
+        height: lh,
+        background: hl,
+        borderRadius: 4,
+        transform: `translateY(${y - lh / 2}px)`,
+        willChange: "transform",
+      }}
+    />
+  );
+
+  if (guideMode === "underline") return (
+    <div
+      ref={domRef}
+      style={{
+        position: "absolute",
+        left: 0,
+        right: 0,
+        pointerEvents: "none",
+        height: 3,
+        background: ul,
+        borderRadius: 2,
+        opacity: 0.8,
+        transform: `translateY(${y + 2}px)`,
+        willChange: "transform",
+      }}
+    />
+  );
+
+  if (guideMode === "dim") {
+    const alpha = Math.round(guideDimOpacity * 255).toString(16).padStart(2, "0");
+    const blur = `blur(${(guideDimOpacity * 5).toFixed(1)}px)`;
+    return (
+      // position: fixed keeps the cover anchored to the viewport during scroll
+      // left is constrained to the reader element's left edge to exclude the sidebar
+      <div
+        ref={domRef}
+        style={{
+          position: "fixed",
+          left: readerLeftRef.current,
+          right: 0,
+          top: cy + lh * 0.5,
+          bottom: 0,
+          pointerEvents: "none",
+          background: `${fgColor}${alpha}`,
+          backdropFilter: blur,
+          WebkitBackdropFilter: blur,
+          willChange: "top",
+          zIndex: 10,
+        }}
+      />
+    );
+  }
+
+  return null;
+});
 
 export function useReadingGuide({ guideMode, guideColor, guideDimOpacity = 0.25, fontSize, lineHeight, t }) {
   const guideDimOpacityRef = useRef(guideDimOpacity);
@@ -7,7 +96,6 @@ export function useReadingGuide({ guideMode, guideColor, guideDimOpacity = 0.25,
   const tFgRef = useRef(t.fg);
   tFgRef.current = t.fg;
   const guideRef = useRef(null);
-  const guideRef2 = useRef(null);
   const guideYRef = useRef(0);       // content-relative y (highlight/underline)
   const clientYRef = useRef(0);      // viewport-relative y (dim)
   const readerLeftRef = useRef(0);   // reader's left edge in viewport (dim bounds)
@@ -75,25 +163,22 @@ export function useReadingGuide({ guideMode, guideColor, guideDimOpacity = 0.25,
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
   }, []);
 
-  const renderOverlay = (showGuide) => {
-    if (guideMode === "none" || !showGuide) return null;
-    const lh = fontSize * lineHeight, y = guideYRef.current, cy = clientYRef.current;
-    const gc = GUIDE_COLORS[guideColor];
-    const hl = gc.highlight || `${t.accent}35`, ul = gc.underline || t.accent;
-
-    if (guideMode === "highlight") return (
-      <div ref={guideRef} style={{ position: "absolute", left: 0, right: 0, pointerEvents: "none", height: lh, background: hl, borderRadius: 4, transform: `translateY(${y - lh / 2}px)`, willChange: "transform" }} />
-    );
-    if (guideMode === "underline") return (
-      <div ref={guideRef} style={{ position: "absolute", left: 0, right: 0, pointerEvents: "none", height: 3, background: ul, borderRadius: 2, opacity: 0.8, transform: `translateY(${y + 2}px)`, willChange: "transform" }} />
-    );
-    if (guideMode === "dim") return (
-      // position: fixed keeps the cover anchored to the viewport during scroll
-      // left is constrained to the reader element's left edge to exclude the sidebar
-      <div ref={guideRef} style={{ position: "fixed", left: readerLeftRef.current, right: 0, top: cy + lh * 0.5, bottom: 0, pointerEvents: "none", background: `${t.fg}${Math.round(guideDimOpacity * 255).toString(16).padStart(2, "0")}`, backdropFilter: `blur(${(guideDimOpacity * 5).toFixed(1)}px)`, WebkitBackdropFilter: `blur(${(guideDimOpacity * 5).toFixed(1)}px)`, willChange: "top", zIndex: 10 }} />
-    );
-    return null;
-  };
+  const renderOverlay = (showGuide) => (
+    <ReadingGuideOverlayContent
+      guideMode={guideMode}
+      guideColor={guideColor}
+      guideDimOpacity={guideDimOpacity}
+      fontSize={fontSize}
+      lineHeight={lineHeight}
+      fgColor={t.fg}
+      accentColor={t.accent}
+      domRef={guideRef}
+      guideYRef={guideYRef}
+      clientYRef={clientYRef}
+      readerLeftRef={readerLeftRef}
+      showGuide={showGuide}
+    />
+  );
 
   return { handleMouseMove, handleMouseLeave, handleScroll, renderOverlay, showGuideRef };
 }

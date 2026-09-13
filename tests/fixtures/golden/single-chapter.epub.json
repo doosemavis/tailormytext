@@ -1,0 +1,8 @@
+[
+  {
+    "type": "chapter",
+    "title": "The Whole Book",
+    "number": 1,
+    "content": "Some EPUBs ship as one big chapter; this fixture tests that path."
+  }
+]

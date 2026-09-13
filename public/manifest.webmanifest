@@ -1,6 +1,6 @@
 {
-  "name": "ReadFlow — Adaptive Reading Enhancement",
-  "short_name": "ReadFlow",
+  "name": "TailorMyText — Adaptive Reading Enhancement",
+  "short_name": "TailorMyText",
   "description": "A reader for documents that adapts to the way you read — typography, themes, and visual aids that make long-form text easier on every kind of brain.",
   "start_url": "/",
   "display": "standalone",

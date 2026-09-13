@@ -1,4 +1,4 @@
-// Maps each ReadFlow theme to a Radix Colors scale + light/dark variant,
+// Maps each TailorMyText theme to a Radix Colors scale + light/dark variant,
 // then resolves tooltip colors (subtle tinted bg + high-contrast text + border).
 import {
   amber, amberDark,
