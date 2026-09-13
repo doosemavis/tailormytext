@@ -232,9 +232,11 @@ Added to `global.css`:
 }
 ```
 
-`--rf-pace-color` is written on the doc wrapper by `App.jsx` from the
-active theme's `accentSoft`, so the highlight follows theme changes with a
-single property write and stays legible over body text in every theme.
+`--rf-pace-color` is set to the active theme's `accent` on the reader scroll
+container's inline style in `App.jsx`; the CSS applies its own alpha per
+class (28 / 18 / 11 / 5 %) so one colour serves the solid cursor outline and
+the translucent fills, and the highlight follows theme changes with a single
+inline-style write.
 
 ## 6. Gating
 
