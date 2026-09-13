@@ -25,6 +25,7 @@ No test runner or linter is currently configured.
 - `useSubscription` — Plan tier, trial lifecycle, upload quota enforcement
 - `useRecentDocs(authReady, userId)` — Reads/writes the recent-docs index to Supabase via `cloudDocs`. Refreshes from server after each mutation; one-time migration of pre-Supabase localStorage docs runs on first authed load.
 - `useReadingGuide` — Generates highlight/underline overlay positioning
+- `usePacer({ docWrapperRef, readerRef, docSections, text, isPro, onProGate, authReady })` — WPM pacer engine. Toggles `rf-pace-*` classes on `.rf-word` spans from a self-correcting `setTimeout` chain; no React re-render per tick. Only `enabled` is React state; `playing` and `wpm` live in an external store (`utils/pacer/store.js`) read via `usePacerState` by `PacerTransport` (bottom bar) and `PacerSettings` (sidebar), so play/pause/nudge/slider never re-render App — on a 420K-word book an App render costs ~25ms. Pure helpers in `utils/pacer/` (timing, nav, wordIndex, store); tunables in `config/pacer.js`; free ceiling in `proFeatures.PACER_FREE_MAX_WPM`. WPM persists per device via `storage.js`.
 
 ### Document Parsing Pipeline
 
@@ -38,6 +39,10 @@ File upload → type-specific parser → docSections[]
 - **Plain text/HTML**: `utils/detectStructure.js` uses regex to detect chapters/parts/sections/acts
 
 All parsers return `{ type, title, number, content }` section objects consumed by `DocumentBody`.
+
+`DocumentBody` keeps one React fiber per paragraph, not per word: `utils/paragraphHtml.js` builds each paragraph's markup as an escaped HTML string (word spans, `**bold**`/`__italic__`, lists, `##`/`###` headings, `{r:RATIO}` sizes) and the `Paragraph` component writes it once via `innerHTML` from a ref callback. NeuroDiv, HueGuide, focus mode, and the pacer all read and mutate that markup through the DOM (`.rf-word[data-word][data-hue] > strong + text`), never through React. Rationale: a 427K-word book as React elements was ~1.5M fibers / ~400MB heap, and every garbage collection stalled the page for seconds. Document text is untrusted, so anything new in that builder must go through `escapeHtml`.
+
+Sectioned documents are additionally **DOM-windowed** by `utils/sectionMaterializer.js`: each `Section` registers its `.rf-section` element and paragraph sources; an IntersectionObserver (150% viewport margin) fills a section's `.rf-section-body` with markup when it comes near and empties it when it leaves, freezing its measured height as `min-height` so scroll offsets stay stable. Far chapters therefore have no word nodes at all — Don Quixote goes from ~1.5M DOM nodes to ~7K — which is what makes inherited style changes (theme, typography vars, feature classes, Radix's body `pointer-events`) cheap. Anything that needs a chapter's words must call `materializeSection(sectionEl)` first: the pacer's `wordIndex` does so when stepping into a chapter, and `revealSection` (chapter jump / position restore) does so before measuring. Plain-text documents (no sections) are not windowed.
 
 ### Storage Layer
 

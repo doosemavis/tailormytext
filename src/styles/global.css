@@ -220,10 +220,23 @@ a.rf-link-btn:active {
 }
 
 .rf-reader-scroll { scroll-behavior: smooth; }
-.rf-reader-scroll::-webkit-scrollbar { width: 6px; }
-.rf-reader-scroll::-webkit-scrollbar-track { background: transparent; }
-.rf-reader-scroll::-webkit-scrollbar-thumb { background: rgba(128,128,128,0.25); border-radius: 3px; }
-.rf-reader-scroll::-webkit-scrollbar-thumb:hover { background: rgba(128,128,128,0.4); }
+
+/* Thin, low-contrast scrollbar shared by the reader and the sidebar so a
+   native track never appears as a thick light bar on dark themes. The
+   sidebar reserves its gutter so content width is stable whether or not
+   the panel currently scrolls (SIDEBAR_SCROLLBAR_WIDTH in constants.js
+   must match the 6px here). */
+.rf-reader-scroll,
+.rf-side-scroll { scrollbar-width: thin; scrollbar-color: rgba(128,128,128,0.25) transparent; }
+.rf-side-scroll { scrollbar-gutter: stable; }
+.rf-reader-scroll::-webkit-scrollbar,
+.rf-side-scroll::-webkit-scrollbar { width: 6px; }
+.rf-reader-scroll::-webkit-scrollbar-track,
+.rf-side-scroll::-webkit-scrollbar-track { background: transparent; }
+.rf-reader-scroll::-webkit-scrollbar-thumb,
+.rf-side-scroll::-webkit-scrollbar-thumb { background: rgba(128,128,128,0.25); border-radius: 3px; }
+.rf-reader-scroll::-webkit-scrollbar-thumb:hover,
+.rf-side-scroll::-webkit-scrollbar-thumb:hover { background: rgba(128,128,128,0.4); }
 
 .rf-no-select { user-select: none; -webkit-user-select: none; }
 
@@ -238,13 +251,8 @@ a.rf-link-btn:active {
 
 .rf-para { opacity: 1; transition: opacity 0.35s ease; content-visibility: auto; contain-intrinsic-size: auto 120px; }
 
-/* Chapter-jump override: content-visibility:auto + the 1200px placeholder
-   yields a wrong scroll target because getBoundingClientRect reads the
-   placeholder, not the real height. App.jsx adds .rf-nav-jump to the
-   scroll container for the duration of the jump so every section renders
-   its real size before we compute the scroll offset, then removes it. */
-.rf-reader-scroll.rf-nav-jump .rf-section,
-.rf-reader-scroll.rf-nav-jump .rf-para { content-visibility: visible; }
+/* Chapter jumps un-skip only the target section (utils/sectionJump.js sets
+   an inline content-visibility on it) rather than the whole book. */
 
 /* Chapter reveal — two-layer fade:
    1. Wrapper fades 0 → 1 over 280ms (envelope; title becomes visible).
@@ -310,6 +318,66 @@ a.rf-link-btn:active {
 /* NeuroDiv: bold activated by CSS class, not re-render */
 .rf-word strong { font-weight: inherit; }
 .rf-neurodiv .rf-word strong { font-weight: 700; }
+
+/* Paragraph markup classes (utils/paragraphHtml.js builds the HTML, so
+   per-word and per-line styling lives here instead of inline style
+   objects — smaller markup, no style attribute per word).
+   data-hue is the word's palette slot; the wrapper carries --rf-hue-0..4. */
+.rf-word[data-hue="0"] { --hue-color: var(--rf-hue-0); }
+.rf-word[data-hue="1"] { --hue-color: var(--rf-hue-1); }
+.rf-word[data-hue="2"] { --hue-color: var(--rf-hue-2); }
+.rf-word[data-hue="3"] { --hue-color: var(--rf-hue-3); }
+.rf-word[data-hue="4"] { --hue-color: var(--rf-hue-4); }
+.rf-word.rf-md-b { font-weight: 700; }
+.rf-word.rf-md-i { font-style: italic; }
+.rf-line { margin: 0 0 0.25em 0; }
+.rf-h2 {
+  font-size: calc(var(--rf-font-size, 18px) * 1.3);
+  font-weight: 740;
+  margin: calc(var(--rf-line-height, 1.8) * 0.8em) 0 calc(var(--rf-line-height, 1.8) * 0.35em);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+.rf-h3 {
+  font-size: calc(var(--rf-font-size, 18px) * 1.12);
+  font-weight: 700;
+  margin: calc(var(--rf-line-height, 1.8) * 0.6em) 0 calc(var(--rf-line-height, 1.8) * 0.25em);
+  line-height: 1.3;
+}
+.rf-ul, .rf-ol { margin: calc(var(--rf-line-height, 1.8) * 0.35em) 0; padding-left: 1.6em; }
+.rf-ul { list-style-type: disc; }
+.rf-ol { list-style-type: decimal; }
+.rf-li { margin: 0 0 0.25em 0; }
+
+/* WPM Pacer: current word + 3-word fading trail + paused-cursor outline.
+   Driven by classList writes from usePacer, never by React re-render.
+   --rf-pace-color is the active theme accent, written on the reader
+   scroll container by App.jsx; alpha is applied here so the same colour
+   serves the outline (solid) and the fills (translucent). */
+/* No background transition: at 250 wpm a word lasts ~240ms, so even a
+   180ms fade-in reads as the highlight arriving late. The trail already
+   fades spatially across three words; class swaps must be instant. */
+.rf-word { border-radius: 3px; }
+.rf-pace-current { background: color-mix(in oklab, var(--rf-pace-color, currentColor) 28%, transparent); }
+.rf-pace-trail-1 { background: color-mix(in oklab, var(--rf-pace-color, currentColor) 18%, transparent); }
+.rf-pace-trail-2 { background: color-mix(in oklab, var(--rf-pace-color, currentColor) 11%, transparent); }
+.rf-pace-trail-3 { background: color-mix(in oklab, var(--rf-pace-color, currentColor) 5%, transparent); }
+.rf-pace-cursor  { outline: 2px solid var(--rf-pace-color, currentColor); outline-offset: 1px; }
+
+/* Ring clip room. content-visibility:auto on .rf-para / .rf-section implies
+   paint containment, which clips at their padding box, so a ring on a word
+   flush against a paragraph edge lost that side (2px ring + 1px offset).
+   4px of padding cancelled by matching negative margins keeps every word
+   exactly where it was at any column width while giving the clip box room.
+   The paragraph gap (0.7 line-heights, formerly an inline style in
+   DocumentBody) lives here so the bottom 4px can be subtracted from it;
+   sections need no bottom padding because their last paragraph's own
+   margin already keeps its ring inside. */
+.rf-section { padding: 4px 4px 0; margin: -4px -4px 0; }
+.rf-para    { padding: 4px; margin: -4px -4px calc(var(--rf-line-height, 1.8) * 0.7em - 4px); }
+@media (prefers-reduced-motion: reduce) {
+  .rf-pace-trail-1, .rf-pace-trail-2, .rf-pace-trail-3 { background: transparent; }
+}
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -380,6 +448,16 @@ a.rf-link-btn:active {
 }
 [data-rf-theme-vt="active"]::view-transition-old(root) { z-index: 1; }
 [data-rf-theme-vt="active"]::view-transition-new(root) { z-index: 2; }
+/* The "new" side of the reveal is the live DOM, not a snapshot. Without
+   this, every button/toggle/border keeps fading between themes for the
+   first 150-200ms of the 450ms circle (28 transitions measured on the
+   demo article), so the revealed area visibly changes a second time
+   mid-wipe and reads as a stutter. The attribute is only present for the
+   duration of the reveal, so the new theme snaps in and the circle is the
+   only thing moving. */
+[data-rf-theme-vt="active"] *,
+[data-rf-theme-vt="active"] *::before,
+[data-rf-theme-vt="active"] *::after { transition: none !important; }
 
 
 @font-face {

@@ -50,6 +50,10 @@ Six expressive palettes (Sunset, Ocean, Forest, Lavender, Ember, Mono) plus colo
 
 A line-tracking overlay with three modes — **highlight**, **underline**, or **dim** — and an intensity slider that controls how much it stands out. Helps eyes track lines without losing the page.
 
+### WPM Pacer
+
+Set a words-per-minute target and press Play: the current word highlights in place with a three-word fading trail, and the page scrolls to keep pace. Click a word or use the arrow keys to choose where to start (Up/Down move by line; hold to jump by paragraph). Space plays and pauses, Plus and Minus adjust speed. Free up to 400 wpm; faster is Pro.
+
 ---
 
 ## Privacy & accounts
@@ -73,6 +77,7 @@ A line-tracking overlay with three modes — **highlight**, **underline**, or **
 | Font families | All 6 | All 6 |
 | Themes | Basic set | All 10 + premium palettes |
 | Reading guide intensity | Default | Adjustable |
+| WPM Pacer | Up to 400 wpm | Up to 1000 wpm |
 | 14-day Pro trial on signup | ✅ | — |
 
 - Stripe-hosted Checkout (live mode, real cards).

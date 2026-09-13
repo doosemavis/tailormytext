@@ -4,11 +4,11 @@ import {
   ChevronDown, X, Sparkles, Baseline, Highlighter, Underline as UnderlineIcon,
   EyeOff, MousePointer2, Focus, PanelLeftClose, PanelLeft,
   Crown, Clock, Check, List, Lock, LibraryBig, ArrowLeft,
-  AlignLeft, AlignCenter, AlignRight, AlignJustify
+  AlignLeft, AlignCenter, AlignRight, AlignJustify, Gauge
 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 
-import { THEMES, PALETTES, GUIDE_COLORS, FONTS, DEMO_TEXT } from "./config/constants";
+import { THEMES, PALETTES, GUIDE_COLORS, FONTS, DEMO_TEXT, SIDEBAR_WIDTH, SIDEBAR_CONTENT_WIDTH } from "./config/constants";
 import { isThemeFree, isPaletteFree, isGuideColorFree } from "./config/proFeatures";
 import { getRevealColors } from "./config/themeColors";
 import { marketingThemeVars } from "./utils/marketingTheme";
@@ -25,12 +25,13 @@ const FMT_PCT_FROM_FRAC = v => `${Math.round(v * 100)}%`;
 // in two visual columns. Add new themes to the appropriate array — order within each is the row order.
 const LIGHT_THEME_KEYS = ["warm", "cool", "sepia", "forest", "crimson"];
 const DARK_THEME_KEYS = ["phosphor", "jungle", "dark", "midnight", "obsidian"];
-import { detectTextStructure, runThemeTransition } from "./utils";
+import { detectTextStructure, runThemeTransition, revealSection, releaseSection, jumpScrollTop } from "./utils";
 import { storageGet, storageSet, storageDel } from "./utils/storage";
 import { supabase } from "./utils/supabase";
 import { track } from "./utils/track";
 import { useDocumentState, FILE_ACCEPT } from "./hooks/useDocumentState";
 import { useEnhancements } from "./hooks/useEnhancements";
+import { usePacer } from "./hooks/usePacer";
 import { useSubscription } from "./hooks/useSubscription";
 import { useRecentDocs } from "./hooks/useRecentDocs";
 import { useLibrary } from "./hooks/useLibrary";
@@ -48,6 +49,7 @@ import {
   UploadBadge, SidebarRecentDocs, LandingRecentDocs, LibrarySection, LibraryTeaseSection,
   LandingBookshelf, SidebarBookshelf,
   DocumentBody, useReadingGuide,
+  PacerTransport, PacerSettings,
   UserMenu, PendingDeletionBanner, PostDeletionLockoutBanner,
   DiaTextReveal, BookLoader, ErrorBoundary, ReaderEmptyState, Footer,
   UncertaintyBadge,
@@ -272,6 +274,15 @@ export default function App() {
     handleFeatureClassRef,
   } = useEnhancements({ docWrapperRef, readerRef, docSections, user, authLoading });
 
+  // WPM Pacer — DOM-driven word highlighter. Declared after `sub` and
+  // useEnhancements; reads docWrapperRef/readerRef at call time only.
+  const pacer = usePacer({
+    docWrapperRef, readerRef, docSections, text,
+    isPro: sub.isPro,
+    onProGate: () => setShowPricing(true),
+    authReady: !authLoading,
+  });
+
   // ── Derived ──
   const t = useMemo(() => ({ ...THEMES[theme], key: theme }), [theme]);
   const currentFont = useMemo(() => FONTS.find(f => f.name === fontFamily), [fontFamily]);
@@ -393,17 +404,13 @@ export default function App() {
     }
 
     requestAnimationFrame(() => {
-      container.classList.add("rf-nav-jump");
-      void container.offsetHeight;
-      const TOP_GUTTER = 8;
-      const target = titleRefs.current[idx] ?? sectionRefs.current[idx];
-      if (target) {
-        const tr = target.getBoundingClientRect();
-        const cr = container.getBoundingClientRect();
-        const top = Math.max(0, tr.top - cr.top + container.scrollTop - TOP_GUTTER);
-        container.scrollTo({ top, behavior: "instant" });
-      }
-      container.classList.remove("rf-nav-jump");
+      // Un-skip only the target section so its title has a real box; the
+      // other 145 keep their placeholders (no whole-book layout).
+      const section = sectionRefs.current[idx];
+      revealSection(section);
+      const target = titleRefs.current[idx] ?? section;
+      if (target) container.scrollTo({ top: jumpScrollTop(container, target), behavior: "instant" });
+      releaseSection(section);
       if (wrapper) {
         wrapper.style.opacity = "";
         wrapper.classList.add("rf-chapter-snap");
@@ -465,8 +472,17 @@ export default function App() {
   // they know where they are. The in-chapter offset that we still save
   // would put them past the title (mid-paragraph), which loses
   // orientation. Same hide → fonts → settle → reveal pipeline as before.
+  //
+  // Runs ONCE per loaded document (keyed on the docSections array identity).
+  // It used to re-run whenever the auth `user` object changed identity — every
+  // token refresh / auth event — and each run forces a whole-book layout via
+  // rf-nav-jump (1.5M nodes on Don Quixote: ~1.4s forced layout, multi-second
+  // settle frames, then a GC storm) and jumps the scroll mid-read.
+  const restoredForSectionsRef = useRef(null);
   useEffect(() => {
     if (!docSections || !hasSections || !currentDocId) return;
+    if (restoredForSectionsRef.current === docSections) return;
+    restoredForSectionsRef.current = docSections;
     const container = readerRef.current;
     const wrapper = docWrapperRef.current;
     if (!container) return;
@@ -515,16 +531,14 @@ export default function App() {
       }
       if (cancelled) { if (wrapper) wrapper.style.opacity = ""; return; }
 
-      container.classList.add("rf-nav-jump");
-      void container.offsetHeight;
+      // Un-skip only the target section (see scrollToSection) — never the
+      // whole book.
+      const section = sectionRefs.current[sectionIdx];
+      revealSection(section);
 
-      const TOP_GUTTER = 8;
       const computeTarget = () => {
-        const target = titleRefs.current[sectionIdx] ?? sectionRefs.current[sectionIdx];
-        if (!target) return null;
-        const tr = target.getBoundingClientRect();
-        const cr = container.getBoundingClientRect();
-        return Math.max(0, tr.top - cr.top + container.scrollTop - TOP_GUTTER);
+        const target = titleRefs.current[sectionIdx] ?? section;
+        return target ? jumpScrollTop(container, target) : null;
       };
 
       const first = computeTarget();
@@ -535,7 +549,7 @@ export default function App() {
       const MAX_PASSES = 30;
       const REQUIRED_STABLE = 3;
       const finish = () => {
-        container.classList.remove("rf-nav-jump");
+        releaseSection(section);
         setCurrentSectionIdx(sectionIdx);
         if (wrapper) {
           wrapper.style.opacity = "";
@@ -544,7 +558,7 @@ export default function App() {
         }
       };
       const settle = () => {
-        if (cancelled) { container.classList.remove("rf-nav-jump"); if (wrapper) wrapper.style.opacity = ""; return; }
+        if (cancelled) { releaseSection(section); if (wrapper) wrapper.style.opacity = ""; return; }
         passes++;
         const corrected = computeTarget();
         if (corrected != null && Math.abs(corrected - container.scrollTop) > 1) {
@@ -559,7 +573,7 @@ export default function App() {
       requestAnimationFrame(settle);
     })();
     return () => { cancelled = true; };
-  }, [docSections, hasSections, currentDocId, currentDocSource, user]);
+  }, [docSections, hasSections, currentDocId, currentDocSource, user?.id]);
 
   // Save reading position on scroll, debounced. Computes sectionIdx +
   // pixel offset within that section from the container's scroll state
@@ -622,7 +636,7 @@ export default function App() {
         if (lastComputed) persistPosition(lastComputed);
       }
     };
-  }, [docSections, hasSections, currentDocId, currentDocSource, user]);
+  }, [docSections, hasSections, currentDocId, currentDocSource, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cosmetic-gate helper: for Pro-only themes/palettes/guide-colors, free
   // users get the PricingModal instead of the change being applied.
@@ -1183,9 +1197,9 @@ export default function App() {
       {modals}
 
       {/* ── SIDEBAR ── */}
-      <div className="rf-no-select" style={{ width: panelOpen ? 296 : 0, minWidth: panelOpen ? 296 : 0, height: "100%", overflowY: "auto", overflowX: "hidden", borderRight: panelOpen ? `1px solid ${t.border}` : "none", background: t.bg, transition: "width 0.3s ease, min-width 0.3s ease" }}>
+      <div className="rf-no-select rf-side-scroll" style={{ width: panelOpen ? SIDEBAR_WIDTH : 0, minWidth: panelOpen ? SIDEBAR_WIDTH : 0, height: "100%", overflowY: "auto", overflowX: "hidden", borderRight: panelOpen ? `1px solid ${t.border}` : "none", background: t.bg, transition: "width 0.3s ease, min-width 0.3s ease" }}>
         {panelOpen && (
-          <div style={{ width: 296 }}>
+          <div style={{ width: SIDEBAR_CONTENT_WIDTH }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "12px 12px 0px" }}>
               {/* Back-to-home — explicit landing-page return, separate from
                   the Currently-Reading X (which only closes the current doc).
@@ -1272,6 +1286,11 @@ export default function App() {
               })}</div>}
               {hueGuide && <Slider value={hueIntensity} min={0} max={1} step={0.01} onChange={setHueIntensity} onLiveChange={liveWriters.hueIntensity} label="Hue intensity" format={FMT_PCT_FROM_FRAC} t={t} />}
               <Toggle on={focusMode} onChange={v => { setFocusMode(v); if (!v) setFocusPara(-1); }} label="Focus Mode" icon={Focus} t={t} />
+            </Section>
+
+            <Section title="Pacer" icon={Gauge} t={t} open={false} active={pacer.enabled}>
+              <Toggle on={pacer.enabled} onChange={pacer.setEnabled} label="WPM Pacer" icon={Gauge} t={t} />
+              {pacer.enabled && <PacerSettings pacer={pacer} isPro={sub.isPro} t={t} />}
             </Section>
 
             <Section title="Reading Guide" icon={MousePointer2} t={t} open={false} active={guideMode !== "none"}>
@@ -1453,8 +1472,13 @@ export default function App() {
           )}
 
           {/* Chapter navigator */}
+          {/* Chapter dropdown is non-modal: Radix's modal mode sets
+              pointer-events:none on <body> while open, and that property
+              inherits, so every word span in the book got its style
+              recomputed on open AND close (~1.2s each on Don Quixote).
+              Non-modal still closes on outside click and Escape. */}
           {hasSections && docSections.length > 1 && (
-            <DropdownMenu.Root open={showChapterNav} onOpenChange={setShowChapterNav}>
+            <DropdownMenu.Root open={showChapterNav} onOpenChange={setShowChapterNav} modal={false}>
               <DropdownMenu.Trigger asChild>
                 <button className="rf-static" style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, border: `1px solid ${t.border}`, background: showChapterNav ? t.surface : "transparent", color: t.fg, cursor: "pointer", fontSize: 13, fontWeight: 500, fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box" }}>
                   <List size={14} style={{ color: t.icon }} />
@@ -1511,16 +1535,18 @@ export default function App() {
             <FeatureToggleButton on={neuroDiv} label="NeuroDiv" Icon={Baseline} accent={t.accent} iconColor={t.icon} onToggle={toggleNeuroDiv} t={t} />
             <FeatureToggleButton on={hueGuide} label="HueGuide" Icon={Palette} accent={t.accent} iconColor={t.icon} onToggle={toggleHueGuide} t={t} />
             <FeatureToggleButton on={focusMode} label="Focus" Icon={Focus} accent={t.accent} iconColor={t.icon} onToggle={toggleFocusMode} t={t} />
+            <FeatureToggleButton on={pacer.enabled} label="Pacer" Icon={Gauge} accent={t.accent} iconColor={t.icon} onToggle={pacer.toggle} t={t} />
           </div>
           <UserMenu t={t} onShowAuth={() => setShowAuth(true)} onShowAvatarSettings={() => setShowAvatarSettings(true)} onShowSubscription={() => setShowSubscription(true)} onShowPaymentReceipts={handleShowPaymentReceipts} showPaymentReceipts={sub.hasStripeHistory} onShowDeleteAccount={() => setShowDeleteAccount(true)} avatar={avatar} themePersistEnabled={themePref.persistEnabled} onToggleThemePersist={onToggleThemePersist} mockFreeMode={sub.mockFreeMode} onToggleMockFreeMode={sub.toggleMockFreeMode} isProGrantActive={sub.isProGrantActive} />
         </div>
 
         {/* Reader scroll area */}
         <div ref={readerRef} className="rf-reader-scroll"
+          onClick={pacer.handleReaderClick}
           onMouseMove={e => { guide.handleMouseMove(e, readerRef.current); if (!showGuide && guideMode !== "none") setShowGuide(true); }}
           onMouseLeave={() => { guide.handleMouseLeave(); setShowGuide(false); }}
           onScroll={() => guide.handleScroll()}
-          style={{ flex: 1, overflowY: "auto", position: "relative", background: t.reader }}>
+          style={{ flex: 1, overflowY: "auto", position: "relative", background: t.reader, "--rf-pace-color": t.accent }}>
           {guide.renderOverlay(showGuide)}
           <ErrorBoundary
             t={t}
@@ -1547,6 +1573,7 @@ export default function App() {
             )}
           </ErrorBoundary>
         </div>
+        {pacer.enabled && <PacerTransport pacer={pacer} t={t} />}
       </div>
       </div>
     </div>
