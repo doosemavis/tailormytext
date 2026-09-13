@@ -1,4 +1,5 @@
 import { meanMultiplier } from "./timing";
+import { materializeSection } from "../sectionMaterializer";
 
 // Ordered traversal over the `.rf-word` spans DocumentBody renders, holding
 // one container's word list in memory at a time. On a 427K-word book this
@@ -22,14 +23,79 @@ function siblingContainer(container, dir) {
 }
 
 function buildCache(container) {
+  // Windowed sections may be empty until asked for (sectionMaterializer);
+  // fill on demand so the pacer never treats a far chapter as wordless.
+  materializeSection(container);
   const words = Array.from(container.querySelectorAll(".rf-word"));
   const indexOf = new Map(words.map((w, i) => [w, i]));
-  const paraEnd = words.map((w, i) => {
-    const nextWord = words[i + 1];
-    return !nextWord || nextWord.closest(".rf-para") !== w.closest(".rf-para");
-  });
+  const paraOf = words.map((w) => w.closest(".rf-para"));
+  const paraEnd = words.map((_, i) => i + 1 >= words.length || paraOf[i + 1] !== paraOf[i]);
   const entries = words.map((w, i) => ({ word: w.dataset.word || "", isParaEnd: paraEnd[i] }));
   return { container, words, indexOf, paraEnd, mean: meanMultiplier(entries) };
+}
+
+// First word of the first paragraph whose top edge is inside the reader's
+// viewport; falls back to a paragraph that straddles the top edge.
+// Fast path: hit-test a few points down the reader's left text edge with
+// elementFromPoint, which is O(1) regardless of document size. The rect
+// walk over every .rf-para (8,400 on a 420K-word book) is the fallback for
+// environments without hit testing or when the probes land on chrome.
+const PROBE_FRACTIONS = [0.02, 0.1, 0.25, 0.45, 0.7];
+
+function hitTestParagraph(wrapper, rr) {
+  if (typeof document.elementFromPoint !== "function") return null;
+  const wr = wrapper.getBoundingClientRect();
+  const x = Math.min(rr.right - 1, wr.left + Math.max(8, Math.min(24, wr.width / 4)));
+  for (const f of PROBE_FRACTIONS) {
+    const hit = document.elementFromPoint(x, rr.top + rr.height * f);
+    const para = hit && typeof hit.closest === "function" ? hit.closest(".rf-para") : null;
+    if (para && wrapper.contains(para)) return para;
+  }
+  return null;
+}
+
+// Rect walk over one list of paragraphs: the first whose top edge is inside
+// the reader wins; otherwise the first that straddles the reader's top.
+function scanParagraphs(paras, rr) {
+  let partial = null;
+  for (const p of paras) {
+    const r = p.getBoundingClientRect();
+    if (r.top >= rr.top && r.top < rr.bottom) return { exact: p, partial };
+    if (!partial && r.bottom > rr.top && r.top < rr.bottom) partial = p;
+  }
+  return { exact: null, partial };
+}
+
+// Bounded fallback: only paragraphs inside sections that intersect the
+// reader are measured, so a 146-chapter book costs ~146 rect reads plus one
+// chapter, not every paragraph in the book.
+function walkVisibleParagraph(wrapper, rr) {
+  const sections = wrapper.querySelectorAll(".rf-section");
+  if (sections.length === 0) {
+    const { exact, partial } = scanParagraphs(wrapper.querySelectorAll(".rf-para"), rr);
+    return exact || partial;
+  }
+  let firstPartial = null;
+  for (const s of sections) {
+    const r = s.getBoundingClientRect();
+    if (r.bottom <= rr.top || r.top >= rr.bottom) continue;
+    const { exact, partial } = scanParagraphs(s.querySelectorAll(".rf-para"), rr);
+    if (exact) return exact;
+    if (!firstPartial) firstPartial = partial;
+  }
+  return firstPartial;
+}
+
+export function firstVisibleWord(wrapper, reader, index) {
+  if (!wrapper || !reader) return null;
+  const rr = reader.getBoundingClientRect();
+  const hit = hitTestParagraph(wrapper, rr);
+  if (hit) {
+    const w = index.firstWordIn(hit);
+    if (w) return w;
+  }
+  const para = walkVisibleParagraph(wrapper, rr);
+  return para ? index.firstWordIn(para) : null;
 }
 
 export function createWordIndex() {
@@ -75,6 +141,7 @@ export function createWordIndex() {
     },
     firstWordIn(root) {
       if (!root || typeof root.querySelector !== "function") return null;
+      materializeSection(root.closest ? (root.closest(".rf-section") || root) : root);
       return root.querySelector(".rf-word");
     },
     clear() { cache = null; },

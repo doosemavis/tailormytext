@@ -36,7 +36,7 @@ function mount(overrides = {}) {
   // happy-dom has no layout: make every word "visible" at the top of the reader
   // and give the reader a size, so firstVisibleWord() and the scroll band work.
   reader.getBoundingClientRect = () => ({ top: 0, bottom: 400, height: 400, left: 0, right: 800 });
-  document.querySelectorAll(".rf-para, .rf-word").forEach((el) => {
+  document.querySelectorAll(".rf-section, .rf-para, .rf-word").forEach((el) => {
     el.getBoundingClientRect = () => ({ top: 10, bottom: 30, height: 20, left: 0, right: 40 });
   });
   reader.scrollTo = vi.fn();
@@ -69,8 +69,8 @@ describe("usePacer — enable and cursor", () => {
   it("starts disabled, paused, at the default WPM", () => {
     const { hook } = mount();
     expect(hook.result.current.enabled).toBe(false);
-    expect(hook.result.current.playing).toBe(false);
-    expect(hook.result.current.wpm).toBe(WPM_DEFAULT);
+    expect(hook.result.current.store.get().playing).toBe(false);
+    expect(hook.result.current.store.get().wpm).toBe(WPM_DEFAULT);
   });
 
   it("placeCursor marks the word with the cursor class while paused", () => {
@@ -98,7 +98,7 @@ describe("usePacer — enable and cursor", () => {
     act(() => { vi.advanceTimersByTime(2000); });
     act(() => hook.result.current.toggle());
     expect(words().flatMap(classesOf)).toEqual([]);
-    expect(hook.result.current.playing).toBe(false);
+    expect(hook.result.current.store.get().playing).toBe(false);
   });
 });
 
@@ -107,7 +107,7 @@ describe("usePacer — playback", () => {
     const { hook } = mount();
     act(() => hook.result.current.toggle());
     act(() => hook.result.current.play());
-    expect(hook.result.current.playing).toBe(true);
+    expect(hook.result.current.store.get().playing).toBe(true);
     const w = words();
     expect(classesOf(w[0])).toEqual(["rf-pace-current"]);
 
@@ -120,13 +120,28 @@ describe("usePacer — playback", () => {
     expect(trailCount).toBeLessThanOrEqual(3);
   });
 
+  it("resumes from where it was after a main-thread stall instead of racing ahead", () => {
+    const { hook } = mount();
+    act(() => hook.result.current.toggle());
+    act(() => hook.result.current.placeCursor(words()[0]));
+    act(() => hook.result.current.play());
+    // A 3s stall: the wall clock jumps while no timer got to run.
+    act(() => { vi.setSystemTime(Date.now() + 3000); });
+    act(() => { vi.advanceTimersToNextTimer(); });
+    expect(classesOf(words()[1])).toContain("rf-pace-current");
+    // Without the guard every missed word would fire back-to-back here.
+    act(() => { vi.advanceTimersByTime(5); });
+    expect(classesOf(words()[1])).toContain("rf-pace-current");
+    expect(classesOf(words()[6])).toEqual([]);
+  });
+
   it("stops at the end of the document, leaving the last word highlighted", () => {
     const { hook } = mount();
     act(() => hook.result.current.toggle());
     act(() => hook.result.current.placeCursor(words()[5])); // "Six"
     act(() => hook.result.current.play());
     act(() => { vi.advanceTimersByTime(10000); });
-    expect(hook.result.current.playing).toBe(false);
+    expect(hook.result.current.store.get().playing).toBe(false);
     expect(classesOf(words()[6])).toContain("rf-pace-current");
   });
 
@@ -150,7 +165,7 @@ describe("usePacer — playback", () => {
     act(() => hook.result.current.play());
     Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true });
     act(() => { document.dispatchEvent(new Event("visibilitychange")); });
-    expect(hook.result.current.playing).toBe(false);
+    expect(hook.result.current.store.get().playing).toBe(false);
     Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true });
   });
 
@@ -159,7 +174,7 @@ describe("usePacer — playback", () => {
     act(() => hook.result.current.toggle());
     act(() => hook.result.current.play());
     hook.rerender({ ...props, docSections: [{ title: "New", content: "y" }] });
-    expect(hook.result.current.playing).toBe(false);
+    expect(hook.result.current.store.get().playing).toBe(false);
     expect(words().flatMap(classesOf)).toEqual([]);
   });
 
@@ -169,7 +184,7 @@ describe("usePacer — playback", () => {
     act(() => hook.result.current.placeCursor(words()[4]));
     act(() => hook.result.current.play());
     act(() => hook.result.current.restart());
-    expect(hook.result.current.playing).toBe(false);
+    expect(hook.result.current.store.get().playing).toBe(false);
     expect(classesOf(words()[0])).toEqual(["rf-pace-cursor"]);
   });
 });
@@ -178,30 +193,30 @@ describe("usePacer — WPM and gating", () => {
   it("nudges by WPM_NUDGE and persists", async () => {
     const { hook } = mount();
     act(() => hook.result.current.nudgeWpm(+WPM_NUDGE));
-    expect(hook.result.current.wpm).toBe(WPM_DEFAULT + WPM_NUDGE);
+    expect(hook.result.current.store.get().wpm).toBe(WPM_DEFAULT + WPM_NUDGE);
     expect(storageSet).toHaveBeenCalledWith(STORAGE_KEY_WPM, String(WPM_DEFAULT + WPM_NUDGE));
   });
 
   it("clamps free users at the cap and calls onProGate", () => {
     const { hook, props } = mount();
     act(() => hook.result.current.setWpm(900));
-    expect(hook.result.current.wpm).toBe(PACER_FREE_MAX_WPM);
+    expect(hook.result.current.store.get().wpm).toBe(PACER_FREE_MAX_WPM);
     expect(props.onProGate).toHaveBeenCalledTimes(1);
   });
 
   it("lets Pro users use the full range without gating", () => {
     const { hook, props } = mount({ isPro: true });
     act(() => hook.result.current.setWpm(900));
-    expect(hook.result.current.wpm).toBe(900);
+    expect(hook.result.current.store.get().wpm).toBe(900);
     expect(props.onProGate).not.toHaveBeenCalled();
   });
 
   it("clamps to the absolute range", () => {
     const { hook } = mount({ isPro: true });
     act(() => hook.result.current.setWpm(5000));
-    expect(hook.result.current.wpm).toBe(1000);
+    expect(hook.result.current.store.get().wpm).toBe(1000);
     act(() => hook.result.current.setWpm(1));
-    expect(hook.result.current.wpm).toBe(100);
+    expect(hook.result.current.store.get().wpm).toBe(100);
   });
 
   it("loads a stored WPM once auth is ready, clamped to tier", async () => {
@@ -209,7 +224,7 @@ describe("usePacer — WPM and gating", () => {
     const { hook } = mount();
     await act(async () => { await Promise.resolve(); });
     expect(storageGet).toHaveBeenCalledWith(STORAGE_KEY_WPM);
-    expect(hook.result.current.wpm).toBe(PACER_FREE_MAX_WPM);
+    expect(hook.result.current.store.get().wpm).toBe(PACER_FREE_MAX_WPM);
   });
 });
 
@@ -220,13 +235,23 @@ describe("usePacer — keyboard", () => {
     return ev;
   }
 
-  it("makes the reader focusable only while enabled", () => {
+  it("never makes the reader focusable; keys work from anywhere except typing surfaces, and only while enabled", () => {
     const { hook, reader } = mount();
-    expect(reader.hasAttribute("tabindex")).toBe(false);
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    act(() => hook.result.current.placeCursor(words()[1]));
+    act(() => { press(document.body, "ArrowRight"); });
+    expect(words().flatMap(classesOf)).toEqual([]);          // disabled: no cursor, no key handling
     act(() => hook.result.current.toggle());
-    expect(reader.getAttribute("tabindex")).toBe("0");
-    act(() => hook.result.current.toggle());
     expect(reader.hasAttribute("tabindex")).toBe(false);
+    act(() => hook.result.current.placeCursor(words()[1]));
+    act(() => { press(document.body, "ArrowRight"); });       // from outside the reader
+    expect(classesOf(words()[2])).toEqual(["rf-pace-cursor"]);
+    act(() => { press(input, "ArrowRight"); });               // inside an input: ignored
+    expect(classesOf(words()[2])).toEqual(["rf-pace-cursor"]);
+    act(() => hook.result.current.toggle());
+    act(() => { press(document.body, "ArrowRight"); });       // disabled again: listener gone
+    expect(words().flatMap(classesOf)).toEqual([]);
   });
 
   it("ArrowRight / ArrowLeft move the cursor by one word", () => {
@@ -245,18 +270,18 @@ describe("usePacer — keyboard", () => {
     let ev;
     act(() => { ev = press(reader, " "); });
     expect(ev.defaultPrevented).toBe(true);
-    expect(hook.result.current.playing).toBe(true);
+    expect(hook.result.current.store.get().playing).toBe(true);
     act(() => { press(reader, "Escape"); });
-    expect(hook.result.current.playing).toBe(false);
+    expect(hook.result.current.store.get().playing).toBe(false);
   });
 
   it("Plus and Minus nudge WPM; unrelated keys are not prevented", () => {
     const { hook, reader } = mount();
     act(() => hook.result.current.toggle());
     act(() => { press(reader, "+"); });
-    expect(hook.result.current.wpm).toBe(WPM_DEFAULT + WPM_NUDGE);
+    expect(hook.result.current.store.get().wpm).toBe(WPM_DEFAULT + WPM_NUDGE);
     act(() => { press(reader, "-"); });
-    expect(hook.result.current.wpm).toBe(WPM_DEFAULT);
+    expect(hook.result.current.store.get().wpm).toBe(WPM_DEFAULT);
     let ev;
     act(() => { ev = press(reader, "Tab"); });
     expect(ev.defaultPrevented).toBe(false);

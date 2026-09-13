@@ -1,43 +1,40 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   WPM_MIN, WPM_MAX, WPM_DEFAULT, WPM_NUDGE, TRAIL_LENGTH, SCROLL_BAND, STORAGE_KEY_WPM,
 } from "../config/pacer";
 import { clampWpmForTier } from "../config/proFeatures";
 import { storageGet, storageSet } from "../utils/storage";
-import { createWordIndex } from "../utils/pacer/wordIndex";
+import { createWordIndex, firstVisibleWord } from "../utils/pacer/wordIndex";
 import { delayFor } from "../utils/pacer/timing";
 import { lineStep, paragraphStep, createHoldAccel } from "../utils/pacer/nav";
+import { createPacerStore } from "../utils/pacer/store";
 
 // WPM Pacer engine. Toggles classes on the .rf-word spans DocumentBody
 // renders (same imperative-DOM pattern as NeuroDiv intensity), so playback
-// never reconciles React. Spec: docs/superpowers/specs/2026-09-12-wpm-pacer-design.md
+// never reconciles React. `playing` and `wpm` live in an external store
+// (utils/pacer/store.js) read by PacerTransport / PacerSettings, so play,
+// pause, nudges and slider commits never re-render App either; only
+// `enabled` is React state, since it changes the reader layout.
+// Spec: docs/superpowers/specs/2026-09-12-wpm-pacer-design.md
 
 const CLS_CURRENT = "rf-pace-current";
 const CLS_CURSOR = "rf-pace-cursor";
 const trailClass = (i) => `rf-pace-trail-${i + 1}`;
 
 const clampRange = (v) => Math.min(WPM_MAX, Math.max(WPM_MIN, Math.round(v)));
+const TYPING_SURFACES = "input, textarea, select, [contenteditable], [role='dialog'], [role='menu'], [role='listbox']";
+
+// Dev-server-only notice (silent in production builds and in tests).
+const devLog = (msg) => { if (import.meta.env.DEV && import.meta.env.MODE !== "test") console.info(msg); };
 
 const prefersReducedMotion = () =>
   typeof window?.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-function firstVisibleWord(wrapper, reader, index) {
-  if (!wrapper || !reader) return null;
-  const rr = reader.getBoundingClientRect();
-  const paras = wrapper.querySelectorAll(".rf-para");
-  let partial = null;
-  for (const p of paras) {
-    const r = p.getBoundingClientRect();
-    if (r.top >= rr.top && r.top < rr.bottom) return index.firstWordIn(p);
-    if (!partial && r.bottom > rr.top && r.top < rr.bottom) partial = p;
-  }
-  return partial ? index.firstWordIn(partial) : null;
-}
-
 export function usePacer({ docWrapperRef, readerRef, docSections, text, isPro, onProGate, authReady }) {
   const [enabled, setEnabledState] = useState(false);
-  const [playing, setPlayingState] = useState(false);
-  const [wpm, setWpmState] = useState(WPM_DEFAULT);
+  const storeRef = useRef(null);
+  if (!storeRef.current) storeRef.current = createPacerStore();
+  const store = storeRef.current;
 
   const enabledRef = useRef(false);
   const playingRef = useRef(false);
@@ -56,7 +53,7 @@ export function usePacer({ docWrapperRef, readerRef, docSections, text, isPro, o
   const holdRef = useRef(null);
   if (!holdRef.current) holdRef.current = createHoldAccel();
 
-  const setPlaying = (v) => { playingRef.current = v; setPlayingState(v); };
+  const setPlaying = (v) => { playingRef.current = v; store.set({ playing: v }); };
 
   // ── Highlight bookkeeping ──
   const clearTimer = () => { if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = 0; } };
@@ -118,10 +115,19 @@ export function usePacer({ docWrapperRef, readerRef, docSections, text, isPro, o
   const schedule = () => {
     const cur = cursorRef.current;
     const entry = cur ? indexRef.current.entry(cur) : null;
-    if (!entry) { pause(); return; }
+    if (!entry) { pause(); return 0; }
     const delay = delayFor(entry.word, entry.isParaEnd, wpmRef.current, entry.mean);
+    const now = Date.now();
+    // Absorb ordinary timer drift, but after a main-thread stall longer than
+    // one word (GC, layout of a chapter scrolling into view) resume from now
+    // rather than racing through every missed word to "catch up".
+    if (now - dueAtRef.current > delay) {
+      devLog(`[pacer] stall ${now - dueAtRef.current}ms; resuming without catch-up`);
+      dueAtRef.current = now;
+    }
     dueAtRef.current += delay;
-    timerRef.current = setTimeout(tick, Math.max(0, dueAtRef.current - Date.now()));
+    timerRef.current = setTimeout(tick, Math.max(0, dueAtRef.current - now));
+    return delay;
   };
 
   function tick() {
@@ -200,7 +206,7 @@ export function usePacer({ docWrapperRef, readerRef, docSections, text, isPro, o
     const ranged = clampRange(Number(next) || WPM_DEFAULT);
     const tiered = clampWpmForTier(ranged, isProRef.current);
     wpmRef.current = tiered;
-    setWpmState(tiered);
+    store.set({ wpm: tiered });
     persistWpm(tiered);
     if (tiered !== ranged && typeof onProGateRef.current === "function") onProGateRef.current();
   }, []);
@@ -215,7 +221,7 @@ export function usePacer({ docWrapperRef, readerRef, docSections, text, isPro, o
       const loaded = Number.isFinite(n) && n > 0 ? clampRange(n) : WPM_DEFAULT;
       const tiered = clampWpmForTier(loaded, isProRef.current);
       wpmRef.current = tiered;
-      setWpmState(tiered);
+      store.set({ wpm: tiered });
     }).catch((err) => console.warn("[pacer] wpm load failed", err));
     return () => { cancelled = true; };
   }, [authReady]);
@@ -235,8 +241,11 @@ export function usePacer({ docWrapperRef, readerRef, docSections, text, isPro, o
   useEffect(() => {
     const reader = readerRef.current;
     if (!enabled || !reader) return;
-    reader.setAttribute("tabindex", "0");
-    reader.setAttribute("aria-label", "Reader. Arrow keys move the pacer start; Space plays or pauses.");
+    // Keys are handled at the document level rather than by making the reader
+    // focusable: on a 427K-word book the reader is ~1.5M DOM nodes, and a
+    // focusable element that large makes every focus/scroll event a
+    // whole-subtree job for the browser's accessibility machinery (multi-second
+    // stalls measured with zero script time). Typing surfaces are exempt.
     const index = indexRef.current;
     const measure = (el) => el.getBoundingClientRect();
     const paraOf = (el) => el.closest(".rf-para");
@@ -251,6 +260,8 @@ export function usePacer({ docWrapperRef, readerRef, docSections, text, isPro, o
 
     const onKeyDown = (e) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target;
+      if (t && typeof t.closest === "function" && t.closest(TYPING_SURFACES)) return;
       switch (e.key) {
         case "ArrowRight": { e.preventDefault(); const c = currentOrVisible(); moveTo(c && cursorRef.current ? index.next(c) : c); return; }
         case "ArrowLeft":  { e.preventDefault(); const c = currentOrVisible(); moveTo(c && cursorRef.current ? index.prev(c) : c); return; }
@@ -279,21 +290,21 @@ export function usePacer({ docWrapperRef, readerRef, docSections, text, isPro, o
     };
     const onKeyUp = () => holdRef.current.onKeyUp();
 
-    reader.addEventListener("keydown", onKeyDown);
-    reader.addEventListener("keyup", onKeyUp);
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("keyup", onKeyUp);
     return () => {
-      reader.removeEventListener("keydown", onKeyDown);
-      reader.removeEventListener("keyup", onKeyUp);
-      reader.removeAttribute("tabindex");
-      reader.removeAttribute("aria-label");
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("keyup", onKeyUp);
     };
   }, [enabled, readerRef, docWrapperRef, placeCursor, togglePlay, pause, restart, nudgeWpm]);
 
-  return {
-    enabled, playing, wpm,
+  // Stable object so memoised consumers (PacerTransport, PacerSettings)
+  // only re-render when `enabled` flips or a callback identity changes.
+  return useMemo(() => ({
+    enabled, store,
     toggle, setEnabled,
     play, pause, togglePlay, restart,
     setWpm, nudgeWpm,
     placeCursor, handleReaderClick,
-  };
+  }), [enabled, store, toggle, setEnabled, play, pause, togglePlay, restart, setWpm, nudgeWpm, placeCursor, handleReaderClick]);
 }

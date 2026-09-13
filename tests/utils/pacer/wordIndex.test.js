@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { createWordIndex, containerOf } from "../../../src/utils/pacer/wordIndex";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { createWordIndex, containerOf, firstVisibleWord } from "../../../src/utils/pacer/wordIndex";
 
 // Mirrors DocumentBody's DOM: .rf-section > .rf-para > span.rf-word[data-word]
 function word(text) {
@@ -71,6 +71,65 @@ describe("createWordIndex on a sectioned document", () => {
     document.body.appendChild(stray);
     expect(idx.next(stray)).toBeNull();
     expect(idx.entry(stray)).toBeNull();
+  });
+});
+
+describe("firstVisibleWord", () => {
+  const rect = (top, bottom, left = 0, right = 800) => ({ top, bottom, left, right, height: bottom - top, width: right - left });
+  let wrapper, reader, idx;
+  beforeEach(() => {
+    document.body.innerHTML = `<div id="reader"><div id="w">${PLAIN}</div></div>`;
+    wrapper = document.getElementById("w");
+    reader = document.getElementById("reader");
+    reader.getBoundingClientRect = () => rect(0, 600);
+    wrapper.getBoundingClientRect = () => rect(-300, 900, 40, 760);
+    const paras = document.querySelectorAll(".rf-para");
+    paras[0].getBoundingClientRect = () => rect(-300, -20);   // scrolled off the top
+    paras[1].getBoundingClientRect = () => rect(10, 400);     // first fully visible
+    idx = createWordIndex();
+  });
+  afterEach(() => { document.elementFromPoint = undefined; });
+
+  it("uses elementFromPoint when a probe lands on a paragraph inside the wrapper", () => {
+    const target = document.querySelectorAll(".rf-para")[1].querySelector(".rf-word");
+    document.elementFromPoint = vi.fn(() => target);
+    expect(firstVisibleWord(wrapper, reader, idx).dataset.word).toBe("Gamma");
+    expect(document.elementFromPoint).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to the rect walk when hit testing misses", () => {
+    document.elementFromPoint = vi.fn(() => document.body);
+    expect(firstVisibleWord(wrapper, reader, idx).dataset.word).toBe("Gamma");
+  });
+
+  it("falls back to the rect walk when elementFromPoint is unavailable", () => {
+    expect(firstVisibleWord(wrapper, reader, idx).dataset.word).toBe("Gamma");
+    expect(firstVisibleWord(null, reader, idx)).toBeNull();
+  });
+
+  it("in a sectioned document, measures only intersecting sections and prefers an exact hit in a later one", () => {
+    document.body.innerHTML = `<div id="reader"><div id="w">${SECTIONED}</div></div>`;
+    const wrap = document.getElementById("w");
+    const rd = document.getElementById("reader");
+    rd.getBoundingClientRect = () => rect(0, 600);
+    wrap.getBoundingClientRect = () => rect(-1000, 3000, 40, 760);
+    const secs = document.querySelectorAll(".rf-section");
+    const paras = document.querySelectorAll(".rf-para");
+    secs[0].getBoundingClientRect = () => rect(-500, 100);   // straddles the top edge
+    paras[0].getBoundingClientRect = () => rect(-500, -100); // fully above
+    paras[1].getBoundingClientRect = () => rect(-50, 100);   // partial
+    secs[1].getBoundingClientRect = () => rect(100, 120);    // empty section
+    secs[2].getBoundingClientRect = () => rect(120, 3000);
+    paras[2].getBoundingClientRect = () => rect(130, 400);   // exact, in a later section
+    expect(firstVisibleWord(wrap, rd, createWordIndex()).dataset.word).toBe("Four");
+
+    paras[2].getBoundingClientRect = () => rect(700, 900);   // no exact hit anywhere → partial wins
+    expect(firstVisibleWord(wrap, rd, createWordIndex()).dataset.word).toBe("Three");
+
+    secs[2].getBoundingClientRect = () => rect(700, 3000);   // section below the reader is never scanned
+    paras[2].getBoundingClientRect = vi.fn(() => rect(130, 400));
+    firstVisibleWord(wrap, rd, createWordIndex());
+    expect(paras[2].getBoundingClientRect).not.toHaveBeenCalled();
   });
 });
 
