@@ -4,7 +4,7 @@ import { PALETTES } from "../config/constants";
 // Imperative DOM walker for NeuroDiv bold-slice updates. Called from both
 // liveWriters.neuroDivIntensity (slider drag) and the IntersectionObserver
 // callback (off-screen section scrolls into view). DOM structure invariant
-// per renderWord in DocumentBody.jsx — <span class="rf-word" data-word="...">
+// per wordHtml in utils/paragraphHtml.js — <span class="rf-word" data-word="...">
 // <strong>{first}</strong>{rest}{" "}</span> — so the walk is a pair of
 // textContent writes per word.
 function applyIntensityToWords(scope, intensity) {
