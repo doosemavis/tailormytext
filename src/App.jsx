@@ -276,12 +276,12 @@ export default function App() {
     liveWriters, huePaletteRef,
     neuroDivIntensityRef, focusModeRef,
     handleFeatureClassRef,
-  } = useEnhancements({ docWrapperRef, readerRef, docSections, user, authLoading });
+  } = useEnhancements({ docWrapperRef, readerRef, displaySections, user, authLoading });
 
   // WPM Pacer — DOM-driven word highlighter. Declared after `sub` and
   // useEnhancements; reads docWrapperRef/readerRef at call time only.
   const pacer = usePacer({
-    docWrapperRef, readerRef, docSections, text,
+    docWrapperRef, readerRef, displaySections, text,
     isPro: sub.isPro,
     onProGate: () => setShowPricing(true),
     authReady: !authLoading,
@@ -290,7 +290,7 @@ export default function App() {
   // ── Derived ──
   const t = useMemo(() => ({ ...THEMES[theme], key: theme }), [theme]);
   const currentFont = useMemo(() => FONTS.find(f => f.name === fontFamily), [fontFamily]);
-  const hasSections = docSections && docSections.length > 0 && (docSections.length > 1 || docSections[0]?.title);
+  const hasSections = displaySections && displaySections.length > 0 && (displaySections.length > 1 || displaySections[0]?.title);
   // Sync favicon + browser-chrome theme-color to the active theme. SVG is
   // regenerated as a data URI on each theme change; the `<link rel="icon">`
   // and `<meta name="theme-color">` in index.html are mutated in place.
@@ -424,7 +424,7 @@ export default function App() {
   }, []);
 
   // Reset the active-chapter pointer whenever the doc changes.
-  useEffect(() => { setCurrentSectionIdx(0); }, [docSections]);
+  useEffect(() => { setCurrentSectionIdx(0); }, [displaySections]);
 
   // When the chapter dropdown opens, scroll the active chapter into view.
   // rAF defers to the next frame so Radix has time to portal + mount the
@@ -444,14 +444,14 @@ export default function App() {
   // an 80px gutter line below the toolbar.
   useEffect(() => {
     const container = readerRef.current;
-    if (!container || !hasSections || !docSections?.length) return;
+    if (!container || !hasSections || !displaySections?.length) return;
     let raf = null;
     const update = () => {
       raf = null;
       const cr = container.getBoundingClientRect();
       const gutter = 80;
       let active = 0;
-      for (let i = 0; i < docSections.length; i++) {
+      for (let i = 0; i < displaySections.length; i++) {
         const el = sectionRefs.current[i];
         if (!el) continue;
         const top = el.getBoundingClientRect().top - cr.top;
@@ -467,7 +467,7 @@ export default function App() {
       container.removeEventListener("scroll", onScroll);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [hasSections, docSections]);
+  }, [hasSections, displaySections]);
 
   // Restore the user's last chapter when a doc loads. Lands at the
   // CHAPTER TITLE (titleRefs + TOP_GUTTER) — same as a chapter-dropdown
@@ -587,7 +587,7 @@ export default function App() {
   // never leaves the browser); library books write to Supabase library_reads
   // so positions sync across devices.
   useEffect(() => {
-    if (!docSections || !hasSections || !currentDocId) return;
+    if (!displaySections || !hasSections || !currentDocId) return;
     const container = readerRef.current;
     if (!container) return;
     // Positions are computed on each scroll event, WHILE this doc's DOM is
@@ -599,7 +599,7 @@ export default function App() {
       const cr = container.getBoundingClientRect();
       let sectionIdx = 0;
       let scrollOffset = 0;
-      for (let i = 0; i < docSections.length; i++) {
+      for (let i = 0; i < displaySections.length; i++) {
         const el = sectionRefs.current[i];
         if (!el) continue;
         const top = el.getBoundingClientRect().top - cr.top;
@@ -643,7 +643,7 @@ export default function App() {
       saver.flush();
       saver.dispose();
     };
-  }, [docSections, hasSections, currentDocId, currentDocSource, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [displaySections, hasSections, currentDocId, currentDocSource, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cosmetic-gate helper: for Pro-only themes/palettes/guide-colors, free
   // users get the PricingModal instead of the change being applied.
@@ -1484,13 +1484,13 @@ export default function App() {
               inherits, so every word span in the book got its style
               recomputed on open AND close (~1.2s each on Don Quixote).
               Non-modal still closes on outside click and Escape. */}
-          {hasSections && docSections.length > 1 && (
+          {hasSections && displaySections.length > 1 && (
             <DropdownMenu.Root open={showChapterNav} onOpenChange={setShowChapterNav} modal={false}>
               <DropdownMenu.Trigger asChild>
                 <button className="rf-static" style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, border: `1px solid ${t.border}`, background: showChapterNav ? t.surface : "transparent", color: t.fg, cursor: "pointer", fontSize: 13, fontWeight: 500, fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box" }}>
                   <List size={14} style={{ color: t.icon }} />
                   {(() => {
-                    const cur = docSections[currentSectionIdx] ?? docSections[0];
+                    const cur = displaySections[currentSectionIdx] ?? displaySections[0];
                     const isPage = cur?.type === "page";
                     const label = cur?.title || (isPage ? `Page ${cur?.number ?? currentSectionIdx + 1}` : `Chapter ${cur?.number ?? currentSectionIdx + 1}`);
                     return <span style={{ maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>;
@@ -1506,16 +1506,16 @@ export default function App() {
                 >
                   <div style={{ padding: "10px 14px 8px", borderBottom: `1px solid ${t.borderSoft}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                     <span style={{ fontSize: 11, fontWeight: 650, color: t.fgSoft, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.05em", textTransform: "uppercase" }}>Table of Contents</span>
-                    <span style={{ fontSize: 11, color: t.fgSoft, fontFamily: "'IBM Plex Mono', ui-monospace, monospace", letterSpacing: "0.04em", flexShrink: 0 }}>{currentSectionIdx + 1} of {docSections.length}</span>
+                    <span style={{ fontSize: 11, color: t.fgSoft, fontFamily: "'IBM Plex Mono', ui-monospace, monospace", letterSpacing: "0.04em", flexShrink: 0 }}>{currentSectionIdx + 1} of {displaySections.length}</span>
                   </div>
-                  {docSections.map((sec, si) => (
+                  {displaySections.map((sec, si) => (
                     <ChapterDropdownItem
                       key={si}
                       ref={si === currentSectionIdx ? activeChapterRef : null}
                       index={si}
                       label={sec.title || (sec.type === "page" ? `Page ${sec.number || si + 1}` : `Chapter ${sec.number || si + 1}`)}
                       active={si === currentSectionIdx}
-                      isLast={si === docSections.length - 1}
+                      isLast={si === displaySections.length - 1}
                       theme={t}
                       onSelect={scrollToSection}
                     />
