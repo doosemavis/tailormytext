@@ -1,7 +1,37 @@
 import { flushSync } from "react-dom";
 
-const VT_DURATION_MS = 450;
+const VT_DURATION_MS = 550;
+const VT_EASING = "cubic-bezier(0.22, 0.61, 0.36, 1)";
 const ROOT_DATA_ATTR = "rfThemeVt";
+
+// The reveal animation of the most recent theme switch, cancelled when its
+// transition finishes (and, defensively, before the next one starts).
+let lastRevealAnim = null;
+
+// Dev-only: report the frame cadence during the reveal so a choppy wipe can
+// be told apart from a page stall (a 30fps cadence shows ~33ms gaps).
+function sampleFrames(transition) {
+  const t0 = performance.now();
+  const gaps = [];
+  let last = null;
+  let done = false;
+  const tick = (ts) => {
+    if (last != null) gaps.push(Math.round(ts - last));
+    last = ts;
+    if (!done) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  const report = (outcome) => {
+    done = true;
+    const ran = Math.round(performance.now() - t0);
+    const sorted = [...gaps].sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)] ?? 0;
+    const verdict = ran < VT_DURATION_MS - 60 ? `ENDED EARLY (${outcome})` : outcome;
+    const leftovers = document.getAnimations().filter((a) => a.effect?.pseudoElement === "::view-transition-new(root)").length;
+    console.info(`[theme-vt] ran ${ran}ms of ${VT_DURATION_MS}ms — ${verdict}; ${gaps.length} frames, median gap ${median}ms, max gap ${sorted[sorted.length - 1] ?? 0}ms; reveal animations attached: ${leftovers}`);
+  };
+  transition.finished.then(() => report("finished"), (err) => report(`rejected: ${err?.name || err}`));
+}
 
 const prefersReducedMotion = () =>
   typeof window !== "undefined" &&
@@ -69,7 +99,14 @@ export function runThemeTransition(event, applyFn) {
 
   if (transition?.ready?.then) {
     transition.ready.then(() => {
-      document.documentElement.animate(
+      // Cancel any reveal animation left over from a previous switch. With
+      // fill:"forwards" a finished animation stays attached to the
+      // ::view-transition-new(root) pseudo-element for the life of the page,
+      // so from the second theme change onward the new reveal competed with
+      // one (then two, then three…) stale ones on the same property — smooth
+      // the first time, catching every time after.
+      if (lastRevealAnim) { lastRevealAnim.cancel(); lastRevealAnim = null; }
+      const anim = document.documentElement.animate(
         {
           clipPath: [
             `circle(0px at ${x}px ${y}px)`,
@@ -78,11 +115,23 @@ export function runThemeTransition(event, applyFn) {
         },
         {
           duration: VT_DURATION_MS,
-          easing: "ease-in-out",
+          // Ease-out, not ease-in-out: with ease-in-out the edge moves fastest
+          // at the midpoint, when the circle is already large and crossing the
+          // text, so at 30fps (energy saver, memory pressure, 30Hz displays)
+          // it jumps hundreds of px per frame right in the middle and reads
+          // as a skip. Ease-out spends its fast phase while the circle is
+          // small and decelerates through the sweep.
+          easing: VT_EASING,
           fill: "forwards",
           pseudoElement: "::view-transition-new(root)",
         },
       );
+      lastRevealAnim = anim;
+      transition.finished.finally(() => {
+        if (lastRevealAnim === anim) lastRevealAnim = null;
+        anim.cancel();
+      });
+      if (import.meta.env.DEV) sampleFrames(transition);
     }).catch(() => {});
   }
 }

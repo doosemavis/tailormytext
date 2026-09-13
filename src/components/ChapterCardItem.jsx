@@ -2,7 +2,7 @@ import React, { useCallback } from "react";
 
 const NUMBER_STYLE = {
   fontFamily: "var(--tmt-mono)",
-  fontSize: 9,
+  fontSize: 11,
   fontWeight: 700,
   letterSpacing: "0.1em",
   flexShrink: 0,
@@ -11,7 +11,7 @@ const NUMBER_STYLE = {
 const INPUT_STYLE = {
   flex: 1,
   minWidth: 0,
-  fontSize: 12,
+  fontSize: 14,
   fontWeight: 600,
   fontFamily: "var(--tmt-sans)",
   color: "var(--tmt-ink)",
@@ -29,7 +29,7 @@ const ROW_STYLE = {
 
 const SNIPPET_STYLE = {
   margin: 0,
-  fontSize: 11,
+  fontSize: 13,
   lineHeight: 1.5,
   color: "var(--tmt-ink-muted)",
   overflow: "hidden",
@@ -40,7 +40,7 @@ const SNIPPET_STYLE = {
 
 const SNIPPET_EMPTY_STYLE = {
   margin: 0,
-  fontSize: 11,
+  fontSize: 13,
   color: "var(--tmt-ink-muted)",
   fontStyle: "italic",
 };
@@ -81,7 +81,7 @@ function ChapterCardItemImpl({
   return (
     <div
       style={{
-        padding: "10px 20px",
+        padding: "12px 24px",
         borderBottom: `1px solid ${borderSoft}`,
       }}
     >
