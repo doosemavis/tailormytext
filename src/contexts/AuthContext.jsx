@@ -79,7 +79,16 @@ export function AuthProvider({ children }) {
         // before setUser runs, and the second subscription doesn't re-fire
         // INITIAL_SESSION because the SDK already delivered it. Fetch the
         // role + deletion status in the background and update separately.
-        setUser(session.user);
+        // Keep the same object when nothing meaningful changed (routine
+        // TOKEN_REFRESHED / INITIAL_SESSION re-deliveries). Effects keyed on
+        // `user` otherwise re-run on every refresh — the reading-position
+        // restore, for one, forces a whole-book layout each time.
+        const next = session.user;
+        setUser((prev) => (
+          prev && prev.id === next.id && prev.updated_at === next.updated_at && prev.email_confirmed_at === next.email_confirmed_at
+            ? prev
+            : next
+        ));
         setUserScope(session.user.id);
         fetchProfile(session.user.id).then(profile => {
           if (!mounted) return;
