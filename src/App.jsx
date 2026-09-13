@@ -25,7 +25,11 @@ const FMT_PCT_FROM_FRAC = v => `${Math.round(v * 100)}%`;
 // in two visual columns. Add new themes to the appropriate array — order within each is the row order.
 const LIGHT_THEME_KEYS = ["warm", "cool", "sepia", "forest", "crimson"];
 const DARK_THEME_KEYS = ["phosphor", "jungle", "dark", "midnight", "obsidian"];
-import { detectTextStructure, runThemeTransition, revealSection, releaseSection, jumpScrollTop } from "./utils";
+import { detectTextStructure, runThemeTransition, revealSection, releaseSection, jumpScrollTop, createPositionSaver } from "./utils";
+
+// Reading-position persistence cadence (see utils/positionSaver.js).
+const POSITION_SAVE_CLOUD_MS = 5000;
+const POSITION_SAVE_LOCAL_MS = 600;
 import { storageGet, storageSet, storageDel } from "./utils/storage";
 import { supabase } from "./utils/supabase";
 import { track } from "./utils/track";
@@ -586,16 +590,11 @@ export default function App() {
     if (!docSections || !hasSections || !currentDocId) return;
     const container = readerRef.current;
     if (!container) return;
-    let saveTimer = null;
-    // lastComputed captures the most recent scroll position WHILE this doc's
-    // DOM was current. The cleanup persists it instead of re-reading
-    // sectionRefs.current — by the time cleanup runs after a doc switch, the
-    // DOM has already been updated to show the NEW doc's sections (the
-    // sectionRefs are mutable and React's commit phase has already overwritten
-    // them), so a fresh DOM read inside cleanup would save the WRONG doc's
-    // positions under THIS doc's id. Capturing on every scroll event keeps the
-    // computation in the window where sectionRefs and docSections agree.
-    let lastComputed = null;
+    // Positions are computed on each scroll event, WHILE this doc's DOM is
+    // current, and handed to the saver. Cleanup only flushes what was already
+    // captured: by then the DOM may show the NEW doc's sections (sectionRefs
+    // are mutable and React has already overwritten them), so a fresh read
+    // there would save the wrong doc's position under this doc's id.
     const computePosition = () => {
       const cr = container.getBoundingClientRect();
       let sectionIdx = 0;
@@ -620,21 +619,29 @@ export default function App() {
         storageSet(`pos:${currentDocId}`, JSON.stringify(position));
       }
     };
-    const onScroll = () => {
-      lastComputed = computePosition();
-      if (saveTimer) clearTimeout(saveTimer);
-      saveTimer = setTimeout(() => persistPosition(lastComputed), 600);
-    };
+    // Library positions go to Supabase: throttle to one write per interval
+    // (latest wins) instead of one per scroll pause. localStorage is cheap,
+    // so uploads keep a short interval. Both flush when the tab is hidden or
+    // the page is leaving, so a closed laptop still lands on the right chapter.
+    const saver = createPositionSaver({
+      persist: persistPosition,
+      intervalMs: currentDocSource === "library" ? POSITION_SAVE_CLOUD_MS : POSITION_SAVE_LOCAL_MS,
+    });
+    const onScroll = () => { saver.note(computePosition()); };
+    const onHide = () => { if (document.visibilityState === "hidden") saver.flush(); };
+    const onPageHide = () => saver.flush();
     container.addEventListener("scroll", onScroll, { passive: true });
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", onPageHide);
     return () => {
       container.removeEventListener("scroll", onScroll);
-      if (saveTimer) {
-        clearTimeout(saveTimer);
-        // Flush the LAST-captured position (from when this doc was active).
-        // Do NOT re-read sectionRefs/DOM here — they may already reflect the
-        // doc the user just switched to.
-        if (lastComputed) persistPosition(lastComputed);
-      }
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", onPageHide);
+      // Flush the LAST-captured position (from when this doc was active).
+      // computePosition is never re-run here — the DOM may already show the
+      // doc the user just switched to.
+      saver.flush();
+      saver.dispose();
     };
   }, [docSections, hasSections, currentDocId, currentDocSource, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 

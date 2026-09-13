@@ -7,5 +7,6 @@ export { parseInWorker } from "./parserWorker";
 export { runThemeTransition } from "./themeTransition";
 export { revealSection, releaseSection, jumpScrollTop } from "./sectionJump";
 export { materializeSection, isMaterialized } from "./sectionMaterializer";
+export { createPositionSaver } from "./positionSaver";
 export { applyChapterOverrides } from "./applyChapterOverrides";
 export { buildParagraphs } from "./paragraphStream";
