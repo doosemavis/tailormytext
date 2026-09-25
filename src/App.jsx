@@ -892,7 +892,7 @@ export default function App() {
             maxWidth: 480,
             marginBottom: 36,
           }}>
-            PDF, EPUB, DOCX &mdash; adapted in a tap to the typography your eyes
+            EPUB and TXT &mdash; adapted in a tap to the typography your eyes
             actually need. Built for dyslexia, low vision, ADHD, eye strain,
             and every reader in between.
           </p>
@@ -1042,7 +1042,7 @@ export default function App() {
               Drop a file here, or click to browse
             </p>
             <p style={{ fontFamily: "var(--tmt-mono)", fontSize: 11, color: hoverUpload ? t.accent : "var(--tmt-ink-muted)", textTransform: "uppercase", letterSpacing: "0.16em", transition: "color 0.2s ease" }}>
-              PDF · EPUB · DOCX · TXT · MD
+              EPUB · TXT
             </p>
             <input
               ref={fileRef}

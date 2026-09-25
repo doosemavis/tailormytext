@@ -8,7 +8,9 @@ import { cloudOpenLibraryBook } from "../utils/cloudDocs";
 // because both derive from the same source. The `accept` attribute alone
 // can't be relied on — drag-and-drop and "show all files" both bypass it.
 // Exported so App.jsx's hidden <input type="file"> picks the same set.
-export const FILE_ACCEPT = ".pdf,.epub,.txt,.md,.docx,.json";
+// PDF/DOCX/MD/JSON are gated off until their rendering is reliable; the
+// parsers below stay in place so re-enabling is a one-line change here.
+export const FILE_ACCEPT = ".epub,.txt";
 const SUPPORTED_EXTS = new Set(FILE_ACCEPT.split(",").map(s => s.replace(/^\./, "")));
 
 // Maps raw parser exceptions to user-friendly messages. Internal pdf.js /
@@ -204,7 +206,7 @@ export function useDocumentState({ user, authLoading, sub, recentDocs, showToast
       // branch and `.text()` decodes its binary bytes as UTF-8 garbage —
       // user sees a screen of gibberish instead of a clear error.
       if (!SUPPORTED_EXTS.has(rawExt)) {
-        throw new Error(`TailorMyText doesn't support .${rawExt} files. Try a PDF, EPUB, DOCX, or text file (TXT, MD, JSON).`);
+        throw new Error(`TailorMyText doesn't support .${rawExt} files. Try an EPUB or TXT file.`);
       }
       // Phase 2 sniff: route by content when the extension is wrong (a
       // .txt that's actually HTML, a renamed binary, etc.). Sniffer is

@@ -119,7 +119,7 @@ export default function PricingModal({ onClose, onSelectPlan, hasUsedTrial, t })
                 <span style={{ fontFamily: "var(--tmt-mono)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--tmt-ink-muted)" }}>forever</span>
               </div>
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
-                {[`${FREE_UPLOAD_LIMIT} document uploads / month`, "7-day private storage", "4 themes + all 6 fonts", "PDF, EPUB, DOCX & all formats"].map((f, i) => (
+                {[`${FREE_UPLOAD_LIMIT} document uploads / month`, "7-day private storage", "4 themes + all 6 fonts", "EPUB & TXT files"].map((f, i) => (
                   <li key={i} style={{ display: "flex", gap: 10, alignItems: "baseline", fontFamily: "var(--tmt-serif-body)", fontSize: 14, color: "var(--tmt-ink-soft)", lineHeight: 1.45 }}>
                     <span style={{ color: "var(--tmt-terra)", fontSize: 11, transform: "translateY(-1px)" }}>✦</span>
                     {f}
