@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { applyChapterOverrides, parsePDF, parseEPUB, parseDOCX, parseHTMLStructured, parseInWorker, sniffDocumentType } from "../utils";
+import { applyChapterOverrides, parsePDF, parseEPUB, parseDOCX, parseHTMLStructured, parseInWorker, sniffDocumentType, resolveUploadType } from "../utils";
 import { track, trackParseOutcome } from "../utils/track";
 import { cloudOpenLibraryBook } from "../utils/cloudDocs";
 
@@ -214,9 +214,11 @@ export function useDocumentState({ user, authLoading, sub, recentDocs, showToast
       // binary extension. Falls back to the user's extension on null.
       const sniffBuf = await file.arrayBuffer();
       const sniffed = await sniffDocumentType(file.name, sniffBuf);
-      if (sniffed && sniffed !== rawExt) {
-        console.warn(`[doUpload] sniffer routed .${rawExt} → .${sniffed} based on content`);
-        ext = sniffed;
+      // Throws if the sniff reveals a disabled binary format (a PDF
+      // renamed to .txt) — the extension guard above can't see that.
+      ext = resolveUploadType(rawExt, sniffed, SUPPORTED_EXTS);
+      if (ext !== rawExt) {
+        console.warn(`[doUpload] sniffer routed .${rawExt} → .${ext} based on content`);
       }
       if (ext === "pdf") { setLoadMsg("Loading PDF engine…"); sections = await parsePDF(file); }
       else if (ext === "epub") { setLoadMsg("Unpacking EPUB…"); sections = await parseEPUB(file); }

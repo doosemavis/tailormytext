@@ -3,6 +3,7 @@ export { parseEPUB } from "./parseEPUB";
 export { parseDOCX } from "./parseDOCX";
 export { detectTextStructure, parseHTMLStructured, parseMarkdownStructured } from "./detectStructure";
 export { sniffDocumentType } from "./sniffDocumentType";
+export { resolveUploadType } from "./resolveUploadType";
 export { parseInWorker } from "./parserWorker";
 export { runThemeTransition } from "./themeTransition";
 export { revealSection, releaseSection, jumpScrollTop } from "./sectionJump";
