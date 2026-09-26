@@ -1192,6 +1192,322 @@ export default function App() {
     </>
   );
 
+  // Reader chrome pieces shared by the desktop layout and the phone/tablet
+  // layouts (docs/superpowers/specs/2026-09-26-responsive-mobile-design.md §5.4).
+  // Same pattern as `modals` / `loaderOverlay`: JSX built once, placed per tier.
+  const panelToggleButton = (
+    <Tip label="Open panel" t={t} side="bottom">
+      <button onClick={() => setPanelOpen(true)} style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><PanelLeft size={16} strokeWidth={2} /></button>
+    </Tip>
+  );
+
+  const sidebarContent = (
+    <div style={{ width: SIDEBAR_CONTENT_WIDTH }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "12px 12px 0px" }}>
+        {/* Back-to-home — explicit landing-page return, separate from
+            the Currently-Reading X (which only closes the current doc).
+            Editorial Fraunces italic on the label keeps it visually
+            distinct from the sans-serif sidebar chrome and signals it's
+            a navigation crossing into the marketing/landing surface. */}
+        <Tip label="Back to home" t={t} side="bottom">
+          <button
+            onClick={() => { closeDoc(); setFocusPara(-1); }}
+            aria-label="Back to home"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              height: 34,
+              padding: "0 12px",
+              borderRadius: 8,
+              border: "none",
+              background: "transparent",
+              color: t.fgSoft,
+              cursor: "pointer",
+              fontSize: 13,
+              fontFamily: "'Newsreader', Georgia, serif",
+              fontStyle: "italic",
+              lineHeight: 1,
+              letterSpacing: "0.005em",
+              boxSizing: "border-box",
+            }}
+            onMouseEnter={ev => { ev.currentTarget.style.color = t.fg; ev.currentTarget.style.background = t.surfaceHover; }}
+            onMouseLeave={ev => { ev.currentTarget.style.color = t.fgSoft; ev.currentTarget.style.background = "transparent"; }}
+          >
+            <ArrowLeft size={14} strokeWidth={2} />
+            {/* Italic Newsreader's cap-height sits in the upper ~73% of
+                the line-box, so flex-centering the line-box leaves the
+                visible glyphs floating above the icon's visual center.
+                A 1.5px downward shift on JUST the text re-centers it
+                against the ArrowLeft (and, by extension, the X in the
+                close-panel button on the other end of the row). */}
+            <span style={{ display: "inline-block", transform: "translateY(1.5px)" }}>Back to home</span>
+          </button>
+        </Tip>
+        <Tip label="Close panel" t={t} side="bottom">
+          <button onClick={() => setPanelOpen(false)} style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><PanelLeftClose size={16} strokeWidth={2} /></button>
+        </Tip>
+      </div>
+
+      <div style={{ padding: "10px 0 2px" }}>
+        <UploadBadge sub={sub} onUpgrade={() => setShowPricing(true)} onCancel={() => sub.cancelTrial()} t={t} />
+        {/* DEV ONLY — admin role only */}
+      </div>
+
+      {text && (
+        <div style={{ padding: "10px 14px", borderBottom: `1px solid ${t.borderSoft}` }}>
+          <p style={{ fontSize: 10.5, fontWeight: 500, color: t.fgSoft, fontFamily: "'IBM Plex Mono', ui-monospace, monospace", letterSpacing: "0.16em", textTransform: "uppercase", margin: "0 0 10px", padding: "0 2px" }}>Currently Reading</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, color: t.fgSoft }}>
+            <FileText size={13} style={{ color: t.accent, flexShrink: 0 }} />
+            <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "'Newsreader', Georgia, serif", fontStyle: "italic", fontSize: 14, color: t.fg }}>{fileName}</span>
+            <button aria-label="Close document" title="Close — pick another from your shelf" onClick={() => { closeDoc({ keepReaderOpen: true }); setFocusPara(-1); }} style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><X size={15} strokeWidth={2} /></button>
+          </div>
+        </div>
+      )}
+
+      <Section title="Enhancements" icon={Sparkles} t={t} open={false} active={neuroDiv || hueGuide || focusMode}>
+        <Toggle on={neuroDiv} onChange={setNeuroDiv} label="NeuroDiv Anchoring" icon={Baseline} t={t} />
+        {neuroDiv && <Slider value={neuroDivIntensity} min={0.2} max={0.7} step={0.01} onChange={setNeuroDivIntensity} onLiveChange={liveWriters.neuroDivIntensity} label="Bold intensity" format={FMT_PCT_FROM_FRAC} t={t} />}
+        <Toggle on={hueGuide} onChange={setHueGuide} label="HueGuide Tracking" icon={Palette} t={t} />
+        {hueGuide && <div style={{ padding: "6px 12px", display: "flex", flexWrap: "wrap", gap: 6 }}>{Object.entries(PALETTES).map(([k, pal]) => {
+          const free = isPaletteFree(k);
+          const locked = !sub.isPro && !free;
+          const tipLabel = `${pal.label}${pal.cvdSafe ? " · colorblind-safe" : ""}${locked ? " (Pro)" : ""}`;
+          return (
+            <Tip key={k} label={tipLabel} t={t} side="top">
+              <button
+                onClick={() => gateCosmetic(free, () => setHuePalette(k))}
+                aria-label={tipLabel}
+                aria-pressed={huePalette === k}
+                style={{ position: "relative", width: 42, height: 26, borderRadius: 8, overflow: "hidden", display: "flex", padding: 0, cursor: "pointer", border: huePalette === k ? `2px solid ${t.accent}` : `1px solid ${t.border}`, boxShadow: huePalette === k ? `0 0 0 2px ${t.accentSoft}` : "none", transition: "all 0.15s", opacity: locked ? 0.55 : 1 }}
+              >
+                {pal.colors.map((c, i) => <div key={i} style={{ flex: 1, background: c, height: "100%" }} />)}
+                {locked && <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}><Lock size={11} style={{ color: "#fff", filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.6))" }} /></span>}
+              </button>
+            </Tip>
+          );
+        })}</div>}
+        {hueGuide && <Slider value={hueIntensity} min={0} max={1} step={0.01} onChange={setHueIntensity} onLiveChange={liveWriters.hueIntensity} label="Hue intensity" format={FMT_PCT_FROM_FRAC} t={t} />}
+        <Toggle on={focusMode} onChange={v => { setFocusMode(v); if (!v) setFocusPara(-1); }} label="Focus Mode" icon={Focus} t={t} />
+      </Section>
+
+      <Section title="Pacer" icon={Gauge} t={t} open={false} active={pacer.enabled}>
+        <Toggle on={pacer.enabled} onChange={pacer.setEnabled} label="WPM Pacer" icon={Gauge} t={t} />
+        {pacer.enabled && <PacerSettings pacer={pacer} isPro={sub.isPro} t={t} />}
+      </Section>
+
+      <Section title="Reading Guide" icon={MousePointer2} t={t} open={false} active={guideMode !== "none"}>
+        <div style={{ padding: "4px 12px" }}>
+          <Segment options={[{ value: "none", label: "Off", icon: EyeOff }, { value: "highlight", label: "Highlight", icon: Highlighter }, { value: "underline", label: "Line", icon: UnderlineIcon }, { value: "dim", label: "Dim", icon: Eye }]} value={guideMode} onChange={setGuideMode} t={t} />
+        </div>
+        {guideMode === "dim" && <Slider value={guideDimOpacity} min={0.05} max={0.7} step={0.01} onChange={setGuideDimOpacity} label="Dim opacity" format={FMT_PCT_FROM_FRAC} t={t} />}
+        {(guideMode === "highlight" || guideMode === "underline") && (
+          <div style={{ padding: "10px 12px 4px" }}>
+            <span style={{ fontSize: 12, color: t.fgSoft, fontWeight: 500, fontFamily: "'DM Sans', sans-serif", marginBottom: 8, display: "block" }}>Guide color</span>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {Object.entries(GUIDE_COLORS).map(([k, gc]) => {
+                const active = guideColor === k;
+                const dot = gc.dot || t.accent;
+                const free = isGuideColorFree(k);
+                const locked = !sub.isPro && !free;
+                return (
+                  <button
+                    key={k}
+                    onClick={() => gateCosmetic(free, () => setGuideColor(k))}
+                    aria-label={`Guide color: ${gc.label}${locked ? " (Pro)" : ""}`}
+                    aria-pressed={active}
+                    title={`${gc.label}${locked ? " (Pro)" : ""}`}
+                    style={{ width: 28, height: 28, borderRadius: 8, cursor: "pointer", border: active ? `2px solid ${dot}` : `1.5px solid ${t.border}`, background: k === "accent" ? `conic-gradient(from 0deg, ${t.accent}, ${t.accent}88, ${t.accent})` : (gc.highlight || dot), boxShadow: active ? `0 0 0 2px ${dot}33` : "none", transition: "all 0.15s", display: "flex", alignItems: "center", justifyContent: "center", opacity: locked ? 0.55 : 1 }}
+                  >
+                    {locked
+                      ? <Lock size={11} style={{ color: "#fff", filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.6))" }} />
+                      : (active && <Check size={12} style={{ color: k === "accent" || k === "yellow" || k === "orange" ? "#333" : "#fff" }} />)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </Section>
+
+      <Section title="Typography" icon={Type} t={t} open={false}>
+        <FontPicker value={fontFamily} onChange={setFontFamily} t={t} />
+        <Slider value={fontSize} min={12} max={36} step={1} onChange={setFontSize} onLiveChange={liveWriters.fontSize} label="Font size" format={FMT_PX} t={t} />
+        <Slider value={lineHeight} min={1.0} max={3} step={0.05} onChange={setLineHeight} onLiveChange={liveWriters.lineHeight} label="Line height" format={FMT_LH} t={t} />
+        <Slider value={letterSpacing} min={-1} max={5} step={0.1} onChange={setLetterSpacing} onLiveChange={liveWriters.letterSpacing} label="Letter spacing" format={FMT_FIXED1_PX} t={t} />
+        <Slider value={wordSpacing} min={0} max={12} step={0.5} onChange={setWordSpacing} onLiveChange={liveWriters.wordSpacing} label="Word spacing" format={FMT_FIXED1_PX} t={t} />
+        <Slider value={columnWidth} min={40} max={100} step={1} onChange={setColumnWidth} onLiveChange={liveWriters.columnWidth} label="Column width" format={FMT_PCT} t={t} />
+        <div style={{ padding: "4px 12px 8px" }}>
+          <span style={{ fontSize: 12, color: t.fgSoft, fontWeight: 500, fontFamily: "'DM Sans', sans-serif", marginBottom: 6, display: "block" }}>Text alignment</span>
+          <Segment options={[{ value: "left", label: "Left", icon: AlignLeft }, { value: "center", label: "Center", icon: AlignCenter }, { value: "right", label: "Right", icon: AlignRight }, { value: "justify", label: "Justify", icon: AlignJustify }]} value={textAlign} onChange={setTextAlign} t={t} />
+        </div>
+      </Section>
+
+      <Section title="Theme" icon={Sun} t={t} open={false}>
+        <div style={{ padding: "6px 12px 4px", display: "grid", gridTemplateColumns: "1fr 1fr", gridAutoFlow: "column", gridTemplateRows: "repeat(5, auto)", gap: 10 }}>
+          {[...LIGHT_THEME_KEYS, ...DARK_THEME_KEYS].map(key => {
+            const th = THEMES[key];
+            const isActive = theme === key;
+            const isDark = DARK_THEME_KEYS.includes(key);
+            const free = isThemeFree(key);
+            const locked = !sub.isPro && !free;
+            return (
+              <button
+                key={key}
+                onClick={(e) => gateCosmetic(free, () => runThemeTransition(e, () => setTheme(key)))}
+                aria-label={`Theme: ${key}${locked ? " (Pro)" : ""}`}
+                aria-pressed={isActive}
+                className="rf-btn-icon-active"
+                style={{
+                  padding: "9px 14px",
+                  borderRadius: 10,
+                  border: isActive ? `2px solid ${t.accent}` : "2px solid transparent",
+                  backgroundColor: th.bg,
+                  // Suppress the rf-btn-icon-active radial white highlight on dark tiles
+                  // (it reads as a glaring shine on dark backgrounds). Light tiles keep it
+                  // because there it adds a subtle paper-like sheen.
+                  backgroundImage: isDark ? "none" : undefined,
+                  color: th.fg,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 8,
+                  minHeight: 40,
+                  fontFamily: "'DM Sans', sans-serif",
+                  boxSizing: "border-box",
+                  outline: "none",
+                  transition: "transform 0.15s, box-shadow 0.15s, filter 0.15s, border-color 0.15s",
+                  opacity: locked ? 0.55 : 1,
+                }}
+              >
+                <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: th.fg, textTransform: "capitalize", letterSpacing: "0.02em", textAlign: "left" }}>
+                  {locked && <Lock size={11} style={{ color: th.fg }} />}
+                  {key}
+                </span>
+                <span style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: 9,
+                  background: th.accent,
+                  flexShrink: 0,
+                  border: isActive ? `2px solid ${th.fg}` : "2px solid transparent",
+                  boxShadow: isActive ? `0 0 0 2px ${th.bg}` : "none",
+                  boxSizing: "border-box",
+                  transition: "border-color 0.15s, box-shadow 0.15s",
+                }} />
+              </button>
+            );
+          })}
+        </div>
+      </Section>
+
+      <div style={{ padding: "14px 14px 18px", display: "flex", flexDirection: "column", gap: 8 }}>
+        <button onClick={() => sub.canUpload ? fileRef.current?.click() : setShowPaywall(true)} className="rf-btn" style={{ width: "100%", padding: "10px 16px", borderRadius: 10, border: `1px solid ${t.border}`, background: t.surface, color: t.fgSoft, cursor: "pointer", fontSize: 13, fontWeight: 560, fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxSizing: "border-box" }}><Upload size={14} /> Upload new file</button>
+        <input ref={fileRef} type="file" accept={FILE_ACCEPT} style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) attemptUpload(f); }} />
+        {library.books.length > 0 && (
+          <button
+            onClick={() => setShowLibraryDrawer(true)}
+            className="rf-btn"
+            style={{
+              width: "100%",
+              padding: "10px 16px",
+              borderRadius: 10,
+              border: `1px solid ${t.border}`,
+              background: "transparent",
+              color: t.fg,
+              cursor: "pointer",
+              fontSize: 13,
+              fontWeight: 560,
+              fontFamily: "'DM Sans', sans-serif",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              boxSizing: "border-box",
+            }}
+          >
+            <LibraryBig size={14} /> Browse the Library
+          </button>
+        )}
+      </div>
+
+      <SidebarRecentDocs recentList={recentDocs.recentList} fileName={fileName} onLoad={loadRecentDoc} onRemove={id => recentDocs.removeDoc(id)} isPro={sub.isPro} t={t} />
+      <SidebarBookshelf bookshelfList={recentDocs.bookshelfList} fileName={fileName} onOpen={loadRecentDoc} onRemove={id => recentDocs.removeDoc(id)} t={t} />
+    </div>
+  );
+
+  // Chapter dropdown is non-modal: Radix's modal mode sets pointer-events:none
+  // on <body> while open, and that property inherits, so every word span in
+  // the book got its style recomputed on open AND close (~1.2s each on Don
+  // Quixote). Non-modal still closes on outside click and Escape.
+  const chapterMenu = hasSections && displaySections.length > 1 && (
+    <DropdownMenu.Root open={showChapterNav} onOpenChange={setShowChapterNav} modal={false}>
+      <DropdownMenu.Trigger asChild>
+        <button className="rf-static" style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, border: `1px solid ${t.border}`, background: showChapterNav ? t.surface : "transparent", color: t.fg, cursor: "pointer", fontSize: 13, fontWeight: 500, fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box" }}>
+          <List size={14} style={{ color: t.icon }} />
+          {(() => {
+            const cur = displaySections[currentSectionIdx] ?? displaySections[0];
+            const isPage = cur?.type === "page";
+            const label = cur?.title || (isPage ? `Page ${cur?.number ?? currentSectionIdx + 1}` : `Chapter ${cur?.number ?? currentSectionIdx + 1}`);
+            return <span style={{ maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>;
+          })()}
+          <ChevronDown size={14} style={{ color: t.icon, transform: showChapterNav ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }} />
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="end"
+          sideOffset={6}
+          style={{ background: t.bg, border: `1px solid ${t.border}`, borderRadius: 12, boxShadow: "0 12px 36px rgba(0,0,0,0.18)", maxHeight: "60vh", overflowY: "auto", width: 220, zIndex: 999 }}
+        >
+          <div style={{ padding: "10px 14px 8px", borderBottom: `1px solid ${t.borderSoft}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 650, color: t.fgSoft, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.05em", textTransform: "uppercase" }}>Table of Contents</span>
+            <span style={{ fontSize: 11, color: t.fgSoft, fontFamily: "'IBM Plex Mono', ui-monospace, monospace", letterSpacing: "0.04em", flexShrink: 0 }}>{currentSectionIdx + 1} of {displaySections.length}</span>
+          </div>
+          {displaySections.map((sec, si) => (
+            <ChapterDropdownItem
+              key={si}
+              ref={si === currentSectionIdx ? activeChapterRef : null}
+              index={si}
+              label={sec.title || (sec.type === "page" ? `Page ${sec.number || si + 1}` : `Chapter ${sec.number || si + 1}`)}
+              active={si === currentSectionIdx}
+              isLast={si === displaySections.length - 1}
+              theme={t}
+              onSelect={scrollToSection}
+            />
+          ))}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
+
+  // Uncertainty badge — surfaces when text-parser confidence < 0.70.
+  const uncertaintyBadge = (
+    <UncertaintyBadge
+      score={confidence?.score}
+      onClick={() => setEditChaptersOpen(true)}
+    />
+  );
+
+  // Reader feature toggles. Tooltips use the short product name only; longer
+  // descriptions live in the sidebar Toggle labels + settings, so the reader
+  // chrome stays scannable on hover. aria-label mirrors the tip for screen
+  // readers, which never see the tooltip.
+  const featureItems = [
+    { label: "NeuroDiv", on: neuroDiv, Icon: Baseline, onToggle: toggleNeuroDiv },
+    { label: "HueGuide", on: hueGuide, Icon: Palette, onToggle: toggleHueGuide },
+    { label: "Focus", on: focusMode, Icon: Focus, onToggle: toggleFocusMode },
+    { label: "Pacer", on: pacer.enabled, Icon: Gauge, onToggle: pacer.toggle },
+  ];
+  const featureToggles = featureItems.map(({ label, on, Icon, onToggle }) => (
+    <FeatureToggleButton key={label} on={on} label={label} Icon={Icon} accent={t.accent} iconColor={t.icon} onToggle={onToggle} t={t} />
+  ));
+
+  const renderUserMenu = (extraProps = {}) => (
+    <UserMenu t={t} onShowAuth={() => setShowAuth(true)} onShowAvatarSettings={() => setShowAvatarSettings(true)} onShowSubscription={() => setShowSubscription(true)} onShowPaymentReceipts={handleShowPaymentReceipts} showPaymentReceipts={sub.hasStripeHistory} onShowDeleteAccount={() => setShowDeleteAccount(true)} avatar={avatar} themePersistEnabled={themePref.persistEnabled} onToggleThemePersist={onToggleThemePersist} mockFreeMode={sub.mockFreeMode} onToggleMockFreeMode={sub.toggleMockFreeMode} isProGrantActive={sub.isProGrantActive} {...extraProps} />
+  );
+
   // ═══════════════════════════════════════════
   // READER VIEW
   // ═══════════════════════════════════════════
@@ -1205,252 +1521,14 @@ export default function App() {
 
       {/* ── SIDEBAR ── */}
       <div className="rf-no-select rf-side-scroll" style={{ width: panelOpen ? SIDEBAR_WIDTH : 0, minWidth: panelOpen ? SIDEBAR_WIDTH : 0, height: "100%", overflowY: "auto", overflowX: "hidden", borderRight: panelOpen ? `1px solid ${t.border}` : "none", background: t.bg, transition: "width 0.3s ease, min-width 0.3s ease" }}>
-        {panelOpen && (
-          <div style={{ width: SIDEBAR_CONTENT_WIDTH }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "12px 12px 0px" }}>
-              {/* Back-to-home — explicit landing-page return, separate from
-                  the Currently-Reading X (which only closes the current doc).
-                  Editorial Fraunces italic on the label keeps it visually
-                  distinct from the sans-serif sidebar chrome and signals it's
-                  a navigation crossing into the marketing/landing surface. */}
-              <Tip label="Back to home" t={t} side="bottom">
-                <button
-                  onClick={() => { closeDoc(); setFocusPara(-1); }}
-                  aria-label="Back to home"
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    height: 34,
-                    padding: "0 12px",
-                    borderRadius: 8,
-                    border: "none",
-                    background: "transparent",
-                    color: t.fgSoft,
-                    cursor: "pointer",
-                    fontSize: 13,
-                    fontFamily: "'Newsreader', Georgia, serif",
-                    fontStyle: "italic",
-                    lineHeight: 1,
-                    letterSpacing: "0.005em",
-                    boxSizing: "border-box",
-                  }}
-                  onMouseEnter={ev => { ev.currentTarget.style.color = t.fg; ev.currentTarget.style.background = t.surfaceHover; }}
-                  onMouseLeave={ev => { ev.currentTarget.style.color = t.fgSoft; ev.currentTarget.style.background = "transparent"; }}
-                >
-                  <ArrowLeft size={14} strokeWidth={2} />
-                  {/* Italic Newsreader's cap-height sits in the upper ~73% of
-                      the line-box, so flex-centering the line-box leaves the
-                      visible glyphs floating above the icon's visual center.
-                      A 1.5px downward shift on JUST the text re-centers it
-                      against the ArrowLeft (and, by extension, the X in the
-                      close-panel button on the other end of the row). */}
-                  <span style={{ display: "inline-block", transform: "translateY(1.5px)" }}>Back to home</span>
-                </button>
-              </Tip>
-              <Tip label="Close panel" t={t} side="bottom">
-                <button onClick={() => setPanelOpen(false)} style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><PanelLeftClose size={16} strokeWidth={2} /></button>
-              </Tip>
-            </div>
-
-            <div style={{ padding: "10px 0 2px" }}>
-              <UploadBadge sub={sub} onUpgrade={() => setShowPricing(true)} onCancel={() => sub.cancelTrial()} t={t} />
-              {/* DEV ONLY — admin role only */}
-            </div>
-
-            {text && (
-              <div style={{ padding: "10px 14px", borderBottom: `1px solid ${t.borderSoft}` }}>
-                <p style={{ fontSize: 10.5, fontWeight: 500, color: t.fgSoft, fontFamily: "'IBM Plex Mono', ui-monospace, monospace", letterSpacing: "0.16em", textTransform: "uppercase", margin: "0 0 10px", padding: "0 2px" }}>Currently Reading</p>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, color: t.fgSoft }}>
-                  <FileText size={13} style={{ color: t.accent, flexShrink: 0 }} />
-                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "'Newsreader', Georgia, serif", fontStyle: "italic", fontSize: 14, color: t.fg }}>{fileName}</span>
-                  <button aria-label="Close document" title="Close — pick another from your shelf" onClick={() => { closeDoc({ keepReaderOpen: true }); setFocusPara(-1); }} style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><X size={15} strokeWidth={2} /></button>
-                </div>
-              </div>
-            )}
-
-            <Section title="Enhancements" icon={Sparkles} t={t} open={false} active={neuroDiv || hueGuide || focusMode}>
-              <Toggle on={neuroDiv} onChange={setNeuroDiv} label="NeuroDiv Anchoring" icon={Baseline} t={t} />
-              {neuroDiv && <Slider value={neuroDivIntensity} min={0.2} max={0.7} step={0.01} onChange={setNeuroDivIntensity} onLiveChange={liveWriters.neuroDivIntensity} label="Bold intensity" format={FMT_PCT_FROM_FRAC} t={t} />}
-              <Toggle on={hueGuide} onChange={setHueGuide} label="HueGuide Tracking" icon={Palette} t={t} />
-              {hueGuide && <div style={{ padding: "6px 12px", display: "flex", flexWrap: "wrap", gap: 6 }}>{Object.entries(PALETTES).map(([k, pal]) => {
-                const free = isPaletteFree(k);
-                const locked = !sub.isPro && !free;
-                const tipLabel = `${pal.label}${pal.cvdSafe ? " · colorblind-safe" : ""}${locked ? " (Pro)" : ""}`;
-                return (
-                  <Tip key={k} label={tipLabel} t={t} side="top">
-                    <button
-                      onClick={() => gateCosmetic(free, () => setHuePalette(k))}
-                      aria-label={tipLabel}
-                      aria-pressed={huePalette === k}
-                      style={{ position: "relative", width: 42, height: 26, borderRadius: 8, overflow: "hidden", display: "flex", padding: 0, cursor: "pointer", border: huePalette === k ? `2px solid ${t.accent}` : `1px solid ${t.border}`, boxShadow: huePalette === k ? `0 0 0 2px ${t.accentSoft}` : "none", transition: "all 0.15s", opacity: locked ? 0.55 : 1 }}
-                    >
-                      {pal.colors.map((c, i) => <div key={i} style={{ flex: 1, background: c, height: "100%" }} />)}
-                      {locked && <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}><Lock size={11} style={{ color: "#fff", filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.6))" }} /></span>}
-                    </button>
-                  </Tip>
-                );
-              })}</div>}
-              {hueGuide && <Slider value={hueIntensity} min={0} max={1} step={0.01} onChange={setHueIntensity} onLiveChange={liveWriters.hueIntensity} label="Hue intensity" format={FMT_PCT_FROM_FRAC} t={t} />}
-              <Toggle on={focusMode} onChange={v => { setFocusMode(v); if (!v) setFocusPara(-1); }} label="Focus Mode" icon={Focus} t={t} />
-            </Section>
-
-            <Section title="Pacer" icon={Gauge} t={t} open={false} active={pacer.enabled}>
-              <Toggle on={pacer.enabled} onChange={pacer.setEnabled} label="WPM Pacer" icon={Gauge} t={t} />
-              {pacer.enabled && <PacerSettings pacer={pacer} isPro={sub.isPro} t={t} />}
-            </Section>
-
-            <Section title="Reading Guide" icon={MousePointer2} t={t} open={false} active={guideMode !== "none"}>
-              <div style={{ padding: "4px 12px" }}>
-                <Segment options={[{ value: "none", label: "Off", icon: EyeOff }, { value: "highlight", label: "Highlight", icon: Highlighter }, { value: "underline", label: "Line", icon: UnderlineIcon }, { value: "dim", label: "Dim", icon: Eye }]} value={guideMode} onChange={setGuideMode} t={t} />
-              </div>
-              {guideMode === "dim" && <Slider value={guideDimOpacity} min={0.05} max={0.7} step={0.01} onChange={setGuideDimOpacity} label="Dim opacity" format={FMT_PCT_FROM_FRAC} t={t} />}
-              {(guideMode === "highlight" || guideMode === "underline") && (
-                <div style={{ padding: "10px 12px 4px" }}>
-                  <span style={{ fontSize: 12, color: t.fgSoft, fontWeight: 500, fontFamily: "'DM Sans', sans-serif", marginBottom: 8, display: "block" }}>Guide color</span>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    {Object.entries(GUIDE_COLORS).map(([k, gc]) => {
-                      const active = guideColor === k;
-                      const dot = gc.dot || t.accent;
-                      const free = isGuideColorFree(k);
-                      const locked = !sub.isPro && !free;
-                      return (
-                        <button
-                          key={k}
-                          onClick={() => gateCosmetic(free, () => setGuideColor(k))}
-                          aria-label={`Guide color: ${gc.label}${locked ? " (Pro)" : ""}`}
-                          aria-pressed={active}
-                          title={`${gc.label}${locked ? " (Pro)" : ""}`}
-                          style={{ width: 28, height: 28, borderRadius: 8, cursor: "pointer", border: active ? `2px solid ${dot}` : `1.5px solid ${t.border}`, background: k === "accent" ? `conic-gradient(from 0deg, ${t.accent}, ${t.accent}88, ${t.accent})` : (gc.highlight || dot), boxShadow: active ? `0 0 0 2px ${dot}33` : "none", transition: "all 0.15s", display: "flex", alignItems: "center", justifyContent: "center", opacity: locked ? 0.55 : 1 }}
-                        >
-                          {locked
-                            ? <Lock size={11} style={{ color: "#fff", filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.6))" }} />
-                            : (active && <Check size={12} style={{ color: k === "accent" || k === "yellow" || k === "orange" ? "#333" : "#fff" }} />)}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </Section>
-
-            <Section title="Typography" icon={Type} t={t} open={false}>
-              <FontPicker value={fontFamily} onChange={setFontFamily} t={t} />
-              <Slider value={fontSize} min={12} max={36} step={1} onChange={setFontSize} onLiveChange={liveWriters.fontSize} label="Font size" format={FMT_PX} t={t} />
-              <Slider value={lineHeight} min={1.0} max={3} step={0.05} onChange={setLineHeight} onLiveChange={liveWriters.lineHeight} label="Line height" format={FMT_LH} t={t} />
-              <Slider value={letterSpacing} min={-1} max={5} step={0.1} onChange={setLetterSpacing} onLiveChange={liveWriters.letterSpacing} label="Letter spacing" format={FMT_FIXED1_PX} t={t} />
-              <Slider value={wordSpacing} min={0} max={12} step={0.5} onChange={setWordSpacing} onLiveChange={liveWriters.wordSpacing} label="Word spacing" format={FMT_FIXED1_PX} t={t} />
-              <Slider value={columnWidth} min={40} max={100} step={1} onChange={setColumnWidth} onLiveChange={liveWriters.columnWidth} label="Column width" format={FMT_PCT} t={t} />
-              <div style={{ padding: "4px 12px 8px" }}>
-                <span style={{ fontSize: 12, color: t.fgSoft, fontWeight: 500, fontFamily: "'DM Sans', sans-serif", marginBottom: 6, display: "block" }}>Text alignment</span>
-                <Segment options={[{ value: "left", label: "Left", icon: AlignLeft }, { value: "center", label: "Center", icon: AlignCenter }, { value: "right", label: "Right", icon: AlignRight }, { value: "justify", label: "Justify", icon: AlignJustify }]} value={textAlign} onChange={setTextAlign} t={t} />
-              </div>
-            </Section>
-
-            <Section title="Theme" icon={Sun} t={t} open={false}>
-              <div style={{ padding: "6px 12px 4px", display: "grid", gridTemplateColumns: "1fr 1fr", gridAutoFlow: "column", gridTemplateRows: "repeat(5, auto)", gap: 10 }}>
-                {[...LIGHT_THEME_KEYS, ...DARK_THEME_KEYS].map(key => {
-                  const th = THEMES[key];
-                  const isActive = theme === key;
-                  const isDark = DARK_THEME_KEYS.includes(key);
-                  const free = isThemeFree(key);
-                  const locked = !sub.isPro && !free;
-                  return (
-                    <button
-                      key={key}
-                      onClick={(e) => gateCosmetic(free, () => runThemeTransition(e, () => setTheme(key)))}
-                      aria-label={`Theme: ${key}${locked ? " (Pro)" : ""}`}
-                      aria-pressed={isActive}
-                      className="rf-btn-icon-active"
-                      style={{
-                        padding: "9px 14px",
-                        borderRadius: 10,
-                        border: isActive ? `2px solid ${t.accent}` : "2px solid transparent",
-                        backgroundColor: th.bg,
-                        // Suppress the rf-btn-icon-active radial white highlight on dark tiles
-                        // (it reads as a glaring shine on dark backgrounds). Light tiles keep it
-                        // because there it adds a subtle paper-like sheen.
-                        backgroundImage: isDark ? "none" : undefined,
-                        color: th.fg,
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 8,
-                        minHeight: 40,
-                        fontFamily: "'DM Sans', sans-serif",
-                        boxSizing: "border-box",
-                        outline: "none",
-                        transition: "transform 0.15s, box-shadow 0.15s, filter 0.15s, border-color 0.15s",
-                        opacity: locked ? 0.55 : 1,
-                      }}
-                    >
-                      <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: th.fg, textTransform: "capitalize", letterSpacing: "0.02em", textAlign: "left" }}>
-                        {locked && <Lock size={11} style={{ color: th.fg }} />}
-                        {key}
-                      </span>
-                      <span style={{
-                        width: 18,
-                        height: 18,
-                        borderRadius: 9,
-                        background: th.accent,
-                        flexShrink: 0,
-                        border: isActive ? `2px solid ${th.fg}` : "2px solid transparent",
-                        boxShadow: isActive ? `0 0 0 2px ${th.bg}` : "none",
-                        boxSizing: "border-box",
-                        transition: "border-color 0.15s, box-shadow 0.15s",
-                      }} />
-                    </button>
-                  );
-                })}
-              </div>
-            </Section>
-
-            <div style={{ padding: "14px 14px 18px", display: "flex", flexDirection: "column", gap: 8 }}>
-              <button onClick={() => sub.canUpload ? fileRef.current?.click() : setShowPaywall(true)} className="rf-btn" style={{ width: "100%", padding: "10px 16px", borderRadius: 10, border: `1px solid ${t.border}`, background: t.surface, color: t.fgSoft, cursor: "pointer", fontSize: 13, fontWeight: 560, fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxSizing: "border-box" }}><Upload size={14} /> Upload new file</button>
-              <input ref={fileRef} type="file" accept={FILE_ACCEPT} style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) attemptUpload(f); }} />
-              {library.books.length > 0 && (
-                <button
-                  onClick={() => setShowLibraryDrawer(true)}
-                  className="rf-btn"
-                  style={{
-                    width: "100%",
-                    padding: "10px 16px",
-                    borderRadius: 10,
-                    border: `1px solid ${t.border}`,
-                    background: "transparent",
-                    color: t.fg,
-                    cursor: "pointer",
-                    fontSize: 13,
-                    fontWeight: 560,
-                    fontFamily: "'DM Sans', sans-serif",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                    boxSizing: "border-box",
-                  }}
-                >
-                  <LibraryBig size={14} /> Browse the Library
-                </button>
-              )}
-            </div>
-
-            <SidebarRecentDocs recentList={recentDocs.recentList} fileName={fileName} onLoad={loadRecentDoc} onRemove={id => recentDocs.removeDoc(id)} isPro={sub.isPro} t={t} />
-            <SidebarBookshelf bookshelfList={recentDocs.bookshelfList} fileName={fileName} onOpen={loadRecentDoc} onRemove={id => recentDocs.removeDoc(id)} t={t} />
-          </div>
-        )}
+        {panelOpen && sidebarContent}
       </div>
 
       {/* ── READER ── */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, height: "100%", overflow: "hidden" }}>
         {/* Top bar */}
         <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "8px 16px", borderBottom: `1px solid ${t.borderSoft}`, minHeight: 44, background: t.bg }}>
-          {!panelOpen && (
-            <Tip label="Open panel" t={t} side="bottom">
-              <button onClick={() => setPanelOpen(true)} style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><PanelLeft size={16} strokeWidth={2} /></button>
-            </Tip>
-          )}
+          {!panelOpen && panelToggleButton}
           <button
             onClick={() => { closeDoc(); setFocusPara(-1); }}
             className="rf-static"
@@ -1478,73 +1556,14 @@ export default function App() {
             </div>
           )}
 
-          {/* Chapter navigator */}
-          {/* Chapter dropdown is non-modal: Radix's modal mode sets
-              pointer-events:none on <body> while open, and that property
-              inherits, so every word span in the book got its style
-              recomputed on open AND close (~1.2s each on Don Quixote).
-              Non-modal still closes on outside click and Escape. */}
-          {hasSections && displaySections.length > 1 && (
-            <DropdownMenu.Root open={showChapterNav} onOpenChange={setShowChapterNav} modal={false}>
-              <DropdownMenu.Trigger asChild>
-                <button className="rf-static" style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, border: `1px solid ${t.border}`, background: showChapterNav ? t.surface : "transparent", color: t.fg, cursor: "pointer", fontSize: 13, fontWeight: 500, fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box" }}>
-                  <List size={14} style={{ color: t.icon }} />
-                  {(() => {
-                    const cur = displaySections[currentSectionIdx] ?? displaySections[0];
-                    const isPage = cur?.type === "page";
-                    const label = cur?.title || (isPage ? `Page ${cur?.number ?? currentSectionIdx + 1}` : `Chapter ${cur?.number ?? currentSectionIdx + 1}`);
-                    return <span style={{ maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>;
-                  })()}
-                  <ChevronDown size={14} style={{ color: t.icon, transform: showChapterNav ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }} />
-                </button>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Portal>
-                <DropdownMenu.Content
-                  align="end"
-                  sideOffset={6}
-                  style={{ background: t.bg, border: `1px solid ${t.border}`, borderRadius: 12, boxShadow: "0 12px 36px rgba(0,0,0,0.18)", maxHeight: "60vh", overflowY: "auto", width: 220, zIndex: 999 }}
-                >
-                  <div style={{ padding: "10px 14px 8px", borderBottom: `1px solid ${t.borderSoft}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                    <span style={{ fontSize: 11, fontWeight: 650, color: t.fgSoft, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.05em", textTransform: "uppercase" }}>Table of Contents</span>
-                    <span style={{ fontSize: 11, color: t.fgSoft, fontFamily: "'IBM Plex Mono', ui-monospace, monospace", letterSpacing: "0.04em", flexShrink: 0 }}>{currentSectionIdx + 1} of {displaySections.length}</span>
-                  </div>
-                  {displaySections.map((sec, si) => (
-                    <ChapterDropdownItem
-                      key={si}
-                      ref={si === currentSectionIdx ? activeChapterRef : null}
-                      index={si}
-                      label={sec.title || (sec.type === "page" ? `Page ${sec.number || si + 1}` : `Chapter ${sec.number || si + 1}`)}
-                      active={si === currentSectionIdx}
-                      isLast={si === displaySections.length - 1}
-                      theme={t}
-                      onSelect={scrollToSection}
-                    />
-                  ))}
-                </DropdownMenu.Content>
-              </DropdownMenu.Portal>
-            </DropdownMenu.Root>
-          )}
+          {chapterMenu}
 
-          {/* Uncertainty badge — surfaces when text-parser confidence < 0.70.
-              D6 will add the EditChaptersModal; for now editChaptersOpen is
-              wired but unconsumed. */}
-          <UncertaintyBadge
-            score={confidence?.score}
-            onClick={() => setEditChaptersOpen(true)}
-          />
+          {uncertaintyBadge}
 
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            {/* Reader feature toggles. Tooltips use the short product name
-               only; longer descriptions live in the sidebar Toggle labels +
-               settings, so the reader chrome stays scannable on hover.
-               aria-label mirrors the tip for screen readers, which never see
-               the tooltip. */}
-            <FeatureToggleButton on={neuroDiv} label="NeuroDiv" Icon={Baseline} accent={t.accent} iconColor={t.icon} onToggle={toggleNeuroDiv} t={t} />
-            <FeatureToggleButton on={hueGuide} label="HueGuide" Icon={Palette} accent={t.accent} iconColor={t.icon} onToggle={toggleHueGuide} t={t} />
-            <FeatureToggleButton on={focusMode} label="Focus" Icon={Focus} accent={t.accent} iconColor={t.icon} onToggle={toggleFocusMode} t={t} />
-            <FeatureToggleButton on={pacer.enabled} label="Pacer" Icon={Gauge} accent={t.accent} iconColor={t.icon} onToggle={pacer.toggle} t={t} />
+            {featureToggles}
           </div>
-          <UserMenu t={t} onShowAuth={() => setShowAuth(true)} onShowAvatarSettings={() => setShowAvatarSettings(true)} onShowSubscription={() => setShowSubscription(true)} onShowPaymentReceipts={handleShowPaymentReceipts} showPaymentReceipts={sub.hasStripeHistory} onShowDeleteAccount={() => setShowDeleteAccount(true)} avatar={avatar} themePersistEnabled={themePref.persistEnabled} onToggleThemePersist={onToggleThemePersist} mockFreeMode={sub.mockFreeMode} onToggleMockFreeMode={sub.toggleMockFreeMode} isProGrantActive={sub.isProGrantActive} />
+          {renderUserMenu()}
         </div>
 
         {/* Reader scroll area */}
