@@ -135,7 +135,7 @@ No other new dependencies.
 
 - **Shared JSX, no prop plumbing.** The side-panel contents, chapter menu,
   feature toggles, and account menu become JSX variables inside `App`
-  (`sidebarContent`, `chapterMenu`, `featureToggles`, `userMenu`), following
+  (`sidebarContent`, `chapterMenu`, `featureToggles`, `renderUserMenu`), following
   the existing `modals` / `loaderOverlay` pattern. The desktop branch renders
   the same variables in the same places, so its output is unchanged. The
   mobile branches reuse the variables. This replaces the originally sketched
@@ -221,8 +221,10 @@ Tablet and desktop keep today's toolbar unchanged.
   scrolls under it, matching today's behavior with a stationary mouse. Mouse
   clicks skip this branch; `pacer.handleReaderClick` still runs for all
   clicks.
-- **Tap targets:** under `(pointer: coarse)`, interactive controls in the
-  reader chrome get a 44×44px minimum hit area (padding, not visual size, where
+- **Tap targets:** under `(pointer: coarse) and (max-width: 1023px)`,
+  interactive controls in the reader chrome get a 44×44px minimum hit area
+  (not at ≥ 1024px: the iPad-landscape toolbar already needs ~1011px with the
+  panel open) (padding, not visual size, where
   possible).
 - Hover-only styling (for example the sidebar row `onMouseEnter` color shift)
   is left as is. It is harmless on touch.
