@@ -1194,14 +1194,15 @@ export default function App() {
 
   // Reader chrome pieces shared by the desktop layout and the phone/tablet
   // layouts (docs/superpowers/specs/2026-09-26-responsive-mobile-design.md §5.4).
-  // Same pattern as `modals` / `loaderOverlay`: JSX built once, placed per tier.
+  // Small pieces are built eagerly, like `modals` / `loaderOverlay`; larger
+  // ones are render functions so they're only built when actually placed.
   const panelToggleButton = (
     <Tip label="Open panel" t={t} side="bottom">
       <button onClick={() => setPanelOpen(true)} style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><PanelLeft size={16} strokeWidth={2} /></button>
     </Tip>
   );
 
-  const sidebarContent = (
+  const renderSidebarContent = () => (
     <div style={{ width: SIDEBAR_CONTENT_WIDTH }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "12px 12px 0px" }}>
         {/* Back-to-home — explicit landing-page return, separate from
@@ -1521,7 +1522,7 @@ export default function App() {
 
       {/* ── SIDEBAR ── */}
       <div className="rf-no-select rf-side-scroll" style={{ width: panelOpen ? SIDEBAR_WIDTH : 0, minWidth: panelOpen ? SIDEBAR_WIDTH : 0, height: "100%", overflowY: "auto", overflowX: "hidden", borderRight: panelOpen ? `1px solid ${t.border}` : "none", background: t.bg, transition: "width 0.3s ease, min-width 0.3s ease" }}>
-        {panelOpen && sidebarContent}
+        {panelOpen && renderSidebarContent()}
       </div>
 
       {/* ── READER ── */}
