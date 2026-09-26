@@ -34,6 +34,7 @@
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
 }
 .rf-slideover[data-state="closed"] { display: none; }
+.rf-slideover:focus { outline: none; }
 
 @media (max-width: 1023px) {
   /* Reader root: dvh so the phone address bar doesn't hide the bottom. */

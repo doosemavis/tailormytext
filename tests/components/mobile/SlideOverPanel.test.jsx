@@ -46,4 +46,54 @@ describe("SlideOverPanel", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
+
+  it("moves focus into the panel when it opens", () => {
+    const onOpenChange = vi.fn();
+    const { rerender } = render(
+      <SlideOverPanel open={false} onOpenChange={onOpenChange} width={296} background="#fff" borderColor="#ccc">
+        <button>Inside</button>
+      </SlideOverPanel>
+    );
+    rerender(
+      <SlideOverPanel open onOpenChange={onOpenChange} width={296} background="#fff" borderColor="#ccc">
+        <button>Inside</button>
+      </SlideOverPanel>
+    );
+    expect(document.activeElement).toBe(document.querySelector(".rf-slideover"));
+  });
+
+  it("restores focus to the previously focused element when it closes", () => {
+    const onOpenChange = vi.fn();
+    const { rerender } = render(
+      <>
+        <button>Outside trigger</button>
+        <SlideOverPanel open={false} onOpenChange={onOpenChange} width={296} background="#fff" borderColor="#ccc">
+          <button>Inside</button>
+        </SlideOverPanel>
+      </>
+    );
+    const trigger = screen.getByText("Outside trigger");
+    trigger.focus();
+    expect(document.activeElement).toBe(trigger);
+
+    rerender(
+      <>
+        <button>Outside trigger</button>
+        <SlideOverPanel open onOpenChange={onOpenChange} width={296} background="#fff" borderColor="#ccc">
+          <button>Inside</button>
+        </SlideOverPanel>
+      </>
+    );
+    expect(document.activeElement).toBe(document.querySelector(".rf-slideover"));
+
+    rerender(
+      <>
+        <button>Outside trigger</button>
+        <SlideOverPanel open={false} onOpenChange={onOpenChange} width={296} background="#fff" borderColor="#ccc">
+          <button>Inside</button>
+        </SlideOverPanel>
+      </>
+    );
+    expect(document.activeElement).toBe(trigger);
+  });
 });
