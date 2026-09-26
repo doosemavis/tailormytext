@@ -60,10 +60,99 @@ async function seedSession(page) {
   await page.addInitScript(([k, v]) => window.localStorage.setItem(k, v), [STORAGE_KEY, JSON.stringify(session)]);
 }
 
-// Advance fake time so setTimeout-driven UI (loader fade, dialog mount)
-// completes, then wait for web fonts.
+// IntersectionObserver callbacks arrive in *real* time (the browser's rendering
+// step), but what they start — DiaTextReveal's gradient sweep — runs on the
+// *fake* clock's requestAnimationFrame. clock.runFor() yields a real macrotask
+// after every fake timer it fires, so an IO callback could land at any fake
+// time inside a runFor and the sweep froze at a run-dependent position (the
+// intermittent 0.01-ratio diffs). Hold every page observer's callbacks and
+// deliver them only at settle() flush points, so observer-driven work always
+// starts at the same fake time. Must be installed before the page's scripts.
+function holdIntersectionObservers() {
+  const RealIO = window.IntersectionObserver;
+  if (!RealIO || window.__visualFlushIO) return;
+  const pending = [];
+  class HeldIntersectionObserver extends RealIO {
+    constructor(callback, options) {
+      let self = null;
+      super((entries) => pending.push({ observer: self, callback, entries }), options);
+      self = this;
+      this.__live = true;
+    }
+    disconnect() { this.__live = false; super.disconnect(); }
+    observe(target) { this.__live = true; super.observe(target); }
+  }
+  window.IntersectionObserver = HeldIntersectionObserver;
+
+  // A fresh *real* observer's first callback fires in the next rendering
+  // update, after the app's observers (notified in creation order). rAF is
+  // faked by the clock, so this is the real-frame barrier.
+  const nextFrame = () => new Promise((resolve) => {
+    const io = new RealIO(() => { io.disconnect(); resolve(); });
+    io.observe(document.documentElement);
+  });
+  // React's scheduler (render + passive effects) runs on MessageChannel tasks,
+  // which the fake clock does not control.
+  const macrotask = () => new Promise((resolve) => {
+    const ch = new MessageChannel();
+    ch.port1.onmessage = () => resolve();
+    ch.port2.postMessage(0);
+  });
+  const MAX_ROUNDS = 10;
+  const DRAIN_TASKS = 5;
+  // Each round: let pending React work finish (it may create observers), then
+  // wait two real frames — an observer created after the first barrier would
+  // be notified after it within the same update, so the second barrier
+  // guarantees every observer that exists now has had its callback queued.
+  window.__visualFlushIO = async () => {
+    for (let round = 0; round < MAX_ROUNDS; round++) {
+      for (let i = 0; i < DRAIN_TASKS; i++) await macrotask();
+      await nextFrame();
+      await nextFrame();
+      if (pending.length === 0) return;
+      for (const { observer, callback, entries } of pending.splice(0)) {
+        if (observer && observer.__live) callback.call(observer, entries, observer);
+      }
+    }
+    throw new Error("IntersectionObserver callbacks did not settle");
+  };
+}
+
+async function flushObservers(page) {
+  await page.evaluate(() => window.__visualFlushIO?.());
+}
+
+// CSS transitions/animations run in real time, not on the fake clock. JS that
+// measures layout mid-transition (e.g. the reading guide reads the reader's
+// left edge on mousemove while the side panel is still widening) would bake
+// a run-dependent frame into the page. Jump finite ones to their end state —
+// what toHaveScreenshot's animations:"disabled" does, but before the next
+// interaction instead of only at capture. Infinite ones are left alone.
+async function finishAnimations(page) {
+  await page.evaluate(() => {
+    for (const animation of document.getAnimations()) {
+      const end = animation.effect?.getComputedTiming().endTime;
+      if (Number.isFinite(end)) animation.finish();
+    }
+  });
+}
+
+// Bring real-time work to a fixed point: finish CSS motion, deliver held
+// observer callbacks (letting animationend/transitionend handlers and React
+// commit), then finish anything that started as a result.
+async function quiesce(page) {
+  await finishAnimations(page);
+  await flushObservers(page);
+  await finishAnimations(page);
+}
+
+// Quiesce, advance fake time so setTimeout/rAF-driven UI (loader fade, dialog
+// mount, reveal sweeps) completes, quiesce whatever that started, then wait
+// for web fonts.
 export async function settle(page, ms = 2000) {
+  await quiesce(page);
   await page.clock.runFor(ms);
+  await quiesce(page);
   await page.evaluate(() => document.fonts.ready);
 }
 
@@ -71,6 +160,7 @@ export const test = base.extend({
   app: async ({ page }, use) => {
     await use(async ({ signedIn = false, path = "/" } = {}) => {
       await mockSupabase(page, { signedIn });
+      await page.addInitScript(holdIntersectionObservers);
       if (signedIn) await seedSession(page);
       await page.clock.install({ time: FROZEN_START });
       await page.goto(path);
