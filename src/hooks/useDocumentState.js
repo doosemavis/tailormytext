@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { applyChapterOverrides, parsePDF, parseEPUB, parseDOCX, parseHTMLStructured, parseInWorker, sniffDocumentType } from "../utils";
+import { applyChapterOverrides, parsePDF, parseEPUB, parseDOCX, parseHTMLStructured, parseInWorker, sniffDocumentType, resolveUploadType } from "../utils";
 import { track, trackParseOutcome } from "../utils/track";
 import { cloudOpenLibraryBook } from "../utils/cloudDocs";
 
@@ -8,7 +8,9 @@ import { cloudOpenLibraryBook } from "../utils/cloudDocs";
 // because both derive from the same source. The `accept` attribute alone
 // can't be relied on — drag-and-drop and "show all files" both bypass it.
 // Exported so App.jsx's hidden <input type="file"> picks the same set.
-export const FILE_ACCEPT = ".pdf,.epub,.txt,.md,.docx,.json";
+// PDF/DOCX/MD/JSON are gated off until their rendering is reliable; the
+// parsers below stay in place so re-enabling is a one-line change here.
+export const FILE_ACCEPT = ".epub,.txt";
 const SUPPORTED_EXTS = new Set(FILE_ACCEPT.split(",").map(s => s.replace(/^\./, "")));
 
 // Maps raw parser exceptions to user-friendly messages. Internal pdf.js /
@@ -204,7 +206,7 @@ export function useDocumentState({ user, authLoading, sub, recentDocs, showToast
       // branch and `.text()` decodes its binary bytes as UTF-8 garbage —
       // user sees a screen of gibberish instead of a clear error.
       if (!SUPPORTED_EXTS.has(rawExt)) {
-        throw new Error(`TailorMyText doesn't support .${rawExt} files. Try a PDF, EPUB, DOCX, or text file (TXT, MD, JSON).`);
+        throw new Error(`TailorMyText doesn't support .${rawExt} files. Try an EPUB or TXT file.`);
       }
       // Phase 2 sniff: route by content when the extension is wrong (a
       // .txt that's actually HTML, a renamed binary, etc.). Sniffer is
@@ -212,9 +214,11 @@ export function useDocumentState({ user, authLoading, sub, recentDocs, showToast
       // binary extension. Falls back to the user's extension on null.
       const sniffBuf = await file.arrayBuffer();
       const sniffed = await sniffDocumentType(file.name, sniffBuf);
-      if (sniffed && sniffed !== rawExt) {
-        console.warn(`[doUpload] sniffer routed .${rawExt} → .${sniffed} based on content`);
-        ext = sniffed;
+      // Throws if the sniff reveals a disabled binary format (a PDF
+      // renamed to .txt) — the extension guard above can't see that.
+      ext = resolveUploadType(rawExt, sniffed, SUPPORTED_EXTS);
+      if (ext !== rawExt) {
+        console.warn(`[doUpload] sniffer routed .${rawExt} → .${ext} based on content`);
       }
       if (ext === "pdf") { setLoadMsg("Loading PDF engine…"); sections = await parsePDF(file); }
       else if (ext === "epub") { setLoadMsg("Unpacking EPUB…"); sections = await parseEPUB(file); }
