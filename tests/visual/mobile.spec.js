@@ -72,3 +72,31 @@ test.describe("tier crossing", () => {
     await expect(page.getByRole("button", { name: "Back to home" })).toBeVisible();
   });
 });
+
+for (const width of [360, 390, 430]) {
+  test.describe(`phone ${width} toolbar`, () => {
+    test.use({ viewport: { width, height: 844 }, hasTouch: true, isMobile: true });
+
+    test("every control is on-screen and the chapter title truncates", async ({ app }) => {
+      const page = await app();
+      await openDemo(page);
+      await expect(page.locator(".rf-phone-toolbar")).toBeVisible();
+      await expectInViewport(page, page.getByRole("button", { name: "Reader tools" }));
+      await expectInViewport(page, page.getByRole("button", { name: "Sign in" }));
+      await expectInViewport(page, page.getByRole("button", { name: /chapter 1/i }));
+      await expectNoHorizontalOverflow(page);
+    });
+
+    test("tools popover toggles a feature", async ({ app }) => {
+      const page = await app();
+      await openDemo(page);
+      await page.getByRole("button", { name: "Reader tools" }).click();
+      await settle(page, 300);
+      const focus = page.getByRole("button", { name: "Focus", exact: true });
+      await expect(focus).toHaveAttribute("aria-pressed", "false");
+      await focus.click();
+      await settle(page, 300);
+      await expect(focus).toHaveAttribute("aria-pressed", "true");
+    });
+  });
+}

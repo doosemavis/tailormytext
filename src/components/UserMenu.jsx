@@ -32,7 +32,7 @@ function Avatar({ avatar, initial, accent, size = 28 }) {
   );
 }
 
-export default function UserMenu({ t, onShowAuth, onShowAvatarSettings, onShowSubscription, onShowPaymentReceipts, showPaymentReceipts, onShowDeleteAccount, avatar, themePersistEnabled, onToggleThemePersist, mockFreeMode, onToggleMockFreeMode, isProGrantActive }) {
+export default function UserMenu({ t, onShowAuth, onShowAvatarSettings, onShowSubscription, onShowPaymentReceipts, showPaymentReceipts, onShowDeleteAccount, avatar, themePersistEnabled, onToggleThemePersist, mockFreeMode, onToggleMockFreeMode, isProGrantActive, compact = false }) {
   const { user, role, isOwner, signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -40,9 +40,10 @@ export default function UserMenu({ t, onShowAuth, onShowAvatarSettings, onShowSu
     return (
       <button
         onClick={onShowAuth}
+        aria-label={compact ? "Sign in" : undefined}
         style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 8, border: `1px solid ${t.border}`, background: "transparent", color: t.fgSoft, cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}
       >
-        <User size={13} /> Sign in
+        <User size={13} />{!compact && " Sign in"}
       </button>
     );
   }

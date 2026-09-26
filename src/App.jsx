@@ -43,7 +43,7 @@ import { cloudSaveLibraryPosition, cloudLoadLibraryPosition } from "./utils/clou
 import { useAvatar } from "./hooks/useAvatar";
 import { useThemePreference } from "./hooks/useThemePreference";
 import { useBreakpoint, readBreakpoint } from "./hooks/useBreakpoint";
-import { SlideOverPanel } from "./components/mobile";
+import { SlideOverPanel, ReaderToolsPopover, PhoneReaderToolbar } from "./components/mobile";
 import { useAuth } from "./contexts/AuthContext";
 import { useToast } from "./components/Toast";
 import HeroFeatureFlip from "./components/HeroFeatureFlip";
@@ -1545,44 +1545,55 @@ export default function App() {
       {/* ── READER ── */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, height: "100%", overflow: "hidden" }}>
         {/* Top bar */}
-        <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "8px 16px", borderBottom: `1px solid ${t.borderSoft}`, minHeight: 44, background: t.bg }}>
-          {!panelOpen && panelToggleButton}
-          <button
-            onClick={() => { closeDoc(); setFocusPara(-1); }}
-            className="rf-static"
-            title="Back to home"
-            style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", fontSize: 20, fontWeight: 620, color: t.fg, fontFamily: currentFont?.css ?? "'DM Sans', sans-serif", outline: "none", transition: "font-family 0.2s" }}
-          >
-            {/* key={fontFamily} forces remount on font change so the gradient
-                sweep animation re-fires — a cute visual confirmation that the
-                font swap took effect. */}
-            <DiaTextReveal
-              key={fontFamily}
-              text="TailorMyText"
-              colors={getRevealColors(theme)}
-              textColor={t.fg}
-              duration={1.5}
-            />
-          </button>
-          <div style={{ flex: 1 }} />
+        {tier === "phone" ? (
+          <PhoneReaderToolbar
+            panelButton={panelToggleButton}
+            chapterMenu={chapterMenu}
+            uncertaintyBadge={uncertaintyBadge}
+            tools={<ReaderToolsPopover items={featureItems} t={t} />}
+            userMenu={renderUserMenu({ compact: true })}
+            t={t}
+          />
+        ) : (
+          <div className="rf-reader-chrome" style={{ display: "flex", alignItems: "center", gap: 16, padding: "8px 16px", borderBottom: `1px solid ${t.borderSoft}`, minHeight: 44, background: t.bg }}>
+            {!panelOpen && panelToggleButton}
+            <button
+              onClick={() => { closeDoc(); setFocusPara(-1); }}
+              className="rf-static"
+              title="Back to home"
+              style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", fontSize: 20, fontWeight: 620, color: t.fg, fontFamily: currentFont?.css ?? "'DM Sans', sans-serif", outline: "none", transition: "font-family 0.2s" }}
+            >
+              {/* key={fontFamily} forces remount on font change so the gradient
+                  sweep animation re-fires — a cute visual confirmation that the
+                  font swap took effect. */}
+              <DiaTextReveal
+                key={fontFamily}
+                text="TailorMyText"
+                colors={getRevealColors(theme)}
+                textColor={t.fg}
+                duration={1.5}
+              />
+            </button>
+            <div style={{ flex: 1 }} />
 
-          {sub.isPro && (
-            <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 8, background: t.accentSoft, fontSize: 11, fontWeight: 620, color: t.accent, fontFamily: "'DM Sans', sans-serif" }}>
-              {sub.isTrial
-                ? <><Clock size={12} /> Trial — {sub.trialDaysLeft}d left</>
-                : <><Crown size={12} /> Pro</>}
+            {sub.isPro && (
+              <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 8, background: t.accentSoft, fontSize: 11, fontWeight: 620, color: t.accent, fontFamily: "'DM Sans', sans-serif" }}>
+                {sub.isTrial
+                  ? <><Clock size={12} /> Trial — {sub.trialDaysLeft}d left</>
+                  : <><Crown size={12} /> Pro</>}
+              </div>
+            )}
+
+            {chapterMenu}
+
+            {uncertaintyBadge}
+
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              {featureToggles}
             </div>
-          )}
-
-          {chapterMenu}
-
-          {uncertaintyBadge}
-
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            {featureToggles}
+            {renderUserMenu()}
           </div>
-          {renderUserMenu()}
-        </div>
+        )}
 
         {/* Reader scroll area */}
         <div ref={readerRef} className="rf-reader-scroll"
