@@ -169,3 +169,20 @@ test.describe("reading guide by tap (phone)", () => {
     await expectInViewport(page, bar);
   });
 });
+
+for (const width of [360, 390, 430]) {
+  test.describe(`landing phone ${width}`, () => {
+    test.use({ viewport: { width, height: 844 }, hasTouch: true, isMobile: true });
+
+    for (const signedIn of [false, true]) {
+      test(`no sideways scroll (${signedIn ? "signed in" : "signed out"})`, async ({ app }) => {
+        const page = await app({ signedIn });
+        await expectNoHorizontalOverflow(page);
+        const cards = page.locator(".tmt-m-cards");
+        await expect(cards).toHaveCount(1);
+        const columns = await cards.evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(" ").length);
+        expect(columns).toBe(1);
+      });
+    }
+  });
+}

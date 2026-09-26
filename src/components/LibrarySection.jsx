@@ -374,6 +374,7 @@ export const LibrarySection = memo(function LibrarySection({ books, isPro, onOpe
       }}
     >
       <header
+        className="tmt-m-stack"
         style={{
           display: "grid",
           gridTemplateColumns: "minmax(0, 1.15fr) minmax(0, 1fr)",

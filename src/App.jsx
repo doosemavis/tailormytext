@@ -819,7 +819,7 @@ export default function App() {
   if (!text && !readerOpen) return (
     <>
     <div
-      className="tmt-marketing"
+      className="tmt-marketing tmt-m-landing"
       style={{
         // marketingThemeVars(t) maps active theme tokens to the
         // .tmt-marketing custom properties so the editorial design
@@ -848,7 +848,7 @@ export default function App() {
       {user && deletionEffectiveAt && <PendingDeletionBanner user={user} effectiveAt={deletionEffectiveAt} onReactivated={refreshDeletionStatus} t={t} />}
       {user && sub.isLockedOut && <PostDeletionLockoutBanner lockoutUntil={sub.lockoutUntil} onSubscribe={() => setShowPricing(true)} />}
       {modals}
-      <div style={{ position: "fixed", top: 14, right: 16, zIndex: 100 }}>
+      <div className="tmt-m-topright" style={{ position: "fixed", top: 14, right: 16, zIndex: 100 }}>
         <UserMenu t={t} onShowAuth={() => setShowAuth(true)} onShowAvatarSettings={() => setShowAvatarSettings(true)} onShowSubscription={() => setShowSubscription(true)} onShowPaymentReceipts={handleShowPaymentReceipts} showPaymentReceipts={sub.hasStripeHistory} onShowDeleteAccount={() => setShowDeleteAccount(true)} avatar={avatar} themePersistEnabled={themePref.persistEnabled} onToggleThemePersist={onToggleThemePersist} mockFreeMode={sub.mockFreeMode} onToggleMockFreeMode={sub.toggleMockFreeMode} isProGrantActive={sub.isProGrantActive} />
       </div>
 
@@ -1119,7 +1119,7 @@ export default function App() {
           full catalog with Pro titles lock-pilled. Top rule + generous
           padding mirror the conditions-grid section divider below. */}
       {user && library.books.length > 0 && (
-        <section style={{ position: "relative", zIndex: 2, padding: "100px 24px 60px", borderTop: `1px solid var(--tmt-rule)`, maxWidth: 1240, width: "100%", margin: "0 auto", display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <section className="tmt-m-section" style={{ position: "relative", zIndex: 2, padding: "100px 24px 60px", borderTop: `1px solid var(--tmt-rule)`, maxWidth: 1240, width: "100%", margin: "0 auto", display: "flex", flexDirection: "column", alignItems: "center" }}>
           <LibrarySection books={library.books} isPro={sub.isPro} onOpen={openLibraryBook} />
         </section>
       )}
@@ -1135,8 +1135,8 @@ export default function App() {
       {/* ═══════════════ MARKETING — CONDITIONS GRID ═══════════════
           Six editorial cards explaining who the product is for.
           Below-the-fold; doesn't interfere with the upload-first hero. */}
-      <section style={{ position: "relative", zIndex: 2, padding: "100px 24px 60px", borderTop: `1px solid var(--tmt-rule)`, maxWidth: 1240, width: "100%", margin: "0 auto" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: 60, alignItems: "end", marginBottom: 64 }}>
+      <section className="tmt-m-section" style={{ position: "relative", zIndex: 2, padding: "100px 24px 60px", borderTop: `1px solid var(--tmt-rule)`, maxWidth: 1240, width: "100%", margin: "0 auto" }}>
+        <div className="tmt-m-stack" style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: 60, alignItems: "end", marginBottom: 64 }}>
           <div>
             <div style={{ marginBottom: 14 }}>
               <span className="tmt-eyebrow sage">For the way you actually read</span>
@@ -1151,7 +1151,7 @@ export default function App() {
             and energy budget &mdash; and the page should bend to meet them, not the other way round.
           </p>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1, background: "var(--tmt-rule)", border: "1px solid var(--tmt-rule)", borderRadius: "var(--tmt-radius)", overflow: "hidden" }}>
+        <div className="tmt-m-cards" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1, background: "var(--tmt-rule)", border: "1px solid var(--tmt-rule)", borderRadius: "var(--tmt-radius)", overflow: "hidden" }}>
           {[
             { num: "i.",   name: "Reading fatigue",            desc: "Wider letter spacing, tuned fonts, and reading-guide overlays that calm the line you're on without freezing the rest of the page.", tag: "Reading guide · spacing · fonts" },
             { num: "ii.",  name: "Low vision & aging eyes",    desc: "Step text up to magazine-poster scale without losing the document's structure. High-contrast and warm-paper themes, side by side.", tag: "Scale · contrast · sepia" },
@@ -1171,7 +1171,7 @@ export default function App() {
       </section>
 
       {/* ═══════════════ MARKETING — PROMISE QUOTE ═══════════════ */}
-      <section style={{ position: "relative", zIndex: 2, padding: "120px 24px 100px", textAlign: "center", maxWidth: 880, margin: "0 auto" }}>
+      <section className="tmt-m-section" style={{ position: "relative", zIndex: 2, padding: "120px 24px 100px", textAlign: "center", maxWidth: 880, margin: "0 auto" }}>
         <p className="tmt-display" style={{ fontStyle: "italic", fontWeight: 320, fontSize: "clamp(28px, 4vw, 48px)", letterSpacing: "-0.015em", lineHeight: 1.15 }}>
           <span style={{ color: "var(--tmt-terra)" }}>&ldquo;</span>The page should bend to your eyes<br /><span style={{ whiteSpace: "nowrap" }}>&mdash; not your eyes to the page.<span style={{ color: "var(--tmt-terra)" }}>&rdquo;</span></span>
         </p>

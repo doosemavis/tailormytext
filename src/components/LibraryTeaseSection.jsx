@@ -172,6 +172,7 @@ export default function LibraryTeaseSection({ onSignUp /*, t */ }) {
   return (
     <section
       aria-labelledby="tmt-tease-heading"
+      className="tmt-m-section"
       style={{
         position: "relative",
         zIndex: 2,
@@ -187,6 +188,7 @@ export default function LibraryTeaseSection({ onSignUp /*, t */ }) {
       {/* HEADER — same column rhythm as the conditions grid below it
           (1fr / 1.4fr), so the page reads as one editorial spread. */}
       <div
+        className="tmt-m-stack"
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 1.4fr",
@@ -297,6 +299,7 @@ export default function LibraryTeaseSection({ onSignUp /*, t */ }) {
 
         {/* Spine row */}
         <div
+          className="tmt-m-shelf"
           style={{
             position: "relative",
             display: "flex",
