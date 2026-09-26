@@ -40,3 +40,28 @@
   /* Reader root: dvh so the phone address bar doesn't hide the bottom. */
   .rf-reader-root { height: 100vh !important; height: 100dvh !important; }
 }
+
+/* ── Touch targets (spec §6.5). Only below 1024px: at iPad-landscape width the
+   desktop toolbar already needs ~1011px with the panel open, so bigger
+   targets there would push controls off-screen. ── */
+@media (pointer: coarse) and (max-width: 1023px) {
+  .rf-reader-chrome button,
+  [aria-label="Pacer controls"] button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* ── Notch / home indicator (tablet + phone). env() is 0 outside notched,
+   installed contexts, so these are no-ops in a normal browser tab. ── */
+@media (max-width: 1023px) {
+  .rf-reader-chrome {
+    padding-top: calc(8px + env(safe-area-inset-top)) !important;
+  }
+  .rf-phone-toolbar {
+    padding-top: calc(6px + env(safe-area-inset-top)) !important;
+  }
+  [aria-label="Pacer controls"] {
+    padding-bottom: calc(6px + env(safe-area-inset-bottom)) !important;
+  }
+}

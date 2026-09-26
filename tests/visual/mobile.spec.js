@@ -100,3 +100,72 @@ for (const width of [360, 390, 430]) {
     });
   });
 }
+
+test.describe("touch targets", () => {
+  test.use({ viewport: { width: 820, height: 1180 }, hasTouch: true, isMobile: true });
+
+  test("tablet touch controls are at least 44px", async ({ app }) => {
+    const page = await app();
+    await openDemo(page);
+    const box = await page.getByRole("button", { name: "Focus", exact: true }).boundingBox();
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    await expectNoHorizontalOverflow(page);
+  });
+});
+
+test.describe("iPad landscape 1024 touch", () => {
+  test.use({ viewport: { width: 1024, height: 768 }, hasTouch: true, isMobile: true });
+
+  test("desktop toolbar keeps every control on-screen with the panel open", async ({ app }) => {
+    const page = await app();
+    await openDemo(page);
+    await page.locator("button:has(svg.lucide-panel-left)").first().click();
+    await settle(page, 500);
+    // Scoped to .rf-reader-chrome: with the sidebar open at this width it's a
+    // fixed panel (not a slide-over), and its "Pacer" accordion section header
+    // has the same accessible name as the toolbar's "Pacer" toggle button.
+    const chrome = page.locator(".rf-reader-chrome");
+    for (const name of ["NeuroDiv", "HueGuide", "Focus", "Pacer"]) {
+      await expectInViewport(page, chrome.getByRole("button", { name, exact: true }));
+    }
+    await expectInViewport(page, page.getByRole("button", { name: "Sign in" }));
+  });
+});
+
+test.describe("reading guide by tap (phone)", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test("tapping a line places the highlight guide there", async ({ app }) => {
+    const page = await app();
+    await openDemo(page);
+    await page.locator("button:has(svg.lucide-panel-left)").first().click();
+    await settle(page, 500);
+    await openSidebarSection(page, "Reading Guide");
+    await page.locator(".rf-slideover").getByRole("radio").nth(1).click();
+    await page.getByTestId("slideover-backdrop").click({ position: { x: 380, y: 400 } });
+    await settle(page, 300);
+    await page.locator(".rf-reader-scroll").tap({ position: { x: 150, y: 300 } });
+    await settle(page, 200);
+    const guide = await page.evaluate(() => {
+      const el = document.querySelector(".rf-reader-scroll")?.firstElementChild;
+      return el ? { pe: el.style.pointerEvents, transform: el.style.transform } : null;
+    });
+    expect(guide?.pe).toBe("none");
+    expect(guide?.transform).toContain("translateY");
+  });
+
+  test("pacer bar sits fully on-screen", async ({ app }) => {
+    const page = await app();
+    await openDemo(page);
+    await page.getByRole("button", { name: "Reader tools" }).click();
+    await settle(page, 300);
+    await page.getByRole("button", { name: "Pacer", exact: true }).click();
+    await page.keyboard.press("Escape");
+    await settle(page, 300);
+    const bar = page.getByRole("toolbar", { name: "Pacer controls" });
+    const box = await bar.boundingBox();
+    expect(box.y + box.height).toBeLessThanOrEqual(844);
+    await expectInViewport(page, bar);
+  });
+});
