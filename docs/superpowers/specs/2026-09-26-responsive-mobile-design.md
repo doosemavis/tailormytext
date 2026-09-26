@@ -51,7 +51,7 @@ circumvention violates DMCA §1201). Selling books is out of scope indefinitely.
    library, auth, and subscriptions keep their current logic. Work is layout
    and presentation only. Any change to a logic file (hooks, utils, config
    that drives behavior) is flagged to the owner and needs explicit approval
-   before it is made. §11 lists the one such change currently proposed.
+   before it is made. None is currently planned.
 2. **Desktop renders identically.** At 1024, 1280, and 1440px, every captured
    state matches the baseline pixel-for-pixel (§9). Any difference blocks the
    change.
@@ -193,7 +193,9 @@ Tablet and desktop keep today's toolbar unchanged.
 - `PacerTransport` spans the full width at phone size, sits above the home
   indicator, and keeps its existing controls (play/pause, restart, WPM nudge).
 - Tap-to-place already works through `pacer.handleReaderClick`.
-- Line/paragraph stepping for touch is an **open decision** (§11).
+- No line/paragraph step buttons on touch in this phase (decided, §11).
+  Arrow-key stepping is unchanged for keyboard users. `usePacer.js` is not
+  modified.
 
 ### 6.5 Touch additions (`isTouch` only)
 
@@ -370,19 +372,15 @@ preview URL:
   independent of this project and left untouched. Expect conflicts if it is
   applied later.
 
-## 11. Open decisions
+## 11. Decisions resolved during spec review
 
-1. **Pacer line/paragraph stepping on touch.** Arrow Up/Down stepping lives
-   inside the keydown handler in `src/hooks/usePacer.js`, so touch users have
-   no equivalent. Options:
-   - **A (recommended):** export the existing step logic from `usePacer` as
-     `stepLine(dir)` / `stepWord(dir)`, have the keydown handler call the same
-     functions (identical key behavior), and add ◀ ▶ buttons to the pacer bar
-     for touch only. This is a logic-file change and needs explicit approval
-     per §3.1.
-   - **B:** no step buttons on touch in phase 1.
-   - **C:** touch buttons dispatch synthetic `ArrowUp`/`ArrowDown` keydown
-     events. No logic-file change, but brittle.
+1. **Pacer line/paragraph stepping on touch: not in phase 1 (option B).**
+   Arrow Up/Down stepping lives inside the keydown handler in
+   `src/hooks/usePacer.js`. Rather than change that logic file, touch users get
+   tap-a-word, play/pause, restart, and speed controls only. Options
+   considered and deferred: (A) export the step logic as shared functions and
+   add touch ◀ ▶ buttons; (C) touch buttons that dispatch synthetic arrow-key
+   events. Revisit in a later phase.
 
 ## 12. Out of scope
 
@@ -390,5 +388,6 @@ preview URL:
 - App Store / Google Play apps, Capacitor, RevenueCat (phase 3)
 - DRM of any kind (phase 4 at the earliest)
 - Swipe gestures, page-turn mode, or any new reading feature
+- Pacer line/paragraph step buttons on touch (§11)
 - Admin panel on mobile
 - `landing-concept.html` (static mockup)
