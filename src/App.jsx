@@ -893,8 +893,8 @@ export default function App() {
             marginBottom: 36,
           }}>
             EPUB and TXT &mdash; adapted in a tap to the typography your eyes
-            actually need. Built for dyslexia, low vision, ADHD, eye strain,
-            and every reader in between.
+            actually need. Built for low vision, eye strain, and every reader
+            in between.
           </p>
 
           {/* Status pill — preserved from original hero */}
@@ -1148,9 +1148,9 @@ export default function App() {
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1, background: "var(--tmt-rule)", border: "1px solid var(--tmt-rule)", borderRadius: "var(--tmt-radius)", overflow: "hidden" }}>
           {[
-            { num: "i.",   name: "Dyslexia & reading fatigue", desc: "Wider letter spacing, tuned fonts, and reading-guide overlays that calm the line you're on without freezing the rest of the page.", tag: "Reading guide · spacing · fonts" },
+            { num: "i.",   name: "Reading fatigue",            desc: "Wider letter spacing, tuned fonts, and reading-guide overlays that calm the line you're on without freezing the rest of the page.", tag: "Reading guide · spacing · fonts" },
             { num: "ii.",  name: "Low vision & aging eyes",    desc: "Step text up to magazine-poster scale without losing the document's structure. High-contrast and warm-paper themes, side by side.", tag: "Scale · contrast · sepia" },
-            { num: "iii.", name: "ADHD & sensory overload",    desc: "A single line in focus, the rest gently dimmed. Section navigation that lets you skip without losing where you were.", tag: "Focus mode · sectioning" },
+            { num: "iii.", name: "Sensory overload",           desc: "A single line in focus, the rest gently dimmed. Section navigation that lets you skip without losing where you were.", tag: "Focus mode · sectioning" },
             { num: "iv.",  name: "Eye strain & long sessions", desc: "Night themes that stay warm enough to read by, line heights that let the page breathe, and zero animation noise once you're reading.", tag: "Night mode · airy spacing" },
             { num: "v.",   name: "Color sensitivity",          desc: "Six accessibility-oriented font families, eleven palettes, and tunable intensity — combine until the page genuinely disappears into the words.", tag: "Palettes · intensity" },
             { num: "vi.",  name: "Privacy as accessibility",   desc: "Documents you upload are auto-deleted seven days after you last opened them. Storage is per-account; nothing is shared, nothing trains a model.", tag: "7-day TTL · private bucket" },
