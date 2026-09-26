@@ -42,6 +42,8 @@ import { useLibrary } from "./hooks/useLibrary";
 import { cloudSaveLibraryPosition, cloudLoadLibraryPosition } from "./utils/cloudDocs";
 import { useAvatar } from "./hooks/useAvatar";
 import { useThemePreference } from "./hooks/useThemePreference";
+import { useBreakpoint, readBreakpoint } from "./hooks/useBreakpoint";
+import { SlideOverPanel } from "./components/mobile";
 import { useAuth } from "./contexts/AuthContext";
 import { useToast } from "./components/Toast";
 import HeroFeatureFlip from "./components/HeroFeatureFlip";
@@ -86,7 +88,10 @@ export default function App() {
   // Landing drag-drop + sidebar collapse — stay in App; move out in Phases 5/6.
   const [dragging, setDragging] = useState(false);
   const [hoverUpload, setHoverUpload] = useState(false);
-  const [panelOpen, setPanelOpen] = useState(true);
+  // Desktop starts with the panel open (unchanged). Tablet/phone start closed
+  // so the slide-over doesn't cover the text on first load (spec §5.4).
+  const [panelOpen, setPanelOpen] = useState(() => readBreakpoint().tier === "desktop");
+  const { tier, isTouch } = useBreakpoint();
 
   // ── Enhancement state ──
   // NeuroDiv/HueGuide/Focus/palette/intensity state lives in useEnhancements
@@ -1514,16 +1519,28 @@ export default function App() {
   // ═══════════════════════════════════════════
   return (
     <>
-    <div style={{ height: "100vh", overflow: "hidden", background: t.bg, color: t.fg, fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column" }}>
+    <div className="rf-reader-root" style={{ height: "100vh", overflow: "hidden", background: t.bg, color: t.fg, fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column" }}>
       {user && deletionEffectiveAt && <PendingDeletionBanner user={user} effectiveAt={deletionEffectiveAt} onReactivated={refreshDeletionStatus} t={t} />}
       {user && sub.isLockedOut && <PostDeletionLockoutBanner lockoutUntil={sub.lockoutUntil} onSubscribe={() => setShowPricing(true)} />}
       <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
       {modals}
 
       {/* ── SIDEBAR ── */}
-      <div className="rf-no-select rf-side-scroll" style={{ width: panelOpen ? SIDEBAR_WIDTH : 0, minWidth: panelOpen ? SIDEBAR_WIDTH : 0, height: "100%", overflowY: "auto", overflowX: "hidden", borderRight: panelOpen ? `1px solid ${t.border}` : "none", background: t.bg, transition: "width 0.3s ease, min-width 0.3s ease" }}>
-        {panelOpen && renderSidebarContent()}
-      </div>
+      {tier === "desktop" ? (
+        <div className="rf-no-select rf-side-scroll" style={{ width: panelOpen ? SIDEBAR_WIDTH : 0, minWidth: panelOpen ? SIDEBAR_WIDTH : 0, height: "100%", overflowY: "auto", overflowX: "hidden", borderRight: panelOpen ? `1px solid ${t.border}` : "none", background: t.bg, transition: "width 0.3s ease, min-width 0.3s ease" }}>
+          {panelOpen && renderSidebarContent()}
+        </div>
+      ) : (
+        <SlideOverPanel
+          open={panelOpen}
+          onOpenChange={setPanelOpen}
+          width={`min(calc(100vw - 48px), ${SIDEBAR_WIDTH}px)`}
+          background={t.bg}
+          borderColor={t.border}
+        >
+          {renderSidebarContent()}
+        </SlideOverPanel>
+      )}
 
       {/* ── READER ── */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, height: "100%", overflow: "hidden" }}>
