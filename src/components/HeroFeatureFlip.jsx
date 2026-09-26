@@ -67,7 +67,7 @@ const PAGES = [
     items: [
       { Icon: Type,      text: "Six accessibility-tuned font families" },
       { Icon: AlignLeft, text: "Live letter spacing, line height, column width" },
-      { Icon: BookOpen,  text: "OpenDyslexic, Atkinson Hyperlegible, Literata" },
+      { Icon: BookOpen,  text: "Atkinson Hyperlegible, Literata, Merriweather" },
     ],
   },
   {

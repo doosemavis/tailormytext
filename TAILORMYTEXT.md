@@ -1,6 +1,6 @@
 # TailorMyText — App Capabilities
 
-TailorMyText is a reading app for people whose brains process text differently — dyslexia, ADHD, low vision, sensory overload, or eye fatigue at the end of a long day. Bring a document, tune the page until the words feel easy, read.
+TailorMyText is a reading app for people who need the page to work differently — low vision, sensory overload, or eye fatigue at the end of a long day. Bring a document, tune the page until the words feel easy, read.
 
 Accessibility is the product, not a feature.
 
@@ -29,7 +29,7 @@ A built-in **Try demo article** button loads a sample document so visitors can e
 
 ### Typography
 
-- **Six font families**, all chosen for low-vision and dyslexic readers:
+- **Six font families**, all chosen for readability:
   Literata, Atkinson Hyperlegible, IBM Plex Serif, Source Sans 3, Merriweather, OpenDyslexic.
 - Fully tunable: font size, line height, paragraph spacing, character spacing.
 
