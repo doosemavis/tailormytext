@@ -98,9 +98,8 @@ the touch additions (§6.5).
 ```
 src/config/breakpoints.js                    tier constants + media-query strings
 src/hooks/useBreakpoint.js                   { tier: "phone"|"tablet"|"desktop", isTouch } via matchMedia
-src/styles/responsive.css                    tier media queries + extracted tmt-* layout classes
-src/components/ReaderSidebarContent.jsx      side-panel contents, shared by desktop panel and slide-over
-src/components/mobile/SlideOverPanel.jsx     Radix Dialog wrapper: backdrop, focus trap, Esc, scroll lock
+src/styles/responsive.css                    tier/touch media queries (phone rules only; see §5.4)
+src/components/mobile/SlideOverPanel.jsx     overlay <aside> + backdrop (not a Radix modal): tap-outside and Esc close
 src/components/mobile/PhoneReaderToolbar.jsx phone top bar
 src/components/mobile/ReaderToolsPopover.jsx 2×2 grid of the four FeatureToggleButtons
 src/components/mobile/index.js               barrel export
@@ -134,14 +133,23 @@ No other new dependencies.
 
 ### 5.4 How desktop stays identical
 
-- The reader's desktop branch is today's JSX. The only desktop-path edit is
-  replacing the side panel's inline contents with `<ReaderSidebarContent … />`,
-  which renders the same elements with the same props.
-- Landing-page layout styles move from inline objects to `tmt-*` classes whose
-  base (non-media-query) rules use exactly the current values. Phone rules sit
-  inside `@media (max-width: 767px)`.
+- **Shared JSX, no prop plumbing.** The side-panel contents, chapter menu,
+  feature toggles, and account menu become JSX variables inside `App`
+  (`sidebarContent`, `chapterMenu`, `featureToggles`, `userMenu`), following
+  the existing `modals` / `loaderOverlay` pattern. The desktop branch renders
+  the same variables in the same places, so its output is unchanged. The
+  mobile branches reuse the variables. This replaces the originally sketched
+  `ReaderSidebarContent` component, which would have needed ~50 props copied
+  out of `App`.
+- **Existing inline styles stay untouched.** Elements that need phone rules
+  get a new `className` hook only (no base CSS for those classes). All
+  overrides live inside tablet/phone or `(pointer: coarse)` media queries in
+  `responsive.css` and use `!important` where they must beat an inline style.
+  Desktop code paths therefore keep their exact inline styles.
 - `100dvh`, safe-area padding, and slide-over behavior apply only inside
   tablet/phone media queries or behind `tier !== "desktop"`.
+- `panelOpen` initial state stays `true` on desktop. On tablet and phone it
+  starts `false` so the slide-over doesn't cover the text on first load.
 
 ## 6. Reader
 
@@ -170,14 +178,19 @@ Tablet and desktop keep today's toolbar unchanged.
 
 ### 6.2 Side panel (tablet and phone)
 
-- Rendered inside `SlideOverPanel` (Radix Dialog) instead of the width-animated
-  inline column.
+- Rendered inside `SlideOverPanel` instead of the width-animated inline
+  column. It is a plain overlay `<aside>` with its own backdrop, **not** a Radix
+  modal Dialog, for the same reason the chapter menu is non-modal: Radix's modal mode sets
+  `pointer-events: none` on `<body>`, which restyles every word span in a
+  large book (~1.2s on Don Quixote). The backdrop covers the reader, so it
+  cannot scroll behind the panel. Its contents stay mounted while closed (the
+  hidden file input lives inside), and its z-index sits below the font
+  picker menu (200) so pickers open above it.
 - Tablet: 296px wide (`SIDEBAR_WIDTH`), from the left, with a dimmed backdrop.
 - Phone: `calc(100vw - 48px)` wide so a strip of backdrop stays tappable.
-- Closes on backdrop tap, Esc, or the panel's existing close control. The page
-  behind does not scroll while open. It opens and closes through the existing
-  `panelOpen` state; no new panel state.
-- Contents are `ReaderSidebarContent`, identical to desktop.
+- Closes on backdrop tap, Esc, or the panel's existing close control. It opens
+  and closes through the existing `panelOpen` state; no new panel state.
+- Contents are the `sidebarContent` JSX variable, identical to desktop.
 
 ### 6.3 Screen fit (tablet and phone)
 
@@ -229,9 +242,9 @@ Tablet and desktop keep today's toolbar unchanged.
 | Six condition cards | Three columns become one |
 | Quote and CTA, footer | Phone padding |
 
-Each section's layout-bearing inline styles (grid columns, gaps, padding,
-widths) move to a `tmt-*` class with identical desktop values. Non-layout
-inline styles stay inline.
+Each affected element gets a `tmt-m-*` className hook. Phone rules in
+`responsive.css` override the inline layout values (`!important`) only inside
+`@media (max-width: 767px)`. No inline style is edited.
 
 ### 7.2 Dialogs (all Radix Dialog)
 
@@ -283,15 +296,22 @@ commit `775b234` at 1024×900, 1280×900, and 1440×900:
 - Reader with the demo article: default; side panel open; NeuroDiv on;
   HueGuide on; Focus on; Pacer on (transport visible); each reading-guide mode
   (highlight, underline, dim) at a fixed pointer position; chapter menu open
-- Each dialog open: Auth, Pricing, Paywall, Subscription, Contact, Checkout
-  (pre-redirect), Edit Chapters; library drawer open
-- Account, Privacy, Terms pages
+- Landing page signed in (Reading Room with fixture library books)
+- Dialogs: Auth, Pricing, Contact (signed out); Subscription, Avatar, Delete
+  Account, Library drawer (signed in)
+- Account (signed in), Privacy, Terms pages
 
-Determinism: animations and transitions disabled via injected CSS, the
-landing carousel paused on its first slide, fonts awaited
-(`document.fonts.ready`), and any live-data region masked. Signed-out states
-only, except states that need sign-in (Account, Subscription), which use a
-mocked Supabase session.
+Paywall, Checkout, and Edit Chapters are not reachable without real uploads
+or payments. Their only change is a `className` hook plus phone-only CSS; a
+component test pins each hook, and the reviewer checks the diff is
+className-only.
+
+Determinism: the build uses `--mode visual` with a committed `.env.visual`
+pointing Supabase at a fake host; every Supabase request is intercepted and
+answered from fixtures (signed-in states seed a fake session in
+localStorage). Time is frozen with Playwright's clock API so the landing
+carousel lands on the same slide every run; CSS animations are disabled by
+the screenshot options; fonts are awaited (`document.fonts.ready`).
 
 ### 9.2 Desktop diff (after every step)
 
@@ -359,9 +379,9 @@ preview URL:
 | --- | --- | --- |
 | 0 | Spec and plan docs; Playwright tooling; desktop baseline from `775b234` | No |
 | 1 | `breakpoints.js`, `useBreakpoint`, `responsive.css` scaffold, `dvh`, safe areas, `viewport-fit` | No (diff must be zero) |
-| 2 | Extract `ReaderSidebarContent`; add `SlideOverPanel` for tablet/phone | Yes (diff must be zero) |
+| 2 | Hoist `sidebarContent`/`chapterMenu`/`featureToggles`/`userMenu` JSX variables; add `SlideOverPanel` for tablet/phone | Yes, JSX moved into variables (diff must be zero) |
 | 3 | `PhoneReaderToolbar`, `ReaderToolsPopover`, pacer bar layout, touch guide, tap targets | No |
-| 4 | Landing page phone layout | Yes, style moves with identical values (diff must be zero) |
+| 4 | Landing page phone layout | className hooks only (diff must be zero) |
 | 5 | Dialogs, library drawer, pages, toasts | No |
 | 6 | Icons, manifest, iOS meta tags | No |
 | 7 | Owner device checklist (§9.6); one PR `feat/responsive-mobile` → `production` | n/a |
