@@ -25,3 +25,7 @@ scripts/validation-report/
 # pg-corpus-urls.json + the fetch/calibrate scripts ARE committed; the heavy
 # .txt files are not. Re-fetch with: node scripts/fetch-pg-corpus.mjs
 tests/fixtures/pg-corpus/
+
+dist-visual/
+test-results/
+playwright-report/

@@ -10,7 +10,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "eval": "node scripts/eval-parsers.mjs"
+    "eval": "node scripts/eval-parsers.mjs",
+    "test:visual": "playwright test",
+    "icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "@radix-ui/colors": "^3.0.0",
@@ -34,6 +36,7 @@
     "react-router-dom": "^7.14.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@testing-library/dom": "10.4.1",
     "@testing-library/react": "16.3.3",
     "@types/react": "^18.3.3",
