@@ -438,3 +438,32 @@ test.describe("slide-over Escape (tablet 820)", () => {
     await expect(slideover(page)).toHaveAttribute("data-state", "closed");
   });
 });
+
+// iOS Safari zooms the page when a focused field's font-size is under 16px.
+// Every text field in a phone dialog must compute to >= 16px.
+test.describe("phone 390 dialog fields don't trigger iOS zoom", () => {
+  test.use({ viewport: { width: 390, height: 844 }, ...TOUCH });
+
+  const fieldFontSizes = (dialog) => dialog.evaluate((el) => [...el.querySelectorAll("input, textarea, select")]
+    .filter((f) => f.type !== "hidden" && f.type !== "file" && f.getClientRects().length > 0)
+    .map((f) => ({ field: f.getAttribute("aria-label") || f.name || f.type || f.tagName, px: parseFloat(getComputedStyle(f).fontSize) })));
+
+  for (const [name, signedIn, open, selector] of [
+    ["auth", false, async (p) => p.getByRole("button", { name: "Sign in" }).click(), ".tmt-m-dialog"],
+    ["contact", false, async (p) => p.getByText("Contact", { exact: true }).click(), ".tmt-m-dialog"],
+    ["library drawer", true, async (p) => {
+      await openDemo(p);
+      await openPanelTouch(p);
+      await p.getByRole("button", { name: /browse the library/i }).click();
+    }, ".tmt-m-dialog-full"],
+  ]) {
+    test(`${name}: every visible field is at least 16px`, async ({ app }) => {
+      const page = await app({ signedIn });
+      await open(page);
+      await settle(page);
+      const sizes = await fieldFontSizes(page.locator(selector));
+      expect(sizes.length).toBeGreaterThan(0);
+      expect(sizes.filter((s) => s.px < 16), JSON.stringify(sizes)).toEqual([]);
+    });
+  }
+});

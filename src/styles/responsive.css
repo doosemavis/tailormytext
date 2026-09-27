@@ -239,6 +239,13 @@
     padding-left: 16px !important;
     padding-right: 16px !important;
   }
+  /* iOS Safari zooms the whole page when a focused field is under 16px
+     (Auth 15px, Contact 13px, Library search 14px, Edit Chapters titles).
+     Beats each field's inline font-size, phone only. */
+  .tmt-m-dialog input, .tmt-m-dialog textarea, .tmt-m-dialog select,
+  .tmt-m-dialog-full input, .tmt-m-dialog-full textarea, .tmt-m-dialog-full select {
+    font-size: 16px !important;
+  }
 }
 
 /* ── Toasts and page headers: clear the notch when installed (spec §7.3) ── */
