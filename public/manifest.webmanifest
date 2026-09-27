@@ -1,17 +1,16 @@
 {
+  "id": "/",
   "name": "TailorMyText — Adaptive Reading Enhancement",
   "short_name": "TailorMyText",
   "description": "A reader for documents that adapts to the way you read — typography, themes, and visual aids that make long-form text easier on every kind of brain.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#FDFAF5",
   "theme_color": "#A85E14",
   "icons": [
-    {
-      "src": "/favicon.svg",
-      "type": "image/svg+xml",
-      "sizes": "any",
-      "purpose": "any maskable"
-    }
+    { "src": "/icons/icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
   ]
 }
