@@ -91,7 +91,7 @@ export default function App() {
   // Desktop starts with the panel open (unchanged). Tablet/phone start closed
   // so the slide-over doesn't cover the text on first load (spec §5.4).
   const [panelOpen, setPanelOpen] = useState(() => readBreakpoint().tier === "desktop");
-  const { tier, isTouch } = useBreakpoint();
+  const { tier } = useBreakpoint();
 
   // ── Enhancement state ──
   // NeuroDiv/HueGuide/Focus/palette/intensity state lives in useEnhancements
