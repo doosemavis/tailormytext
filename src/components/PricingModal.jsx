@@ -104,7 +104,7 @@ export default function PricingModal({ onClose, onSelectPlan, hasUsedTrial, t })
           <div className="tmt-m-plans" style={{ padding: "18px 36px 22px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             {/* FREE — lifted surface so the card stays visible on every theme
                 (var(--tmt-paper) would equal page-bg on dark themes). */}
-            <div style={{
+            <div className="tmt-m-plan-card" style={{
               borderRadius: 16, padding: "20px 22px 20px",
               border: "1px solid var(--tmt-rule)",
               background: "var(--tmt-paper-card)",
@@ -139,7 +139,7 @@ export default function PricingModal({ onClose, onSelectPlan, hasUsedTrial, t })
                 is recognizably branded on every theme (terracotta on warm,
                 blue on midnight, teal on forest, etc.). Text + icons stay
                 white for legibility across all accent colors. */}
-            <div style={{
+            <div className="tmt-m-plan-card" style={{
               position: "relative",
               borderRadius: 16, padding: "20px 22px 20px",
               background: "var(--tmt-terra)",

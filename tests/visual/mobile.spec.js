@@ -238,3 +238,25 @@ test.describe("phone 360 dialogs and pages", () => {
     await expectNoHorizontalOverflow(page);
   });
 });
+
+test.describe("phone 360 pricing card fit", () => {
+  test.use({ viewport: { width: 360, height: 780 }, hasTouch: true, isMobile: true });
+
+  // Regression for a CSS grid blowout: the Pro card's CTA (a single-line
+  // flex row) reported an oversized automatic-minimum-size to the ancestor
+  // grid, stretching both cards past the dialog's right edge.
+  test("every plan card stays horizontally inside the dialog", async ({ app }) => {
+    const page = await app();
+    await page.getByRole("button", { name: /see pro plans/i }).click();
+    await settle(page);
+    const dialogBox = await page.locator(".tmt-m-dialog").boundingBox();
+    const cards = page.locator(".tmt-m-plans > div");
+    const count = await cards.count();
+    expect(count).toBeGreaterThan(0);
+    for (let i = 0; i < count; i++) {
+      const box = await cards.nth(i).boundingBox();
+      expect(box.x).toBeGreaterThanOrEqual(dialogBox.x - 1);
+      expect(box.x + box.width).toBeLessThanOrEqual(dialogBox.x + dialogBox.width + 1);
+    }
+  });
+});

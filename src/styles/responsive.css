@@ -92,6 +92,16 @@
     max-height: calc(100dvh - 32px) !important;
     overflow-y: auto !important;
   }
+  /* Grid blowout fix: a plan card's CTA is a single-line flex row (see
+     PulsatingButton), whose own automatic-minimum-size (sum of its
+     children's max-content widths, per the flexbox single-line formula)
+     reports an oversized floor to the ancestor grid. On the 1-column phone
+     grid that stretches BOTH cards to the wider card's floor, past the
+     dialog's right edge. min-width: 0 removes that floor; real (definite-
+     width) layout doesn't need it — the CTA text still fits on one line. */
+  .tmt-m-plan-card {
+    min-width: 0 !important;
+  }
   .tmt-m-dialog-full {
     top: 0 !important; left: 0 !important; transform: none !important;
     width: 100vw !important; max-width: none !important;
