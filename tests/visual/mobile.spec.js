@@ -249,27 +249,74 @@ test.describe("phone 360 pricing card fit", () => {
   });
 });
 
-// Spec §9.5 viewport sweep. Assertion: no sideways scroll on each surface.
-// Screenshots go to test-results/owner-review/ for the owner to eyeball;
-// they are not compared.
-const SWEEP = [[360, 780], [390, 844], [430, 932], [844, 390], [744, 1133], [820, 1180], [1024, 768]];
+// Page-level overflow can't see a squeezed toolbar: the reader chrome sits
+// inside overflow:hidden columns, and its flex items shrink (wrapping "Sign
+// in", overlapping the Trial badge onto the title, clipping the avatar's
+// chevron) long before anything overflows. So check that the toolbar content
+// fits AND that every item except the chapter menu (which ellipsizes by
+// design) is at its natural width, measured by briefly un-shrinking them.
+async function expectReaderToolbarFits(page) {
+  const bar = page.locator(".rf-reader-chrome, .rf-phone-toolbar");
+  await expect(bar).toHaveCount(1);
+  const { scrollWidth, clientWidth } = await bar.evaluate((el) => ({ scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }));
+  expect(scrollWidth, "reader toolbar content is wider than the toolbar").toBeLessThanOrEqual(clientWidth);
+
+  const chrome = page.locator(".rf-reader-chrome");
+  if (await chrome.count() === 0) return; // phone toolbar: its own truncation rules
+  const squeezed = await chrome.evaluate((el) => {
+    const items = [...el.children].filter((c) => !c.classList.contains("rf-m-chapter-trigger"));
+    const actual = items.map((c) => c.getBoundingClientRect().width);
+    const saved = items.map((c) => c.style.flexShrink);
+    items.forEach((c) => { c.style.flexShrink = "0"; });
+    const natural = items.map((c) => c.getBoundingClientRect().width);
+    items.forEach((c, i) => { c.style.flexShrink = saved[i]; });
+    return items
+      .map((c, i) => ({ item: c.getAttribute("aria-label") || c.textContent.trim().slice(0, 24) || c.tagName, actual: actual[i], natural: natural[i] }))
+      .filter((r) => r.actual < r.natural - 0.5);
+  });
+  expect(squeezed, `toolbar items squeezed below their natural width:\n${JSON.stringify(squeezed, null, 2)}`).toEqual([]);
+}
+
+// Spec §9.5 viewport sweep. Assertion: no sideways scroll on each surface,
+// and the reader toolbar is not clipped. Screenshots go to
+// test-results/owner-review/ for the owner to eyeball; they are not compared.
+const SWEEP = [[360, 780], [390, 844], [430, 932], [844, 390], [744, 1133], [768, 1024], [820, 1180], [1024, 768]];
 const SURFACES = [
   ["landing", async () => {}],
-  ["reader", async (page) => { await openDemo(page); }],
+  ["reader", async (page) => { await openDemo(page); }, expectReaderToolbarFits],
   ["pricing", async (page) => { await page.getByRole("button", { name: /see pro plans/i }).click(); await settle(page); }],
 ];
 
 for (const [w, h] of SWEEP) {
   test.describe(`sweep ${w}x${h}`, () => {
     test.use({ viewport: { width: w, height: h }, ...TOUCH });
-    for (const [name, open] of SURFACES) {
+    for (const [name, open, check] of SURFACES) {
       test(name, async ({ app }) => {
         const page = await app();
         await open(page);
         await expectNoHorizontalOverflow(page);
+        if (check) await check(page);
         await page.screenshot({ path: `test-results/owner-review/${name}-${w}x${h}.png`, fullPage: name === "landing" });
       });
     }
+  });
+}
+
+// The widest toolbar state: signed in (avatar trigger) with the Trial badge
+// ("Trial — Nd left"), which the phone toolbar never shows.
+for (const [w, h] of [[768, 1024], [820, 1180], [1024, 768]]) {
+  test.describe(`reader toolbar with a Trial badge ${w}x${h}`, () => {
+    test.use({ viewport: { width: w, height: h }, ...TOUCH });
+
+    test("is not clipped", async ({ app }) => {
+      const page = await app({ signedIn: true, subscription: "trial" });
+      await openDemo(page);
+      await expect(page.locator(".rf-reader-chrome").getByText(/Trial — \d+d left/)).toBeVisible();
+      await expect(page.getByRole("button", { name: "Account menu", exact: true })).toBeVisible();
+      await expectNoHorizontalOverflow(page);
+      await expectReaderToolbarFits(page);
+      await page.screenshot({ path: `test-results/owner-review/reader-trial-${w}x${h}.png` });
+    });
   });
 }
 

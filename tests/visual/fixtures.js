@@ -28,7 +28,14 @@ export const LIBRARY_BOOKS = [
   { id: "b2", gutenberg_id: 84, title: "Frankenstein", author: "Mary Shelley", publication_date: "1818", edition: null, chapter_count: 24, word_count: 75000, reading_time_min: 300, tier_required: "pro", popularity_rank: 2, blob_path: "b2.epub", byte_size: 400000 },
 ];
 
-async function mockSupabase(page, { signedIn }) {
+// Opt-in subscription rows for the signed-in fake user (useSubscription reads
+// public.subscriptions with maybeSingle). Trial is the widest toolbar badge.
+export const SUBSCRIPTIONS = {
+  trial: { user_id: FAKE_USER.id, status: "trialing", billing_cycle: "monthly", trial_end: "2026-10-03T12:00:00Z", cancel_at_period_end: false },
+  pro: { user_id: FAKE_USER.id, status: "active", billing_cycle: "monthly", current_period_end: "2026-10-26T12:00:00Z", cancel_at_period_end: false },
+};
+
+async function mockSupabase(page, { signedIn, subscription }) {
   await page.routeWebSocket(/supabase\.visual\.test/, (ws) => ws.close());
   await page.route(`${SUPABASE_ORIGIN}/**`, async (route) => {
     const req = route.request();
@@ -38,6 +45,7 @@ async function mockSupabase(page, { signedIn }) {
     }
     if (pathname.startsWith("/auth/v1/")) return route.fulfill({ json: {} });
     if (pathname.startsWith("/rest/v1/library_books")) return route.fulfill({ json: LIBRARY_BOOKS });
+    if (subscription && pathname.startsWith("/rest/v1/subscriptions")) return route.fulfill({ json: SUBSCRIPTIONS[subscription] });
     if (pathname.startsWith("/rest/v1/rpc/")) return route.fulfill({ json: null });
     if (pathname.startsWith("/rest/v1/")) {
       const wantsObject = (req.headers()["accept"] || "").includes("vnd.pgrst.object");
@@ -200,8 +208,9 @@ export const test = base.extend({
     if (fontErrors.length) throw new Error(`Font requests outside the pinned snapshot:\n${fontErrors.join("\n")}`);
   },
   app: async ({ page }, use) => {
-    await use(async ({ signedIn = false, path = "/" } = {}) => {
-      await mockSupabase(page, { signedIn });
+    await use(async ({ signedIn = false, path = "/", subscription } = {}) => {
+      if (subscription && !SUBSCRIPTIONS[subscription]) throw new Error(`Unknown subscription fixture: ${subscription}`);
+      await mockSupabase(page, { signedIn, subscription });
       await page.addInitScript(holdIntersectionObservers);
       if (signedIn) await seedSession(page);
       await page.clock.install({ time: FROZEN_START });

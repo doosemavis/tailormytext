@@ -1453,7 +1453,7 @@ export default function App() {
   const chapterMenu = hasSections && displaySections.length > 1 && (
     <DropdownMenu.Root open={showChapterNav} onOpenChange={setShowChapterNav} modal={false}>
       <DropdownMenu.Trigger asChild>
-        <button className="rf-static" style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, border: `1px solid ${t.border}`, background: showChapterNav ? t.surface : "transparent", color: t.fg, cursor: "pointer", fontSize: 13, fontWeight: 500, fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box" }}>
+        <button className="rf-static rf-m-chapter-trigger" style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, border: `1px solid ${t.border}`, background: showChapterNav ? t.surface : "transparent", color: t.fg, cursor: "pointer", fontSize: 13, fontWeight: 500, fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box" }}>
           <List size={14} style={{ color: t.icon }} />
           {(() => {
             const cur = displaySections[currentSectionIdx] ?? displaySections[0];
@@ -1594,7 +1594,7 @@ export default function App() {
 
             {uncertaintyBadge}
 
-            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <div className="rf-m-chrome-toggles" style={{ display: "flex", alignItems: "center", gap: 16 }}>
               {featureToggles}
             </div>
             {renderUserMenu()}

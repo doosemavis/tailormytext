@@ -181,6 +181,22 @@
   }
 }
 
+/* ── Tablet reader toolbar. Signed in with the Trial badge it needs ~900px
+   at the desktop spacing; at 768-1023 its flex items used to shrink instead,
+   wrapping "Sign in" and the badge (which then overlapped the title) and
+   clipping the avatar's chevron. Keep every item at its natural width and
+   let only the chapter menu, whose label already ellipsizes, give up room;
+   tighter gaps (16 -> 10, targets stay 44px) leave that label readable.
+   Hooks: .rf-m-chapter-trigger, .rf-m-chrome-toggles (App.jsx). The gaps
+   are inline, hence !important. ── */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .rf-reader-chrome { gap: 10px !important; }
+  .rf-reader-chrome .rf-m-chrome-toggles { gap: 10px !important; }
+  .rf-reader-chrome > * { flex-shrink: 0; }
+  .rf-reader-chrome > .rf-m-chapter-trigger { flex-shrink: 1; min-width: 44px; }
+  .rf-reader-chrome > .rf-m-chapter-trigger > svg { flex-shrink: 0; }
+}
+
 /* ── Notch / home indicator (tablet + phone). env() is 0 outside notched,
    installed contexts, so these are no-ops in a normal browser tab. ── */
 @media (max-width: 1023px) {
