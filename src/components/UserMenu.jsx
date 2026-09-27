@@ -55,7 +55,7 @@ export default function UserMenu({ t, onShowAuth, onShowAvatarSettings, onShowSu
   return (
     <DropdownMenu.Root modal={false}>
       <DropdownMenu.Trigger asChild>
-        <button className="rf-static" style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 8px 4px 4px", borderRadius: 8, border: `1px solid ${t.border}`, background: "transparent", cursor: "pointer", color: t.fg, outline: "none" }}>
+        <button aria-label="Account menu" className="rf-static" style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 8px 4px 4px", borderRadius: 8, border: `1px solid ${t.border}`, background: "transparent", cursor: "pointer", color: t.fg, outline: "none" }}>
           <Avatar avatar={avatar} initial={initial} accent={t.accent} size={28} />
           <ChevronDown size={12} style={{ color: t.icon, transition: "transform 0.2s" }} />
         </button>

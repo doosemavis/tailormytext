@@ -23,7 +23,7 @@ test.describe("tablet 820 slide-over", () => {
     await openDemo(page);
     await openPanelTouch(page);
     await openPanelSection(page, "Typography");
-    await page.locator(".rf-slideover button[aria-haspopup='menu']").first().click();
+    await page.locator(".rf-slideover").getByTestId("fontpicker-trigger").click();
     await settle(page, 300);
     const option = page.getByRole("menuitem").nth(1);
     await expect(option).toBeVisible();

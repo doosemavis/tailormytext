@@ -221,8 +221,8 @@ export async function openDemo(page) {
   await expect(page.locator(".rf-reader-scroll")).toBeVisible();
 }
 
-// Top-bar "Open panel" button (lucide PanelLeft icon, no aria-label).
-export const panelButton = (page) => page.locator("button:has(svg.lucide-panel-left)").first();
+// Reader toolbar's panel toggle.
+export const panelButton = (page) => page.getByRole("button", { name: "Open panel", exact: true });
 
 export async function openPanelDesktop(page) {
   await panelButton(page).click();
@@ -241,9 +241,8 @@ export async function openPanelSection(page, title) {
   await settle(page, 500);
 }
 
-// UserMenu is the last Radix DropdownMenu trigger on the page.
 export async function openUserMenuItem(page, item) {
-  await page.locator('button[aria-haspopup="menu"]').last().click();
+  await page.getByRole("button", { name: "Account menu", exact: true }).click();
   await settle(page, 300);
   await page.getByRole("menuitem", { name: "Settings" }).click();
   await settle(page, 300);

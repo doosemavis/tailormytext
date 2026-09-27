@@ -1203,7 +1203,7 @@ export default function App() {
   // ones are render functions so they're only built when actually placed.
   const panelToggleButton = (
     <Tip label="Open panel" t={t} side="bottom">
-      <button onClick={() => setPanelOpen(true)} style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><PanelLeft size={16} strokeWidth={2} /></button>
+      <button onClick={() => setPanelOpen(true)} aria-label="Open panel" style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><PanelLeft size={16} strokeWidth={2} /></button>
     </Tip>
   );
 
@@ -1252,7 +1252,7 @@ export default function App() {
           </button>
         </Tip>
         <Tip label="Close panel" t={t} side="bottom">
-          <button onClick={() => setPanelOpen(false)} className="rf-m-tap44" style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><PanelLeftClose size={16} strokeWidth={2} /></button>
+          <button onClick={() => setPanelOpen(false)} aria-label="Close panel" className="rf-m-tap44" style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><PanelLeftClose size={16} strokeWidth={2} /></button>
         </Tip>
       </div>
 
