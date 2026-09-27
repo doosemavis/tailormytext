@@ -467,3 +467,24 @@ test.describe("phone 390 dialog fields don't trigger iOS zoom", () => {
     });
   }
 });
+
+// Landscape iPhones: the panel pads its content clear of the notch
+// (env(safe-area-inset-left), 0 here) and grows by the same inset, so the
+// usable width never shrinks; it also must not scroll-chain to the page.
+for (const [w, h] of [[390, 844], [820, 1180]]) {
+  test.describe(`slide-over box ${w}x${h}`, () => {
+    test.use({ viewport: { width: w, height: h }, ...TOUCH });
+
+    test("keeps its width, pads for the notch, and contains overscroll", async ({ app }) => {
+      const page = await app();
+      await openDemo(page);
+      await openPanelTouch(page);
+      const box = await slideover(page).evaluate((el) => {
+        const cs = getComputedStyle(el);
+        return { width: el.getBoundingClientRect().width, paddingLeft: cs.paddingLeft, overscrollY: cs.overscrollBehaviorY };
+      });
+      // App.jsx sizes the panel min(100vw - 48px, SIDEBAR_WIDTH = 296).
+      expect(box).toEqual({ width: Math.min(w - 48, 296), paddingLeft: "0px", overscrollY: "contain" });
+    });
+  });
+}

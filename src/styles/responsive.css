@@ -29,8 +29,14 @@
   position: fixed; top: 0; left: 0; bottom: 0; z-index: 160;
   height: 100vh; height: 100dvh;
   overflow-y: auto; overflow-x: hidden; box-sizing: border-box;
+  /* Scrolling past either end stays in the panel: no chaining to the
+     reader behind it, no rubber-banding the page. */
+  overscroll-behavior: contain;
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
+  /* Landscape iPhones: clear the notch. SlideOverPanel adds the same inset
+     to its width, so the content area keeps its full width. */
+  padding-left: env(safe-area-inset-left);
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
 }
 .rf-slideover[data-state="closed"] { display: none; }

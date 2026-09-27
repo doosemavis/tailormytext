@@ -62,7 +62,7 @@ export default function SlideOverPanel({ open, onOpenChange, width, background, 
         tabIndex={-1}
         onKeyDown={onKeyDown}
         className="rf-slideover rf-no-select rf-side-scroll"
-        style={{ width, background, borderRight: `1px solid ${borderColor}` }}
+        style={{ width: `calc(${width} + env(safe-area-inset-left, 0px))`, background, borderRight: `1px solid ${borderColor}` }}
       >
         {children}
       </aside>
