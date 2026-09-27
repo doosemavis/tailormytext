@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { test as base, expect } from "@playwright/test";
 
 // Fixed fake clock: timers (landing carousel, loader fades) advance only in
@@ -44,6 +47,39 @@ async function mockSupabase(page, { signedIn }) {
     }
     if (pathname.startsWith("/functions/v1/")) return route.fulfill({ json: {} });
     return route.fulfill({ status: 404, json: {} });
+  });
+}
+
+// Google Fonts is not deterministic. For the same css2 URL it usually serves
+// static /s/<family>/vNN/*.woff2 files, but a few percent of responses point
+// every variable-axis family (Literata, DM Sans, Fraunces, Newsreader, ...) at
+// dynamically built /l/font?kit=... files instead: different binaries, so text
+// across the whole page rasterizes slightly differently (the intermittent
+// "uniform text ghosting" diffs). Serve a pinned snapshot of the static answer
+// (tests/visual/fonts/, refreshed by fetch-google-fonts.mjs) and fail the test
+// on any Google Fonts request the snapshot cannot answer.
+const FONT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "fonts");
+const FONT_SOURCE = JSON.parse(fs.readFileSync(path.join(FONT_DIR, "source.json"), "utf8"));
+const FONT_CSS = fs.readFileSync(path.join(FONT_DIR, "google-fonts.css"), "utf8");
+const REFRESH_HINT = "run `node tests/visual/fonts/fetch-google-fonts.mjs`, then regenerate desktop baselines";
+
+async function pinGoogleFonts(context, errors) {
+  await context.route("https://fonts.googleapis.com/**", (route) => {
+    const url = route.request().url();
+    if (url !== FONT_SOURCE.cssUrl) {
+      errors.push(`Unpinned Google Fonts stylesheet ${url}; ${REFRESH_HINT}`);
+      return route.abort();
+    }
+    return route.fulfill({ body: FONT_CSS, contentType: "text/css; charset=utf-8" });
+  });
+  await context.route("https://fonts.gstatic.com/**", (route) => {
+    const url = route.request().url();
+    const file = path.join(FONT_DIR, new URL(url).pathname);
+    if (!file.startsWith(FONT_DIR + path.sep) || !fs.existsSync(file)) {
+      errors.push(`Unpinned font file ${url}; ${REFRESH_HINT}`);
+      return route.abort();
+    }
+    return route.fulfill({ path: file, contentType: "font/woff2", headers: { "Access-Control-Allow-Origin": "*" } });
   });
 }
 
@@ -157,6 +193,12 @@ export async function settle(page, ms = 2000) {
 }
 
 export const test = base.extend({
+  context: async ({ context }, use) => {
+    const fontErrors = [];
+    await pinGoogleFonts(context, fontErrors);
+    await use(context);
+    if (fontErrors.length) throw new Error(`Font requests outside the pinned snapshot:\n${fontErrors.join("\n")}`);
+  },
   app: async ({ page }, use) => {
     await use(async ({ signedIn = false, path = "/" } = {}) => {
       await mockSupabase(page, { signedIn });
