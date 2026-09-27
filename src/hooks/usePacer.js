@@ -8,6 +8,7 @@ import { createWordIndex, firstVisibleWord } from "../utils/pacer/wordIndex";
 import { delayFor } from "../utils/pacer/timing";
 import { lineStep, paragraphStep, createHoldAccel } from "../utils/pacer/nav";
 import { createPacerStore } from "../utils/pacer/store";
+import { createCursorRing } from "../utils/pacer/cursorRing";
 
 // WPM Pacer engine. Toggles classes on the .rf-word spans DocumentBody
 // renders (same imperative-DOM pattern as NeuroDiv intensity), so playback
@@ -18,7 +19,6 @@ import { createPacerStore } from "../utils/pacer/store";
 // Spec: docs/superpowers/specs/2026-09-12-wpm-pacer-design.md
 
 const CLS_CURRENT = "rf-pace-current";
-const CLS_CURSOR = "rf-pace-cursor";
 const trailClass = (i) => `rf-pace-trail-${i + 1}`;
 
 const clampRange = (v) => Math.min(WPM_MAX, Math.max(WPM_MIN, Math.round(v)));
@@ -52,6 +52,8 @@ export function usePacer({ docWrapperRef, readerRef, docSections, text, isPro, o
   if (!indexRef.current) indexRef.current = createWordIndex();
   const holdRef = useRef(null);
   if (!holdRef.current) holdRef.current = createHoldAccel();
+  const ringRef = useRef(null);
+  if (!ringRef.current) ringRef.current = createCursorRing(() => docWrapperRef.current);
 
   const setPlaying = (v) => { playingRef.current = v; store.set({ playing: v }); };
 
@@ -60,7 +62,7 @@ export function usePacer({ docWrapperRef, readerRef, docSections, text, isPro, o
 
   const clearHighlights = useCallback(() => {
     const cur = cursorRef.current;
-    if (cur) cur.classList.remove(CLS_CURRENT, CLS_CURSOR);
+    if (cur) { cur.classList.remove(CLS_CURRENT); ringRef.current.hide(cur); }
     trailRef.current.forEach((el, i) => el.classList.remove(trailClass(i)));
     trailRef.current = [];
   }, []);
@@ -89,9 +91,9 @@ export function usePacer({ docWrapperRef, readerRef, docSections, text, isPro, o
 
   const setCursor = useCallback((el) => {
     const old = cursorRef.current;
-    if (old) old.classList.remove(CLS_CURSOR);
+    if (old) ringRef.current.hide(old);
     cursorRef.current = el;
-    if (el && !playingRef.current) el.classList.add(CLS_CURSOR);
+    if (el && !playingRef.current) ringRef.current.show(el);
     if (el) keepInBand(el);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -101,7 +103,7 @@ export function usePacer({ docWrapperRef, readerRef, docSections, text, isPro, o
     if (!playingRef.current) return;
     setPlaying(false);
     const cur = cursorRef.current;
-    if (cur && cur.isConnected) cur.classList.add(CLS_CURSOR);
+    if (cur && cur.isConnected) ringRef.current.show(cur);
   }, []);
 
   const stopAll = useCallback(() => {
@@ -158,7 +160,7 @@ export function usePacer({ docWrapperRef, readerRef, docSections, text, isPro, o
       if (!cur) return;
       cursorRef.current = cur;
     }
-    cur.classList.remove(CLS_CURSOR);
+    ringRef.current.hide(cur);
     cur.classList.add(CLS_CURRENT);
     setPlaying(true);
     dueAtRef.current = Date.now();
@@ -211,6 +213,25 @@ export function usePacer({ docWrapperRef, readerRef, docSections, text, isPro, o
     if (tiered !== ranged && typeof onProGateRef.current === "function") onProGateRef.current();
   }, []);
   const nudgeWpm = useCallback((delta) => setWpm(wpmRef.current + delta), [setWpm]);
+  // Lets the slider open the Pro gate mid-drag, when the thumb hits the cap.
+  const promptPro = useCallback(() => {
+    if (typeof onProGateRef.current === "function") onProGateRef.current();
+  }, []);
+
+  // Losing Pro (sign-out, trial end) must not leave a free user reading above
+  // the cap. Only the Pro→free edge clamps: a subscription that is still
+  // loading reports isPro=false first, and that must not touch the pace. The
+  // saved speed is left as is, so it comes back if Pro does.
+  const wasProRef = useRef(isPro);
+  useEffect(() => {
+    const lostPro = wasProRef.current && !isPro;
+    wasProRef.current = isPro;
+    if (!lostPro) return;
+    const tiered = clampWpmForTier(wpmRef.current, false);
+    if (tiered === wpmRef.current) return;
+    wpmRef.current = tiered;
+    store.set({ wpm: tiered });
+  }, [isPro, store]);
 
   useEffect(() => {
     if (!authReady) return;
@@ -304,7 +325,7 @@ export function usePacer({ docWrapperRef, readerRef, docSections, text, isPro, o
     enabled, store,
     toggle, setEnabled,
     play, pause, togglePlay, restart,
-    setWpm, nudgeWpm,
+    setWpm, nudgeWpm, promptPro,
     placeCursor, handleReaderClick,
-  }), [enabled, store, toggle, setEnabled, play, pause, togglePlay, restart, setWpm, nudgeWpm, placeCursor, handleReaderClick]);
+  }), [enabled, store, toggle, setEnabled, play, pause, togglePlay, restart, setWpm, nudgeWpm, promptPro, placeCursor, handleReaderClick]);
 }

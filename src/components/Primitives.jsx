@@ -8,6 +8,7 @@ import * as Collapsible from "@radix-ui/react-collapsible";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { getTooltipColors } from "../config/themeColors";
+import { useSliderLimit } from "./sliderLimit";
 
 const DARK_BGS = new Set(["#111116", "#0B0E14", "#100E18", "#080806", "#0D1410"]);
 
@@ -65,14 +66,29 @@ export const Toggle = memo(function Toggle({ on, onChange, label, icon: Icon, t 
 // speed regardless of App's render cost. onChange commits the final value upward only on release.
 // onLiveChange (optional) fires every tick — used for direct DOM writes (CSS var on the doc wrapper)
 // so the document updates AS the user drags without any App state churn.
-export const Slider = memo(function Slider({ value, min, max, step, onChange, onLiveChange, label, format, t }) {
+//
+// Optional `limit` caps the thumb (e.g. the pacer's free-tier WPM): it never
+// moves or reads past it. Pushing into it with a pointer commits `limit` and
+// calls `onLimit` at once, and again on release; keyboard steps past it commit
+// the raw value so the parent's own gate clamps and prompts.
+export const Slider = memo(function Slider({ value, min, max, step, onChange, onLiveChange, limit, onLimit, label, format, t }) {
   const [localValue, setLocalValue] = useState(value);
+  // Bumped on every commit so the sync below re-runs even when the parent
+  // keeps its old value — e.g. the pacer clamping a free user's second push
+  // past the WPM cap back to the same 400 it already had.
+  const [commitCount, setCommitCount] = useState(0);
+  // True only while a pointer is held on the slider. Keyed to the pointer, not
+  // to onValueChange: Radix fires a keyboard step's commit BEFORE its change,
+  // so a change-based flag would stay stuck on and block the sync below.
   const draggingRef = useRef(false);
+  const endDrag = () => { draggingRef.current = false; };
+  const limiter = useSliderLimit({ limit, min, max, step, onLimit });
 
-  // Sync external value changes (e.g. theme reset) into local state — but never mid-drag.
+  // Sync external value changes (e.g. theme reset) and the parent's verdict on
+  // each commit into local state — but never mid-drag.
   useEffect(() => {
     if (!draggingRef.current) setLocalValue(value);
-  }, [value]);
+  }, [value, commitCount]);
 
   const display = format ? format(localValue) : localValue;
 
@@ -87,14 +103,26 @@ export const Slider = memo(function Slider({ value, min, max, step, onChange, on
         min={min}
         max={max}
         step={step}
-        onValueChange={([v]) => {
+        onPointerDown={(e) => {
           draggingRef.current = true;
-          setLocalValue(v);
-          if (onLiveChange) onLiveChange(v);
+          limiter.start(e, localValue);
+        }}
+        onPointerMove={limiter.move}
+        onPointerUp={limiter.end}
+        onLostPointerCapture={endDrag}
+        onValueChange={([v]) => {
+          const next = limiter.step(v, draggingRef.current);
+          setLocalValue(next.shown);
+          if (onLiveChange) onLiveChange(next.shown);
+          if (next.enteredLimit) {
+            onChange(limit);
+            if (onLimit) onLimit();
+          }
         }}
         onValueCommit={([v]) => {
-          draggingRef.current = false;
+          endDrag();
           onChange(v);
+          setCommitCount((n) => n + 1);
         }}
         className="rf-m-slider-root"
         style={{ position: "relative", display: "flex", alignItems: "center", userSelect: "none", touchAction: "none", height: 24 }}
