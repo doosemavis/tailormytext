@@ -211,6 +211,32 @@ describe("usePacer — WPM and gating", () => {
     expect(props.onProGate).not.toHaveBeenCalled();
   });
 
+  it("drops the pace to the free cap the moment Pro is lost, without overwriting the saved speed", () => {
+    const { hook, props } = mount({ isPro: true });
+    act(() => hook.result.current.setWpm(800));
+    expect(hook.result.current.store.get().wpm).toBe(800);
+    storageSet.mockClear();
+    hook.rerender({ ...props, isPro: false });
+    expect(hook.result.current.store.get().wpm).toBe(PACER_FREE_MAX_WPM);
+    expect(props.onProGate).not.toHaveBeenCalled();
+    expect(storageSet).not.toHaveBeenCalled();
+  });
+
+  it("leaves a free user's pace alone when isPro stays false", () => {
+    const { hook, props } = mount({ isPro: false });
+    act(() => hook.result.current.setWpm(300));
+    hook.rerender({ ...props, isPro: false });
+    expect(hook.result.current.store.get().wpm).toBe(300);
+  });
+
+  it("promptPro opens the Pro gate without changing the pace", () => {
+    const { hook, props } = mount();
+    act(() => hook.result.current.setWpm(300));
+    act(() => hook.result.current.promptPro());
+    expect(props.onProGate).toHaveBeenCalledTimes(1);
+    expect(hook.result.current.store.get().wpm).toBe(300);
+  });
+
   it("clamps to the absolute range", () => {
     const { hook } = mount({ isPro: true });
     act(() => hook.result.current.setWpm(5000));
