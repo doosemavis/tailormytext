@@ -33,7 +33,7 @@ export const SidebarRecentDocs = memo(function SidebarRecentDocs({ recentList, f
                 <p style={{ fontSize: 12, fontWeight: 580, color: t.fg, fontFamily: "'DM Sans', sans-serif", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.name}</p>
                 <p style={{ fontSize: 10, color: t.fgSoft, margin: "2px 0 0", fontFamily: "'DM Sans', sans-serif" }}>{timeAgo(e.timestamp)}</p>
               </div>
-              <button aria-label="Remove from recent" onClick={ev => { ev.stopPropagation(); onRemove(e.id); }} style={{ background: "transparent", border: "none", cursor: "pointer", color: t.icon, borderRadius: 8, flexShrink: 0, width: 34, height: 34, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box" }}><X size={16} strokeWidth={2} /></button>
+              <button aria-label="Remove from recent" onClick={ev => { ev.stopPropagation(); onRemove(e.id); }} className="rf-m-tap44" style={{ background: "transparent", border: "none", cursor: "pointer", color: t.icon, borderRadius: 8, flexShrink: 0, width: 34, height: 34, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box" }}><X size={16} strokeWidth={2} /></button>
             </div>
           );
         })}

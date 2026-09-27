@@ -1219,6 +1219,7 @@ export default function App() {
           <button
             onClick={() => { closeDoc(); setFocusPara(-1); }}
             aria-label="Back to home"
+            className="rf-m-tap44h"
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -1251,7 +1252,7 @@ export default function App() {
           </button>
         </Tip>
         <Tip label="Close panel" t={t} side="bottom">
-          <button onClick={() => setPanelOpen(false)} style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><PanelLeftClose size={16} strokeWidth={2} /></button>
+          <button onClick={() => setPanelOpen(false)} className="rf-m-tap44" style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><PanelLeftClose size={16} strokeWidth={2} /></button>
         </Tip>
       </div>
 
@@ -1266,7 +1267,7 @@ export default function App() {
           <div style={{ display: "flex", alignItems: "center", gap: 8, color: t.fgSoft }}>
             <FileText size={13} style={{ color: t.accent, flexShrink: 0 }} />
             <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "'Newsreader', Georgia, serif", fontStyle: "italic", fontSize: 14, color: t.fg }}>{fileName}</span>
-            <button aria-label="Close document" title="Close — pick another from your shelf" onClick={() => { closeDoc({ keepReaderOpen: true }); setFocusPara(-1); }} style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><X size={15} strokeWidth={2} /></button>
+            <button aria-label="Close document" title="Close — pick another from your shelf" onClick={() => { closeDoc({ keepReaderOpen: true }); setFocusPara(-1); }} className="rf-m-tap44" style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "transparent", color: t.icon, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><X size={15} strokeWidth={2} /></button>
           </div>
         </div>
       )}
@@ -1285,6 +1286,7 @@ export default function App() {
                 onClick={() => gateCosmetic(free, () => setHuePalette(k))}
                 aria-label={tipLabel}
                 aria-pressed={huePalette === k}
+                className="rf-m-tap44"
                 style={{ position: "relative", width: 42, height: 26, borderRadius: 8, overflow: "hidden", display: "flex", padding: 0, cursor: "pointer", border: huePalette === k ? `2px solid ${t.accent}` : `1px solid ${t.border}`, boxShadow: huePalette === k ? `0 0 0 2px ${t.accentSoft}` : "none", transition: "all 0.15s", opacity: locked ? 0.55 : 1 }}
               >
                 {pal.colors.map((c, i) => <div key={i} style={{ flex: 1, background: c, height: "100%" }} />)}
@@ -1323,6 +1325,7 @@ export default function App() {
                     aria-label={`Guide color: ${gc.label}${locked ? " (Pro)" : ""}`}
                     aria-pressed={active}
                     title={`${gc.label}${locked ? " (Pro)" : ""}`}
+                    className="rf-m-tap44"
                     style={{ width: 28, height: 28, borderRadius: 8, cursor: "pointer", border: active ? `2px solid ${dot}` : `1.5px solid ${t.border}`, background: k === "accent" ? `conic-gradient(from 0deg, ${t.accent}, ${t.accent}88, ${t.accent})` : (gc.highlight || dot), boxShadow: active ? `0 0 0 2px ${dot}33` : "none", transition: "all 0.15s", display: "flex", alignItems: "center", justifyContent: "center", opacity: locked ? 0.55 : 1 }}
                   >
                     {locked
@@ -1363,7 +1366,7 @@ export default function App() {
                 onClick={(e) => gateCosmetic(free, () => runThemeTransition(e, () => setTheme(key)))}
                 aria-label={`Theme: ${key}${locked ? " (Pro)" : ""}`}
                 aria-pressed={isActive}
-                className="rf-btn-icon-active"
+                className="rf-btn-icon-active rf-m-theme-tile"
                 style={{
                   padding: "9px 14px",
                   borderRadius: 10,
@@ -1409,12 +1412,12 @@ export default function App() {
       </Section>
 
       <div style={{ padding: "14px 14px 18px", display: "flex", flexDirection: "column", gap: 8 }}>
-        <button onClick={() => sub.canUpload ? fileRef.current?.click() : setShowPaywall(true)} className="rf-btn" style={{ width: "100%", padding: "10px 16px", borderRadius: 10, border: `1px solid ${t.border}`, background: t.surface, color: t.fgSoft, cursor: "pointer", fontSize: 13, fontWeight: 560, fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxSizing: "border-box" }}><Upload size={14} /> Upload new file</button>
+        <button onClick={() => sub.canUpload ? fileRef.current?.click() : setShowPaywall(true)} className="rf-btn rf-m-tap44h" style={{ width: "100%", padding: "10px 16px", borderRadius: 10, border: `1px solid ${t.border}`, background: t.surface, color: t.fgSoft, cursor: "pointer", fontSize: 13, fontWeight: 560, fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxSizing: "border-box" }}><Upload size={14} /> Upload new file</button>
         <input ref={fileRef} type="file" accept={FILE_ACCEPT} style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) attemptUpload(f); }} />
         {library.books.length > 0 && (
           <button
             onClick={() => setShowLibraryDrawer(true)}
-            className="rf-btn"
+            className="rf-btn rf-m-tap44h"
             style={{
               width: "100%",
               padding: "10px 16px",

@@ -28,6 +28,7 @@ export const Toggle = memo(function Toggle({ on, onChange, label, icon: Icon, t 
   return (
     <div
       onClick={() => onChange(!on)}
+      className="rf-m-toggle-row"
       style={{
         width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "8px 12px", borderRadius: 10, cursor: "pointer",
@@ -41,7 +42,7 @@ export const Toggle = memo(function Toggle({ on, onChange, label, icon: Icon, t 
         checked={on}
         onCheckedChange={onChange}
         onClick={e => e.stopPropagation()}
-        className="rf-static"
+        className="rf-static rf-m-switch"
         style={{
           width: 36, height: 20, borderRadius: 10, padding: 2, flexShrink: 0,
           background: on ? (t.switchOn ?? t.accent) : t.border, border: "none", cursor: "pointer",
@@ -49,7 +50,7 @@ export const Toggle = memo(function Toggle({ on, onChange, label, icon: Icon, t 
           outline: "none",
         }}
       >
-        <Switch.Thumb style={{
+        <Switch.Thumb className="rf-m-switch-thumb" style={{
           display: "block", width: 16, height: 16, borderRadius: 8,
           background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
           transition: "transform 0.2s cubic-bezier(0.4,0,0.2,1)",
@@ -95,12 +96,13 @@ export const Slider = memo(function Slider({ value, min, max, step, onChange, on
           draggingRef.current = false;
           onChange(v);
         }}
+        className="rf-m-slider-root"
         style={{ position: "relative", display: "flex", alignItems: "center", userSelect: "none", touchAction: "none", height: 24 }}
       >
         <SliderPrimitive.Track style={{ position: "relative", flexGrow: 1, height: 4, borderRadius: 2, background: t.border }}>
           <SliderPrimitive.Range style={{ position: "absolute", height: "100%", borderRadius: 2, background: t.accent }} />
         </SliderPrimitive.Track>
-        <SliderPrimitive.Thumb style={{
+        <SliderPrimitive.Thumb className="rf-m-slider-thumb" style={{
           display: "block", width: 14, height: 14, borderRadius: 7, cursor: "grab",
           background: t.accent, boxShadow: `0 0 0 3px ${t.accentSoft}, 0 2px 6px rgba(0,0,0,0.12)`,
           outline: "none",
@@ -151,7 +153,7 @@ export const Segment = memo(function Segment({ options, value, onChange, t }) {
           <Tip key={opt.value} label={opt.label} t={t}>
             <ToggleGroup.Item
               value={opt.value}
-              className={active ? "rf-btn-icon-active" : ""}
+              className={`rf-m-tap44${active ? " rf-btn-icon-active" : ""}`}
               style={{
                 width: 34, height: 34, borderRadius: 8, border: "none", cursor: "pointer",
                 background: active ? t.accent : "transparent",
@@ -174,7 +176,7 @@ export function Section({ title, icon: Icon, children, t, open: defaultOpen = tr
   return (
     <Collapsible.Root open={open} onOpenChange={setOpen} style={{ borderBottom: `1px solid ${t.borderSoft}` }}>
       <Collapsible.Trigger asChild>
-        <button className="rf-static" style={{
+        <button className="rf-static rf-m-tap44h" style={{
           width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "12px 14px", border: "none", cursor: "pointer", background: "transparent", color: t.fg,
           outline: "none",
@@ -216,7 +218,7 @@ export function FontPicker({ value, onChange, t }) {
     <div style={{ padding: "4px 12px" }}>
       <DropdownMenu.Root>
         <DropdownMenu.Trigger asChild>
-          <button className="rf-static" style={{
+          <button className="rf-static rf-m-tap44h" style={{
             width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
             padding: "8px 12px", borderRadius: 8, border: `1px solid ${t.border}`, background: t.surface,
             cursor: "pointer", color: t.fg, fontSize: 13, fontFamily: cur?.css, fontWeight: 500,

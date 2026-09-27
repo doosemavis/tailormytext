@@ -284,3 +284,156 @@ for (const [w, h] of SWEEP) {
     }
   });
 }
+
+// ── Task 11: touch-sized controls inside the slide-over panel ──────────────
+// Spec: on touch devices below 1024px, every interactive control inside
+// .rf-slideover has a hit area >= 44x44 (small rendering tolerance), sliders
+// and switches are comfortable to use with a finger, and none of the grown
+// hit boxes overlap a neighbor's.
+const PANEL_TOUCH_MIN = 44;
+const PANEL_TOUCH_TOLERANCE = 0.5;
+
+const PANEL_INTERACTIVE_SELECTOR = [
+  "button",
+  '[role="switch"]',
+  '[role="slider"]',
+  "a[href]",
+  'input:not([type="hidden"]):not([type="file"])',
+  '[role="radio"]',
+  '[role="tab"]',
+  '[role="menuitem"]',
+].map((part) => `.rf-slideover ${part}`).join(", ");
+
+// Like `openSidebarSection`, but scoped to .rf-slideover: at the tablet
+// tier the reader toolbar renders its NeuroDiv/HueGuide/Focus/Pacer
+// feature-toggle buttons inline (not behind the phone's popover), and
+// "Pacer" is also a Section title — an unscoped name match is ambiguous
+// there. Scoping to the panel is unambiguous at every tier.
+async function openPanelSection(page, title) {
+  await page.locator(".rf-slideover").getByRole("button", { name: title, exact: true }).click();
+  await settle(page, 500);
+}
+
+// Opens every panel Section and turns on the features that reveal
+// conditional controls (NeuroDiv, HueGuide, Pacer, reading guide =
+// Highlight) — task-11-brief.md's test scope, item 1. Each Section is
+// expanded (and, where relevant, its own switch/radio flipped) BEFORE the
+// next Section opens: the trigger button is matched by exact accessible
+// name, and a Section grows an "active" indicator dot into that name once
+// its own setting goes non-default, which would collide with an
+// exact-name match made afterwards. This ordering also keeps the
+// switch/radio `nth()` indices below stable and predictable.
+async function revealAllPanelControls(page) {
+  await openPanelSection(page, "Enhancements");
+  await page.locator(".rf-slideover [role='switch']").nth(0).click(); // NeuroDiv
+  await settle(page, 200);
+  await page.locator(".rf-slideover [role='switch']").nth(1).click(); // HueGuide
+  await settle(page, 200);
+  await openPanelSection(page, "Pacer");
+  await page.locator(".rf-slideover [role='switch']").nth(3).click(); // WPM Pacer (after NeuroDiv, HueGuide, Focus)
+  await settle(page, 200);
+  await openPanelSection(page, "Reading Guide");
+  await page.locator(".rf-slideover [role='radio']").nth(1).click(); // Highlight
+  await settle(page, 200);
+  await openPanelSection(page, "Typography");
+  await openPanelSection(page, "Theme");
+  await settle(page, 300);
+}
+
+// Collects the EFFECTIVE hit box for every visible interactive control in
+// the panel. A Switch's or Slider thumb's own element is usually smaller
+// than the area that actually responds to a tap — the Toggle row / Slider
+// root do too (see Primitives.jsx) — so those two roles are measured via
+// that ancestor instead of their own small box.
+async function collectPanelHitBoxes(page) {
+  return page.evaluate((sel) => {
+    const out = [];
+    for (const el of document.querySelectorAll(sel)) {
+      const style = getComputedStyle(el);
+      if (style.display === "none" || style.visibility === "hidden") continue;
+      const role = el.getAttribute("role");
+      let target = el;
+      if (role === "switch") target = el.closest(".rf-m-toggle-row") || el;
+      else if (role === "slider") target = el.closest(".rf-m-slider-root") || el;
+      const box = target.getBoundingClientRect();
+      if (box.width === 0 && box.height === 0) continue;
+      out.push({
+        label: el.getAttribute("aria-label") || `${el.tagName}${role ? `[role=${role}]` : ""}`,
+        x: box.x, y: box.y, width: box.width, height: box.height,
+      });
+    }
+    return out;
+  }, PANEL_INTERACTIVE_SELECTOR);
+}
+
+function boxesOverlap(a, b, eps = PANEL_TOUCH_TOLERANCE) {
+  const ax1 = a.x + eps, ay1 = a.y + eps;
+  const ax2 = a.x + a.width - eps, ay2 = a.y + a.height - eps;
+  const bx1 = b.x + eps, by1 = b.y + eps;
+  const bx2 = b.x + b.width - eps, by2 = b.y + b.height - eps;
+  return ax1 < bx2 && ax2 > bx1 && ay1 < by2 && ay2 > by1;
+}
+
+for (const [w, h] of [[360, 780], [390, 844], [820, 1180]]) {
+  test.describe(`panel touch targets ${w}x${h}`, () => {
+    test.use({ viewport: { width: w, height: h }, ...TOUCH });
+
+    test("every control in the slide-over panel has a >=44x44 hit area and none overlap", async ({ app }) => {
+      const page = await app();
+      await openDemo(page);
+      await openPanelTouch(page);
+      await revealAllPanelControls(page);
+
+      const boxes = await collectPanelHitBoxes(page);
+      // Sanity: the sweep should have found the panel's ~50 controls, not
+      // an empty or still-closed panel.
+      expect(boxes.length).toBeGreaterThan(30);
+
+      const tooSmall = boxes.filter(
+        (b) => b.width < PANEL_TOUCH_MIN - PANEL_TOUCH_TOLERANCE || b.height < PANEL_TOUCH_MIN - PANEL_TOUCH_TOLERANCE
+      );
+      expect(tooSmall, `undersized hit boxes:\n${JSON.stringify(tooSmall, null, 2)}`).toEqual([]);
+
+      const overlapping = [];
+      for (let i = 0; i < boxes.length; i++) {
+        for (let j = i + 1; j < boxes.length; j++) {
+          if (boxesOverlap(boxes[i], boxes[j])) overlapping.push([boxes[i].label, boxes[j].label]);
+        }
+      }
+      expect(overlapping, `overlapping hit boxes:\n${JSON.stringify(overlapping, null, 2)}`).toEqual([]);
+
+      await expectNoHorizontalOverflow(page);
+
+      if (w === 390 || w === 820) {
+        await page.screenshot({ path: `test-results/owner-review/panel-${w}x${h}.png` });
+      }
+    });
+  });
+}
+
+test.describe("panel touch controls actually respond to a tap", () => {
+  test.use({ viewport: { width: 390, height: 844 }, ...TOUCH });
+
+  test("tapping a switch flips it and tapping a slider track changes its value", async ({ app }) => {
+    const page = await app();
+    await openDemo(page);
+    await openPanelTouch(page);
+
+    await openPanelSection(page, "Enhancements");
+    const neuroDivSwitch = page.locator(".rf-slideover [role='switch']").nth(0);
+    await expect(neuroDivSwitch).toHaveAttribute("aria-checked", "false");
+    await neuroDivSwitch.tap();
+    await settle(page, 200);
+    await expect(neuroDivSwitch).toHaveAttribute("aria-checked", "true");
+
+    await openPanelSection(page, "Typography");
+    const fontSizeThumb = page.locator(".rf-slideover [role='slider']").first();
+    const before = await fontSizeThumb.getAttribute("aria-valuenow");
+    const sliderRoot = page.locator(".rf-slideover .rf-m-slider-root").first();
+    const box = await sliderRoot.boundingBox();
+    await sliderRoot.tap({ position: { x: box.width - 4, y: box.height / 2 } });
+    await settle(page, 200);
+    const after = await fontSizeThumb.getAttribute("aria-valuenow");
+    expect(after).not.toBe(before);
+  });
+});

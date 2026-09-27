@@ -50,6 +50,69 @@
     min-width: 44px;
     min-height: 44px;
   }
+
+  /* ── Slide-over side panel touch targets (Task 11) ──────────────────
+     Owner-added: every interactive control inside .rf-slideover gets a
+     >=44x44 hit area on touch devices below 1024px, and sliders/switches
+     grow to be comfortable to drag with a finger. Scoped under
+     .rf-slideover (not just this media query) because renderSidebarContent()
+     — the source of every rule below — is shared verbatim with the plain,
+     always-mounted desktop sidebar div; only the touch slide-over carries
+     the .rf-slideover class, so desktop is unaffected either way. */
+
+  /* Generic hooks: grow the hit box without touching any inline style
+     value (min-width/min-height are separate properties from the inline
+     width/height most of these elements already set, so the browser
+     clamps to whichever is larger — no !important needed). */
+  .rf-slideover .rf-m-tap44 {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .rf-slideover .rf-m-tap44h {
+    min-height: 44px;
+  }
+
+  /* Toggle row (Primitives.jsx) — the whole row is already clickable, so
+     a 44px row height alone satisfies the target for its Switch. */
+  .rf-slideover .rf-m-toggle-row {
+    min-height: 44px;
+  }
+
+  /* Switch (Primitives.jsx) — grow the visible track from 36x20 to
+     44x26 and the thumb from 16 to 22, travel scaled to match (16 -> 18).
+     Same properties as the inline style, so !important is required to
+     beat it (permitted: rule only exists to beat an inline style). */
+  .rf-slideover .rf-m-switch {
+    width: 44px !important;
+    height: 26px !important;
+  }
+  .rf-slideover .rf-m-switch-thumb {
+    width: 22px !important;
+    height: 22px !important;
+    border-radius: 11px !important;
+  }
+  .rf-slideover .rf-m-switch-thumb[data-state="checked"] {
+    transform: translateX(18px) !important;
+  }
+
+  /* Slider (Primitives.jsx) — root grows 24px -> 44px tall. Radix computes
+     the dragged value from the ROOT's own bounding rect (not the thin
+     Track), so this makes the entire 44px band tap/drag-able, not just a
+     4px sliver. Thumb grows 14px -> ~24px, radius scaled to match. */
+  .rf-slideover .rf-m-slider-root {
+    min-height: 44px;
+  }
+  .rf-slideover .rf-m-slider-thumb {
+    width: 24px !important;
+    height: 24px !important;
+    border-radius: 12px !important;
+  }
+
+  /* Theme tile (App.jsx) — same property collision as Switch above: the
+     inline style already sets minHeight: 40, so beating it needs !important. */
+  .rf-slideover .rf-m-theme-tile {
+    min-height: 44px !important;
+  }
 }
 
 /* ── Notch / home indicator (tablet + phone). env() is 0 outside notched,

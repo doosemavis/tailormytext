@@ -27,14 +27,14 @@ const UploadBadge = memo(function UploadBadge({ sub, onUpgrade, onCancel, t }) {
         <div style={{ height: 4, borderRadius: 2, background: t.border, overflow: "hidden", marginBottom: 10 }}>
           <div style={{ height: "100%", borderRadius: 2, width: `${pct}%`, background: isLow ? "#E25C5C" : t.accent, transition: "width 0.3s ease" }} />
         </div>
-        <button onClick={onUpgrade} style={{ width: "100%", padding: "8px 12px", borderRadius: 10, border: "none", background: t.accentSoft, color: t.accent, cursor: "pointer", fontSize: 12, fontWeight: 620, fontFamily: SANS, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxSizing: "border-box" }}>
+        <button onClick={onUpgrade} className="rf-m-tap44h" style={{ width: "100%", padding: "8px 12px", borderRadius: 10, border: "none", background: t.accentSoft, color: t.accent, cursor: "pointer", fontSize: 12, fontWeight: 620, fontFamily: SANS, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxSizing: "border-box" }}>
           <Zap size={12} /> Upgrade to Pro
         </button>
       </>)}
       {sub.isTrial && (
         <div style={{ marginTop: 8 }}>
           <p style={{ fontSize: 11, color: t.fgSoft, fontFamily: SANS, margin: "0 0 8px", lineHeight: 1.4, textAlign: "center" }}>{priceLabel} starts {chargeDate} · Cancel anytime</p>
-          <button onClick={onCancel} style={{ width: "100%", padding: "8px 12px", borderRadius: 10, border: `1px solid ${t.border}`, background: "transparent", color: t.fgSoft, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: SANS, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, boxSizing: "border-box" }}>
+          <button onClick={onCancel} className="rf-m-tap44h" style={{ width: "100%", padding: "8px 12px", borderRadius: 10, border: `1px solid ${t.border}`, background: "transparent", color: t.fgSoft, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: SANS, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, boxSizing: "border-box" }}>
             <X size={11} /> Cancel trial
           </button>
         </div>
