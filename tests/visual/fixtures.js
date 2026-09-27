@@ -222,13 +222,22 @@ export async function openDemo(page) {
 }
 
 // Top-bar "Open panel" button (lucide PanelLeft icon, no aria-label).
+export const panelButton = (page) => page.locator("button:has(svg.lucide-panel-left)").first();
+
 export async function openPanelDesktop(page) {
-  await page.locator("button:has(svg.lucide-panel-left)").first().click();
+  await panelButton(page).click();
   await settle(page, 500);
 }
 
-export async function openSidebarSection(page, title) {
-  await page.getByRole("button", { name: title, exact: true }).click();
+// The reader side panel at every tier: the fixed sidebar column at desktop,
+// the slide-over <aside> below 1024. Both (and only they, while no Edit
+// Chapters dialog is open) carry .rf-side-scroll. Scoping matters: at the
+// tablet tier and at 1024 the toolbar's "Pacer" toggle has the same
+// accessible name as the panel's "Pacer" section header.
+export const readerPanel = (page) => page.locator(".rf-side-scroll").first();
+
+export async function openPanelSection(page, title) {
+  await readerPanel(page).getByRole("button", { name: title, exact: true }).click();
   await settle(page, 500);
 }
 

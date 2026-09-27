@@ -1,4 +1,4 @@
-import { test, expect, settle, openDemo, openPanelDesktop, openSidebarSection, openUserMenuItem } from "./fixtures.js";
+import { test, expect, settle, openDemo, openPanelDesktop, openPanelSection, openUserMenuItem } from "./fixtures.js";
 
 // Desktop must stay pixel-identical through the whole responsive project
 // (spec §3.2, §9.1). Baselines were captured from untouched code in Task 1.
@@ -76,7 +76,7 @@ for (const width of WIDTHS) {
         const page = await app();
         await openDemo(page);
         await openPanelDesktop(page);
-        await openSidebarSection(page, "Reading Guide");
+        await openPanelSection(page, "Reading Guide");
         await page.getByRole("radio").nth(index).click();
         await page.mouse.move(width - 300, 420);
         await settle(page, 200);

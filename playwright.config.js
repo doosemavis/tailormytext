@@ -25,6 +25,6 @@ export default defineConfig({
   },
   projects: [
     { name: "desktop", testMatch: "desktop.spec.js", use: { ...devices["Desktop Chrome"], deviceScaleFactor: 1 } },
-    { name: "mobile", testMatch: "mobile.spec.js", use: { ...devices["Desktop Chrome"], deviceScaleFactor: 1 } },
+    { name: "mobile", testMatch: /mobile(-[a-z-]+)?\.spec\.js$/, use: { ...devices["Desktop Chrome"], deviceScaleFactor: 1 } },
   ],
 });
