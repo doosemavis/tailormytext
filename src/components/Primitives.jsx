@@ -214,16 +214,43 @@ export function Section({ title, icon: Icon, children, t, open: defaultOpen = tr
 
 export function FontPicker({ value, onChange, t }) {
   const cur = FONTS.find(f => f.name === value);
+  // Radix's DropdownMenu Trigger opens on pointerdown for every pointer
+  // type, including touch — so a swipe on this button that's meant to
+  // scroll the panel opened the menu before the gesture even began. On
+  // touch we cancel that default (Slot's mergeProps runs OUR handler
+  // before Radix's own composed one, so calling preventDefault() here
+  // makes Radix's composeEventHandlers skip its open-on-pointerdown logic
+  // — see @radix-ui/react-dropdown-menu Trigger and @radix-ui/react-slot's
+  // mergeProps), remember the interaction was a touch, and open on the
+  // CLICK that follows instead: a real tap still produces a click and
+  // opens the menu; a swipe never produces one. Mouse and keyboard are
+  // untouched — this ref is only ever set by a touch pointerdown.
+  const [open, setOpen] = useState(false);
+  const touchOpenRef = useRef(false);
   return (
     <div style={{ padding: "4px 12px" }}>
-      <DropdownMenu.Root>
+      <DropdownMenu.Root open={open} onOpenChange={setOpen}>
         <DropdownMenu.Trigger asChild>
-          <button className="rf-static rf-m-tap44h" style={{
-            width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-            padding: "8px 12px", borderRadius: 8, border: `1px solid ${t.border}`, background: t.surface,
-            cursor: "pointer", color: t.fg, fontSize: 13, fontFamily: cur?.css, fontWeight: 500,
-            boxSizing: "border-box", outline: "none",
-          }}>
+          <button
+            className="rf-static rf-m-tap44h"
+            onPointerDown={e => {
+              if (e.pointerType === "touch") {
+                touchOpenRef.current = true;
+                e.preventDefault();
+              }
+            }}
+            onClick={() => {
+              if (touchOpenRef.current) {
+                touchOpenRef.current = false;
+                setOpen(true);
+              }
+            }}
+            style={{
+              width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "8px 12px", borderRadius: 8, border: `1px solid ${t.border}`, background: t.surface,
+              cursor: "pointer", color: t.fg, fontSize: 13, fontFamily: cur?.css, fontWeight: 500,
+              boxSizing: "border-box", outline: "none",
+            }}>
             {value}
             <ChevronDown size={14} style={{ color: t.icon }} />
           </button>

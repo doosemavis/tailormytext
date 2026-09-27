@@ -19,11 +19,17 @@ function PacerWpmSlider({ value, onChange, isPro, t }) {
         <span
           aria-label={`Faster than ${PACER_FREE_MAX_WPM} wpm is Pro`}
           title={`Faster than ${PACER_FREE_MAX_WPM} wpm is Pro`}
+          className="rf-m-pacer-cap-marker"
           style={{
             position: "absolute",
             // Slider has 12px horizontal padding; the thumb is 14px wide, so the
             // usable track spans padding+7 … 100%-(padding+7).
             left: `calc(19px + (100% - 38px) * ${CAP_FRACTION})`,
+            // Touch-only override (responsive.css, .rf-m-pacer-cap-marker):
+            // the thumb grows to 24px there, so the fraction is re-applied
+            // with the new half-thumb offset via this custom property,
+            // instead of duplicating CAP_FRACTION as a second magic number.
+            "--rf-pacer-cap-fraction": CAP_FRACTION,
             bottom: 2, transform: "translateX(-50%)",
             display: "flex", alignItems: "center", justifyContent: "center",
             width: 14, height: 14, borderRadius: 7, background: t.surface, color: t.fgSoft,

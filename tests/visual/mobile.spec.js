@@ -1,4 +1,4 @@
-import { test, expect, settle, openDemo, openSidebarSection, expectNoHorizontalOverflow, expectInViewport } from "./fixtures.js";
+import { test, expect, settle, openDemo, openSidebarSection, openPanelDesktop, expectNoHorizontalOverflow, expectInViewport } from "./fixtures.js";
 
 const TOUCH = { hasTouch: true, isMobile: true };
 const panelButton = (page) => page.locator("button:has(svg.lucide-panel-left)").first();
@@ -292,6 +292,12 @@ for (const [w, h] of SWEEP) {
 // hit boxes overlap a neighbor's.
 const PANEL_TOUCH_MIN = 44;
 const PANEL_TOUCH_TOLERANCE = 0.5;
+// Amendment: a slider's effective touch target is now the THUMB's hit area
+// (the root is pointer-events:none on touch so a swipe over the track
+// scrolls the panel — see the "panel swipe-to-scroll" tests below), padded
+// out by the transparent ::before in responsive.css's .rf-m-slider-thumb
+// rule. Must match that rule's `inset` value: (44 - 24) / 2 = 10.
+const SLIDER_THUMB_TOUCH_PAD = 10;
 
 const PANEL_INTERACTIVE_SELECTOR = [
   "button",
@@ -341,21 +347,30 @@ async function revealAllPanelControls(page) {
 }
 
 // Collects the EFFECTIVE hit box for every visible interactive control in
-// the panel. A Switch's or Slider thumb's own element is usually smaller
-// than the area that actually responds to a tap — the Toggle row / Slider
-// root do too (see Primitives.jsx) — so those two roles are measured via
-// that ancestor instead of their own small box.
+// the panel. A Switch's own element is usually smaller than the area that
+// actually responds to a tap — the whole Toggle row does too (see
+// Primitives.jsx) — so it's measured via that ancestor instead of its own
+// small box. A Slider's effective touch target is its THUMB's hit area
+// (root's box no longer applies: the root is pointer-events:none on touch,
+// see the "panel swipe-to-scroll" tests below), padded by
+// SLIDER_THUMB_TOUCH_PAD to match the transparent ::before in
+// responsive.css's .rf-m-slider-thumb rule.
 async function collectPanelHitBoxes(page) {
-  return page.evaluate((sel) => {
+  return page.evaluate(({ sel, pad }) => {
     const out = [];
     for (const el of document.querySelectorAll(sel)) {
       const style = getComputedStyle(el);
       if (style.display === "none" || style.visibility === "hidden") continue;
       const role = el.getAttribute("role");
-      let target = el;
-      if (role === "switch") target = el.closest(".rf-m-toggle-row") || el;
-      else if (role === "slider") target = el.closest(".rf-m-slider-root") || el;
-      const box = target.getBoundingClientRect();
+      let box;
+      if (role === "switch") {
+        box = (el.closest(".rf-m-toggle-row") || el).getBoundingClientRect();
+      } else if (role === "slider") {
+        const r = el.getBoundingClientRect();
+        box = { x: r.x - pad, y: r.y - pad, width: r.width + pad * 2, height: r.height + pad * 2 };
+      } else {
+        box = el.getBoundingClientRect();
+      }
       if (box.width === 0 && box.height === 0) continue;
       out.push({
         label: el.getAttribute("aria-label") || `${el.tagName}${role ? `[role=${role}]` : ""}`,
@@ -363,7 +378,7 @@ async function collectPanelHitBoxes(page) {
       });
     }
     return out;
-  }, PANEL_INTERACTIVE_SELECTOR);
+  }, { sel: PANEL_INTERACTIVE_SELECTOR, pad: SLIDER_THUMB_TOUCH_PAD });
 }
 
 function boxesOverlap(a, b, eps = PANEL_TOUCH_TOLERANCE) {
@@ -414,7 +429,12 @@ for (const [w, h] of [[360, 780], [390, 844], [820, 1180]]) {
 test.describe("panel touch controls actually respond to a tap", () => {
   test.use({ viewport: { width: 390, height: 844 }, ...TOUCH });
 
-  test("tapping a switch flips it and tapping a slider track changes its value", async ({ app }) => {
+  // Amendment: this test originally also tapped the slider TRACK and
+  // asserted the value changed. That behavior is now intentionally removed
+  // (a swipe starting on the track must scroll the panel instead — see the
+  // "panel swipe-to-scroll" tests below), so that assertion was replaced by
+  // the dedicated thumb-drag / track-swipe tests rather than kept here.
+  test("tapping a switch flips it", async ({ app }) => {
     const page = await app();
     await openDemo(page);
     await openPanelTouch(page);
@@ -425,15 +445,154 @@ test.describe("panel touch controls actually respond to a tap", () => {
     await neuroDivSwitch.tap();
     await settle(page, 200);
     await expect(neuroDivSwitch).toHaveAttribute("aria-checked", "true");
+  });
+});
 
-    await openPanelSection(page, "Typography");
-    const fontSizeThumb = page.locator(".rf-slideover [role='slider']").first();
-    const before = await fontSizeThumb.getAttribute("aria-valuenow");
-    const sliderRoot = page.locator(".rf-slideover .rf-m-slider-root").first();
-    const box = await sliderRoot.boundingBox();
-    await sliderRoot.tap({ position: { x: box.width - 4, y: box.height / 2 } });
-    await settle(page, 200);
-    const after = await fontSizeThumb.getAttribute("aria-valuenow");
-    expect(after).not.toBe(before);
+// ── Task 11 amendment: swipe-to-scroll over sliders & the font picker ──────
+// Bug (controller repro on 390x844 touch emulation via CDP
+// Input.synthesizeScrollGesture, gestureSourceType:"touch"): a vertical
+// swipe starting on any panel slider changed its value instead of
+// scrolling the panel (Radix Slider grabs pointerdown on its root and
+// jumps the value — node_modules/@radix-ui/react-slider SliderImpl); a
+// swipe starting on the FontPicker trigger opened the menu instead of
+// scrolling (Radix DropdownMenu Trigger opens on pointerdown for every
+// pointer type). Fixed via touch-only CSS (sliders: only the thumb reacts
+// to touch, root passes swipes through) and a touch-aware open-on-click
+// override in Primitives.jsx's FontPicker. These tests drive REAL gestures
+// through Chromium's input pipeline (CDP), not JS scrollTo/synthetic
+// events, so they exercise the same pipeline as the reported bug.
+
+async function cdp(page) {
+  return page.context().newCDPSession(page);
+}
+
+// Scrolls .rf-slideover via a synthesized touch scroll gesture starting at
+// (x, y) — not a JS scrollTo — so it exercises the actual browser gesture
+// pipeline. Per this CDP call's semantics, a negative yDistance scrolls the
+// panel content down (scrollTop increases).
+async function touchSwipeUp(page, x, y, distance = 160) {
+  const session = await cdp(page);
+  await session.send("Input.synthesizeScrollGesture", {
+    x, y, xDistance: 0, yDistance: -distance,
+    gestureSourceType: "touch", speed: 400, preventFling: true,
+  });
+}
+
+// Drags a point sideways via raw touch events, for interactions (like
+// grabbing a slider thumb) that must be recognized as a drag, not a scroll
+// gesture picked up by the compositor.
+async function touchDragHorizontal(page, x0, y, x1, steps = 6) {
+  const session = await cdp(page);
+  await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: x0, y }] });
+  for (let i = 1; i <= steps; i++) {
+    const x = x0 + ((x1 - x0) * i) / steps;
+    await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y }] });
+  }
+  await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+}
+
+async function panelScrollTop(page) {
+  return page.locator(".rf-slideover").evaluate((el) => el.scrollTop);
+}
+
+for (const [w, h] of [[390, 844], [820, 1180]]) {
+  test.describe(`panel swipe-to-scroll over controls ${w}x${h}`, () => {
+    test.use({ viewport: { width: w, height: h }, ...TOUCH });
+
+    test("a swipe starting on a slider track scrolls the panel and leaves its value unchanged", async ({ app }) => {
+      const page = await app();
+      await openDemo(page);
+      await openPanelTouch(page);
+      await openPanelSection(page, "Typography");
+      await openPanelSection(page, "Theme"); // scroll room
+
+      const fontSizeThumb = page.locator(".rf-slideover [role='slider']").first();
+      const before = await fontSizeThumb.getAttribute("aria-valuenow");
+      const sliderRoot = page.locator(".rf-slideover .rf-m-slider-root").first();
+      const box = await sliderRoot.boundingBox();
+      const startTop = await panelScrollTop(page);
+
+      // Far side of the track from the default-value (18, range 12-36,
+      // so the thumb starts left-of-center) thumb position, so this can
+      // only land on bare track, never the thumb.
+      await touchSwipeUp(page, box.x + box.width - 15, box.y + box.height / 2);
+      await settle(page, 300);
+
+      const endTop = await panelScrollTop(page);
+      expect(endTop).toBeGreaterThan(startTop);
+      const after = await fontSizeThumb.getAttribute("aria-valuenow");
+      expect(after).toBe(before);
+    });
+
+    test("dragging the slider thumb sideways changes its value", async ({ app }) => {
+      const page = await app();
+      await openDemo(page);
+      await openPanelTouch(page);
+      await openPanelSection(page, "Typography");
+
+      const fontSizeThumb = page.locator(".rf-slideover [role='slider']").first();
+      const before = await fontSizeThumb.getAttribute("aria-valuenow");
+      const thumbBox = await fontSizeThumb.boundingBox();
+      const cx = thumbBox.x + thumbBox.width / 2;
+      const cy = thumbBox.y + thumbBox.height / 2;
+
+      await touchDragHorizontal(page, cx, cy, cx + 80);
+      await settle(page, 300);
+
+      const after = await fontSizeThumb.getAttribute("aria-valuenow");
+      expect(after).not.toBe(before);
+    });
+
+    test("a swipe starting on the FontPicker trigger scrolls the panel without opening the menu", async ({ app }) => {
+      const page = await app();
+      await openDemo(page);
+      await openPanelTouch(page);
+      await openPanelSection(page, "Typography");
+      await openPanelSection(page, "Theme"); // scroll room
+
+      const trigger = page.locator(".rf-slideover button[aria-haspopup='menu']").first();
+      const box = await trigger.boundingBox();
+      const startTop = await panelScrollTop(page);
+
+      await touchSwipeUp(page, box.x + box.width / 2, box.y + box.height / 2);
+      await settle(page, 300);
+
+      const endTop = await panelScrollTop(page);
+      expect(endTop).toBeGreaterThan(startTop);
+      await expect(page.locator('[role="menu"]')).toHaveCount(0);
+    });
+
+    test("a plain touch tap on the FontPicker opens the menu and picking a font applies it", async ({ app }) => {
+      const page = await app();
+      await openDemo(page);
+      await openPanelTouch(page);
+      await openPanelSection(page, "Typography");
+
+      const trigger = page.locator(".rf-slideover button[aria-haspopup='menu']").first();
+      await trigger.tap();
+      await settle(page, 300);
+      const menu = page.getByRole("menu");
+      await expect(menu).toBeVisible();
+
+      const option = page.getByRole("menuitem").nth(1);
+      const optionName = await option.textContent();
+      await option.tap();
+      await settle(page, 300);
+      await expect(trigger).toContainText(optionName);
+    });
+  });
+}
+
+test.describe("FontPicker still opens on mouse press (desktop)", () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  test("clicking the FontPicker trigger with a mouse opens the menu", async ({ app }) => {
+    const page = await app();
+    await openDemo(page);
+    await openPanelDesktop(page);
+    await openSidebarSection(page, "Typography");
+    await page.locator("button[aria-haspopup='menu']").first().click();
+    await settle(page, 300);
+    await expect(page.getByRole("menu")).toBeVisible();
   });
 });
