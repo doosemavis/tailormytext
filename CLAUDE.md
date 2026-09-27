@@ -10,7 +10,7 @@ npm run build     # Production build
 npm run preview   # Preview production build
 ```
 
-No test runner or linter is currently configured.
+`npm test` runs the vitest unit suite. `npm run test:visual` runs the Playwright visual/e2e harness (`tests/visual/`) — pass `-- --project=desktop` for the zero-pixel-diff desktop regression suite or `-- --project=mobile` for phone/tablet e2e. No linter is currently configured.
 
 ## Architecture
 
@@ -110,6 +110,13 @@ When promoting from local dev → production hosting (Vercel / Netlify / etc.), 
 ### Component Exports
 
 `src/components/index.js` and `src/utils/index.js` are barrel exports — import from those, not directly from individual files.
+
+### Responsive layout (phone / tablet)
+
+- Tiers live in `src/config/breakpoints.js`: phone < 768, tablet 768–1023, desktop ≥ 1024; touch = `(pointer: coarse)`. `useBreakpoint()` returns `{ tier, isTouch }` and only re-renders when a boundary is crossed.
+- Desktop must render identically: phone/tablet CSS lives in media queries in `src/styles/responsive.css`, attached via `tmt-m-*` / `rf-*` className hooks. The only rules there outside a media query (`.rf-slideover`, `.rf-slideover-backdrop`) style an element that's never mounted at the desktop tier in the first place (JS-gated in `App.jsx`), not CSS-gated. `!important` in `responsive.css` only beats an existing inline style.
+- Reader: `renderSidebarContent()`, `chapterMenu`, `featureItems`/`featureToggles`, `renderUserMenu` are JSX/render-function locals in `App` shared by the desktop layout, `SlideOverPanel` (tablet/phone), and `PhoneReaderToolbar` (phone). The slide-over is intentionally not a Radix modal (body pointer-events cost on big books) and stays mounted when closed (the file input lives inside it).
+- Verify with `npm run test:visual`: the `desktop` project compares against committed baselines with zero pixel tolerance; the `mobile` project runs phone/tablet e2e. Supabase is faked (`.env.visual`, `tests/visual/fixtures.js`).
 
 ### Fonts
 

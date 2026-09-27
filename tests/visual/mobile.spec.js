@@ -260,3 +260,27 @@ test.describe("phone 360 pricing card fit", () => {
     }
   });
 });
+
+// Spec §9.5 viewport sweep. Assertion: no sideways scroll on each surface.
+// Screenshots go to test-results/owner-review/ for the owner to eyeball;
+// they are not compared.
+const SWEEP = [[360, 780], [390, 844], [430, 932], [844, 390], [744, 1133], [820, 1180], [1024, 768]];
+const SURFACES = [
+  ["landing", async () => {}],
+  ["reader", async (page) => { await openDemo(page); }],
+  ["pricing", async (page) => { await page.getByRole("button", { name: /see pro plans/i }).click(); await settle(page); }],
+];
+
+for (const [w, h] of SWEEP) {
+  test.describe(`sweep ${w}x${h}`, () => {
+    test.use({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
+    for (const [name, open] of SURFACES) {
+      test(name, async ({ app }) => {
+        const page = await app();
+        await open(page);
+        await expectNoHorizontalOverflow(page);
+        await page.screenshot({ path: `test-results/owner-review/${name}-${w}x${h}.png`, fullPage: name === "landing" });
+      });
+    }
+  });
+}
