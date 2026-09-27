@@ -229,7 +229,7 @@ export default function AuthModal({ onClose, t, initialView = "login" }) {
         <Dialog.Content
           onPointerDownOutside={(e) => { if (isRecoveryMode) e.preventDefault(); }}
           onEscapeKeyDown={(e) => { if (isRecoveryMode) e.preventDefault(); }}
-          className="tmt-marketing"
+          className="tmt-marketing tmt-m-dialog"
           style={{
             ...marketingThemeVars(t),
             position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",

@@ -28,7 +28,7 @@ export default function PricingModal({ onClose, onSelectPlan, hasUsedTrial, t })
       <Dialog.Portal>
         <Dialog.Overlay style={OVERLAY} />
         <Dialog.Content
-          className="tmt-marketing"
+          className="tmt-marketing tmt-m-dialog"
           style={{
             ...marketingThemeVars(t),
             position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
@@ -101,7 +101,7 @@ export default function PricingModal({ onClose, onSelectPlan, hasUsedTrial, t })
           </div>
 
           {/* Plan cards */}
-          <div style={{ padding: "18px 36px 22px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div className="tmt-m-plans" style={{ padding: "18px 36px 22px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             {/* FREE — lifted surface so the card stays visible on every theme
                 (var(--tmt-paper) would equal page-bg on dark themes). */}
             <div style={{

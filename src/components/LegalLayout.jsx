@@ -19,7 +19,7 @@ export default function LegalLayout({ t, title, lastUpdated, children }) {
       <div className="tmt-grain" aria-hidden="true" />
 
       {/* Header */}
-      <header style={{ position: "relative", zIndex: 2, borderBottom: "1px solid var(--tmt-rule)", padding: "16px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <header className="tmt-m-page-header" style={{ position: "relative", zIndex: 2, borderBottom: "1px solid var(--tmt-rule)", padding: "16px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Link to="/" style={{ ...LINK_STYLE_RESET, display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 22, height: 22, borderRadius: "50%", background: "radial-gradient(circle at 35% 35%, var(--tmt-sand) 0%, var(--tmt-terra) 55%, var(--tmt-terra-deep) 100%)", boxShadow: "inset -2px -3px 6px rgba(0,0,0,0.2)" }} />
           <span style={{ fontFamily: "var(--tmt-serif-display)", fontSize: 18, fontWeight: 500, color: "var(--tmt-ink)", letterSpacing: "-0.01em", fontVariationSettings: '"opsz" 144, "SOFT" 60' }}>TailorMyText</span>

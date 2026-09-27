@@ -181,7 +181,7 @@ export default function Account() {
   return (
     <div className="tmt-marketing" style={{ ...marketingThemeVars(t), minHeight: "100vh", background: "var(--tmt-paper)", color: "var(--tmt-ink)", display: "flex", flexDirection: "column", fontFamily: "var(--tmt-sans)" }}>
       {/* Header — same chrome as legal pages */}
-      <header style={{ borderBottom: `1px solid ${t.borderSoft}`, padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <header className="tmt-m-page-header" style={{ borderBottom: `1px solid ${t.borderSoft}`, padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Link to="/" style={{ ...LINK_RESET, display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 32, height: 32, borderRadius: 8, background: t.accentSoft, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <BookOpen size={16} style={{ color: t.accent, transform: "translateY(1px)" }} />

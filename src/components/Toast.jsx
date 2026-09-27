@@ -42,6 +42,7 @@ export function ToastProvider({ children }) {
           />
         )}
         <RadixToast.Viewport
+          className="tmt-m-toasts"
           style={{
             position: "fixed",
             top: 24,

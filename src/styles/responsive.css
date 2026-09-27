@@ -85,3 +85,31 @@
   .tmt-m-landing { padding-top: env(safe-area-inset-top); }
   .tmt-m-topright { top: calc(14px + env(safe-area-inset-top)) !important; }
 }
+
+/* ── Dialogs (spec §7.2) ── */
+@media (max-width: 767px) {
+  .tmt-m-dialog {
+    max-height: calc(100dvh - 32px) !important;
+    overflow-y: auto !important;
+  }
+  .tmt-m-dialog-full {
+    top: 0 !important; left: 0 !important; transform: none !important;
+    width: 100vw !important; max-width: none !important;
+    height: 100dvh !important; max-height: none !important;
+    border-radius: 0 !important;
+    padding-top: env(safe-area-inset-top) !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+    box-sizing: border-box !important;
+  }
+  .tmt-m-plans {
+    grid-template-columns: 1fr !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+}
+
+/* ── Toasts and page headers: clear the notch when installed (spec §7.3) ── */
+@media (max-width: 1023px) {
+  .tmt-m-toasts { top: calc(24px + env(safe-area-inset-top)) !important; }
+  .tmt-m-page-header { padding-top: calc(16px + env(safe-area-inset-top)) !important; }
+}

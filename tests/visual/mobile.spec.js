@@ -186,3 +186,55 @@ for (const width of [360, 390, 430]) {
     }
   });
 }
+
+test.describe("phone 360 dialogs and pages", () => {
+  test.use({ viewport: { width: 360, height: 780 }, hasTouch: true, isMobile: true });
+
+  test("pricing plans stack and fit", async ({ app }) => {
+    const page = await app();
+    await page.getByRole("button", { name: /see pro plans/i }).click();
+    await settle(page);
+    const cols = await page.locator(".tmt-m-plans").evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(" ").length);
+    expect(cols).toBe(1);
+    await expectInViewport(page, page.locator(".tmt-m-dialog"));
+  });
+
+  for (const [name, open] of [
+    ["auth", (p) => p.getByRole("button", { name: "Sign in" }).click()],
+    ["contact", (p) => p.getByText("Contact", { exact: true }).click()],
+  ]) {
+    test(`${name} dialog fits`, async ({ app }) => {
+      const page = await app();
+      await open(page);
+      await settle(page);
+      const dialog = page.locator(".tmt-m-dialog");
+      await expectInViewport(page, dialog);
+      const box = await dialog.boundingBox();
+      expect(box.height).toBeLessThanOrEqual(780);
+    });
+  }
+
+  test("library drawer is full-screen", async ({ app }) => {
+    const page = await app({ signedIn: true });
+    await openDemo(page);
+    await page.locator("button:has(svg.lucide-panel-left)").first().click();
+    await settle(page, 500);
+    await page.getByRole("button", { name: /browse the library/i }).click();
+    await settle(page);
+    const box = await page.locator(".tmt-m-dialog-full").boundingBox();
+    expect(box.x).toBe(0);
+    expect(box.width).toBe(360);
+  });
+
+  for (const path of ["/privacy", "/terms"]) {
+    test(`page ${path} has no sideways scroll`, async ({ app }) => {
+      const page = await app({ path });
+      await expectNoHorizontalOverflow(page);
+    });
+  }
+
+  test("page /account has no sideways scroll", async ({ app }) => {
+    const page = await app({ signedIn: true, path: "/account" });
+    await expectNoHorizontalOverflow(page);
+  });
+});

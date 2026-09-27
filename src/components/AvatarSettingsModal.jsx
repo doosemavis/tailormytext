@@ -48,7 +48,7 @@ export default function AvatarSettingsModal({ open, onOpenChange, onSave, curren
       <Dialog.Portal>
         <Dialog.Overlay style={MODAL_OVERLAY_STYLE} />
         <Dialog.Content
-          className="tmt-marketing"
+          className="tmt-marketing tmt-m-dialog"
           style={{ ...marketingThemeVars(t), position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: "var(--tmt-paper)", borderRadius: 22, maxWidth: 400, width: "calc(100% - 48px)", padding: 28, boxShadow: "0 28px 70px rgba(0,0,0,0.28)", zIndex: 1011 }}
         >
           <Dialog.Close asChild>

@@ -42,7 +42,7 @@ export default function ContactModal({ open, onOpenChange, t }) {
       <Dialog.Portal>
         <Dialog.Overlay style={OVERLAY} />
         <Dialog.Content
-          className="tmt-marketing"
+          className="tmt-marketing tmt-m-dialog"
           style={{
             ...marketingThemeVars(t),
             position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",

@@ -144,7 +144,7 @@ export default function EditChaptersModal({
         <Dialog.Overlay style={MODAL_OVERLAY_STYLE} />
         <Dialog.Content
           aria-describedby="edit-chapters-desc"
-          className="tmt-marketing"
+          className="tmt-marketing tmt-m-dialog-full"
           style={{
             ...marketingThemeVars(t),
             position: "fixed",
