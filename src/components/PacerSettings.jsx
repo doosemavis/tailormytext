@@ -11,7 +11,7 @@ function PacerSettings({ pacer, isPro, t }) {
   const { wpm } = usePacerState(pacer.store);
   return (
     <>
-      <PacerWpmSlider value={wpm} onChange={pacer.setWpm} isPro={isPro} t={t} />
+      <PacerWpmSlider value={wpm} onChange={pacer.setWpm} onLimit={pacer.promptPro} isPro={isPro} t={t} />
       <p style={{ ...HINT_STYLE, color: t.fgSoft }}>
         Click a word or use the arrow keys to set the start. Space plays and pauses.
       </p>

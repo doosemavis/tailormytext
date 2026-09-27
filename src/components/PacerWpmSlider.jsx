@@ -4,17 +4,22 @@ import { Slider } from "./Primitives";
 import { WPM_MIN, WPM_MAX, WPM_STEP } from "../config/pacer";
 import { PACER_FREE_MAX_WPM } from "../config/proFeatures";
 
-// WPM slider with a lock marker at the free-tier cap. The marker is purely
-// informational: the clamp itself lives in usePacer.setWpm so every input
-// path (slider, bar buttons, keys) shares one gate.
+// WPM slider with a lock marker at the free-tier cap. For free users the thumb
+// stops at the lock, and pushing into it opens the Pro prompt (`onLimit`). The
+// clamp itself still lives in usePacer.setWpm, so every input path (slider,
+// bar buttons, keys) shares one gate.
 
 const FMT_WPM = (v) => `${v} wpm`;
 const CAP_FRACTION = (PACER_FREE_MAX_WPM - WPM_MIN) / (WPM_MAX - WPM_MIN);
 
-function PacerWpmSlider({ value, onChange, isPro, t }) {
+function PacerWpmSlider({ value, onChange, onLimit, isPro, t }) {
   return (
     <div style={{ position: "relative" }}>
-      <Slider value={value} min={WPM_MIN} max={WPM_MAX} step={WPM_STEP} onChange={onChange} label="Words per minute" format={FMT_WPM} t={t} />
+      <Slider
+        value={value} min={WPM_MIN} max={WPM_MAX} step={WPM_STEP} onChange={onChange}
+        limit={isPro ? undefined : PACER_FREE_MAX_WPM} onLimit={onLimit}
+        label="Words per minute" format={FMT_WPM} t={t}
+      />
       {!isPro && (
         <span
           aria-label={`Faster than ${PACER_FREE_MAX_WPM} wpm is Pro`}
