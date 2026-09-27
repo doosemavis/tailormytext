@@ -66,12 +66,21 @@ export const Toggle = memo(function Toggle({ on, onChange, label, icon: Icon, t 
 // so the document updates AS the user drags without any App state churn.
 export const Slider = memo(function Slider({ value, min, max, step, onChange, onLiveChange, label, format, t }) {
   const [localValue, setLocalValue] = useState(value);
+  // Bumped on every commit so the sync below re-runs even when the parent
+  // keeps its old value — e.g. the pacer clamping a free user's second push
+  // past the WPM cap back to the same 400 it already had.
+  const [commitCount, setCommitCount] = useState(0);
+  // True only while a pointer is held on the slider. Keyed to the pointer, not
+  // to onValueChange: Radix fires a keyboard step's commit BEFORE its change,
+  // so a change-based flag would stay stuck on and block the sync below.
   const draggingRef = useRef(false);
+  const endDrag = () => { draggingRef.current = false; };
 
-  // Sync external value changes (e.g. theme reset) into local state — but never mid-drag.
+  // Sync external value changes (e.g. theme reset) and the parent's verdict on
+  // each commit into local state — but never mid-drag.
   useEffect(() => {
     if (!draggingRef.current) setLocalValue(value);
-  }, [value]);
+  }, [value, commitCount]);
 
   const display = format ? format(localValue) : localValue;
 
@@ -86,14 +95,16 @@ export const Slider = memo(function Slider({ value, min, max, step, onChange, on
         min={min}
         max={max}
         step={step}
+        onPointerDown={() => { draggingRef.current = true; }}
+        onLostPointerCapture={endDrag}
         onValueChange={([v]) => {
-          draggingRef.current = true;
           setLocalValue(v);
           if (onLiveChange) onLiveChange(v);
         }}
         onValueCommit={([v]) => {
-          draggingRef.current = false;
+          endDrag();
           onChange(v);
+          setCommitCount((n) => n + 1);
         }}
         style={{ position: "relative", display: "flex", alignItems: "center", userSelect: "none", touchAction: "none", height: 24 }}
       >
