@@ -37,14 +37,35 @@ describe("SlideOverPanel", () => {
 
   it("ignores Escape while closed", () => {
     const onOpenChange = renderPanel({ open: false });
-    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.keyDown(document.querySelector(".rf-slideover"), { key: "Escape" });
     expect(onOpenChange).not.toHaveBeenCalled();
   });
 
-  it("closes on Escape when open", () => {
+  it("closes on Escape from inside the panel when open", () => {
     const onOpenChange = renderPanel();
-    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.keyDown(screen.getByText("Inside"), { key: "Escape" });
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("ignores other keys", () => {
+    const onOpenChange = renderPanel();
+    fireEvent.keyDown(screen.getByText("Inside"), { key: "Enter" });
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  // Radix layers opened from inside the panel (menus, selects, tooltips)
+  // consume Escape in a document capture listener with preventDefault; one
+  // Escape must close only that layer, not the panel too.
+  it("leaves an Escape that another layer already handled", () => {
+    const consume = (e) => e.preventDefault();
+    document.addEventListener("keydown", consume, { capture: true });
+    try {
+      const onOpenChange = renderPanel();
+      fireEvent.keyDown(screen.getByText("Inside"), { key: "Escape" });
+      expect(onOpenChange).not.toHaveBeenCalled();
+    } finally {
+      document.removeEventListener("keydown", consume, { capture: true });
+    }
   });
 
   it("moves focus into the panel when it opens", () => {

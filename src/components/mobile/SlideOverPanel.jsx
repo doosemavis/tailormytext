@@ -33,13 +33,20 @@ export default function SlideOverPanel({ open, onOpenChange, width, background, 
     const opener = document.activeElement;
     const restoreTo = opener instanceof HTMLElement && hasKeyboardFocus(opener) ? opener : null;
     panelRef.current?.focus();
-    const onKey = (e) => { if (e.key === "Escape") onOpenChange(false); };
-    document.addEventListener("keydown", onKey);
     return () => {
-      document.removeEventListener("keydown", onKey);
       if (restoreTo?.isConnected) restoreTo.focus();
     };
-  }, [open, onOpenChange]);
+  }, [open]);
+
+  // Escape is handled on the panel itself, not the document, so a layer
+  // opened from inside the panel closes first. Radix layers (FontPicker menu,
+  // selects, tooltips) handle Escape in a document capture listener and call
+  // preventDefault; React events bubble through their portals to this
+  // <aside>, so a consumed Escape arrives here already defaultPrevented.
+  const onKeyDown = (e) => {
+    if (!open || e.key !== "Escape" || e.defaultPrevented) return;
+    onOpenChange(false);
+  };
 
   return (
     <>
@@ -53,6 +60,7 @@ export default function SlideOverPanel({ open, onOpenChange, width, background, 
         aria-hidden={!open}
         data-state={open ? "open" : "closed"}
         tabIndex={-1}
+        onKeyDown={onKeyDown}
         className="rf-slideover rf-no-select rf-side-scroll"
         style={{ width, background, borderRight: `1px solid ${borderColor}` }}
       >

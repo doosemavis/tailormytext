@@ -389,3 +389,52 @@ test.describe("slide-over focus (phone 390 touch)", () => {
     await expectClosedWithoutTooltip(page);
   });
 });
+
+test.describe("slide-over Escape (tablet 820)", () => {
+  test.use({ viewport: { width: 820, height: 1180 }, ...TOUCH });
+
+  test("Escape closes an open FontPicker menu first, and only a second Escape closes the panel", async ({ app }) => {
+    const page = await app();
+    await openDemo(page);
+    await openPanelTouch(page);
+    await openPanelSection(page, "Typography");
+    await slideover(page).getByTestId("fontpicker-trigger").tap();
+    await settle(page, 300);
+    await expect(page.getByRole("menu")).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await settle(page, 300);
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    await expect(slideover(page)).toHaveAttribute("data-state", "open");
+
+    await page.keyboard.press("Escape");
+    await settle(page, 300);
+    await expect(slideover(page)).toHaveAttribute("data-state", "closed");
+  });
+
+  // usePacer ignores keys whose target is inside [role='dialog'] (the
+  // slide-over is one), so Escape inside the panel only closes the panel,
+  // and Escape outside it still pauses the pacer, same as before this fix.
+  test("with the pacer playing, Escape closes the panel, then a second Escape pauses the pacer", async ({ app }) => {
+    const page = await app();
+    await openDemo(page);
+    await page.locator(".rf-reader-chrome").getByRole("button", { name: "Pacer", exact: true }).click();
+    await settle(page, 300);
+    const pacerBar = page.getByRole("toolbar", { name: "Pacer controls" });
+    await pacerBar.getByRole("button", { name: "Play", exact: true }).click();
+    await settle(page, 300);
+    const pause = pacerBar.getByRole("button", { name: "Pause", exact: true });
+    await expect(pause).toBeVisible();
+
+    await openPanelTouch(page);
+    await page.keyboard.press("Escape");
+    await settle(page, 300);
+    await expect(slideover(page)).toHaveAttribute("data-state", "closed");
+    await expect(pause).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await settle(page, 300);
+    await expect(pacerBar.getByRole("button", { name: "Play", exact: true })).toBeVisible();
+    await expect(slideover(page)).toHaveAttribute("data-state", "closed");
+  });
+});
