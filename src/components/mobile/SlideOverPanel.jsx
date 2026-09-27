@@ -1,5 +1,16 @@
 import { useEffect, useRef } from "react";
 
+// True when `el` has focus that the user reached by keyboard. Engines without
+// :focus-visible (Safari < 15.4) throw on the selector; treat that as "not
+// keyboard", which means focus is simply not handed back on close.
+function hasKeyboardFocus(el) {
+  try {
+    return el.matches(":focus-visible");
+  } catch {
+    return false;
+  }
+}
+
 // Tablet/phone side panel: slides over the reader instead of pushing it
 // (spec §6.2). Deliberately NOT a Radix modal Dialog: modal mode sets
 // pointer-events:none on <body>, which restyles every word span in a large
@@ -11,21 +22,22 @@ import { useEffect, useRef } from "react";
 export default function SlideOverPanel({ open, onOpenChange, width, background, borderColor, label = "Reader panel", children }) {
   const panelRef = useRef(null);
 
-  // Standard dialog focus pattern: on open, remember what had focus and move
-  // focus into the panel; on close (or unmount), give it back — otherwise
-  // keyboard/screen-reader users lose their place when the panel toggle
-  // button that opened this disappears behind the backdrop.
+  // Dialog focus pattern: on open, move focus into the panel. On close (or
+  // unmount), hand focus back to the opener ONLY if the opener had keyboard
+  // focus when the panel opened. After a touch/mouse open nothing is focused
+  // programmatically: the opener is a Radix Tooltip trigger, and Tooltip
+  // opens on focus, so a programmatic focus there leaves a tooltip that no
+  // pointer-leave or blur will ever close on a touch screen.
   useEffect(() => {
     if (!open) return undefined;
-    const previouslyFocused = document.activeElement;
+    const opener = document.activeElement;
+    const restoreTo = opener instanceof HTMLElement && hasKeyboardFocus(opener) ? opener : null;
     panelRef.current?.focus();
     const onKey = (e) => { if (e.key === "Escape") onOpenChange(false); };
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("keydown", onKey);
-      if (previouslyFocused instanceof HTMLElement && document.contains(previouslyFocused)) {
-        previouslyFocused.focus();
-      }
+      if (restoreTo?.isConnected) restoreTo.focus();
     };
   }, [open, onOpenChange]);
 

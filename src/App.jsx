@@ -1559,7 +1559,10 @@ export default function App() {
           />
         ) : (
           <div className="rf-reader-chrome" style={{ display: "flex", alignItems: "center", gap: 16, padding: "8px 16px", borderBottom: `1px solid ${t.borderSoft}`, minHeight: 44, background: t.bg }}>
-            {!panelOpen && panelToggleButton}
+            {/* Desktop hides the toggle while the panel is open (unchanged).
+                Tablet keeps it mounted under the slide-over's backdrop so
+                closing the panel can hand keyboard focus back to it. */}
+            {(tier !== "desktop" || !panelOpen) && panelToggleButton}
             <button
               onClick={() => { closeDoc(); setFocusPara(-1); }}
               className="rf-static"

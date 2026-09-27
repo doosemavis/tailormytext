@@ -96,4 +96,30 @@ describe("SlideOverPanel", () => {
     );
     expect(document.activeElement).toBe(trigger);
   });
+
+  // A pointer/touch open must not focus the opener again on close: the
+  // opener is a Radix Tooltip trigger, and a programmatic focus opens its
+  // tooltip with nothing on a touch screen to close it.
+  it("does not restore focus when the opener was focused by pointer, not keyboard", () => {
+    const onOpenChange = vi.fn();
+    const ui = (open) => (
+      <>
+        <button>Outside trigger</button>
+        <SlideOverPanel open={open} onOpenChange={onOpenChange} width={296} background="#fff" borderColor="#ccc">
+          <button>Inside</button>
+        </SlideOverPanel>
+      </>
+    );
+    const { rerender } = render(ui(false));
+    const trigger = screen.getByText("Outside trigger");
+    trigger.focus();
+    // happy-dom reports every focus as :focus-visible; simulate a pointer focus.
+    const realMatches = trigger.matches.bind(trigger);
+    vi.spyOn(trigger, "matches").mockImplementation((sel) => (sel === ":focus-visible" ? false : realMatches(sel)));
+
+    rerender(ui(true));
+    expect(document.activeElement).toBe(document.querySelector(".rf-slideover"));
+    rerender(ui(false));
+    expect(document.activeElement).not.toBe(trigger);
+  });
 });

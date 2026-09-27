@@ -1,4 +1,4 @@
-import { test, expect, settle, openDemo, openPanelSection, openPanelDesktop, expectNoHorizontalOverflow, expectInViewport } from "./fixtures.js";
+import { test, expect, settle, openDemo, openPanelSection, openPanelDesktop, panelButton, expectNoHorizontalOverflow, expectInViewport } from "./fixtures.js";
 import { TOUCH, openPanelTouch } from "./touch.js";
 
 test.describe("tablet 820 slide-over", () => {
@@ -307,5 +307,85 @@ test.describe("home-screen icon (phone 390)", () => {
     expect(after.apple).toMatch(/\/apple-touch-icon-180\.png$/);
     for (const href of after.tab) expect(href).toMatch(/^data:image\/svg\+xml/);
     expect(after.tab[0]).not.toBe(initial.tab[0]);
+  });
+});
+
+// ── Slide-over focus & Escape ───────────────────────────────────────────────
+// Focus goes back to the toggle only when the panel was opened from the
+// keyboard. After a touch/pointer close nothing is focused programmatically,
+// because focusing the toggle opens its Radix tooltip (open-on-focus), and on
+// touch nothing ever closes it again.
+const slideover = (page) => page.locator(".rf-slideover");
+
+test.describe("slide-over focus (tablet 820)", () => {
+  test.use({ viewport: { width: 820, height: 1180 }, ...TOUCH });
+
+  test("keyboard open, then Escape, returns focus to the toggle", async ({ app }) => {
+    const page = await app();
+    await openDemo(page);
+    const toggle = panelButton(page);
+    // A real keyboard path: Tab from the page start lands on the toggle (the
+    // closed slide-over is display:none, so the toolbar comes first).
+    await page.keyboard.press("Tab");
+    await expect(toggle).toBeFocused();
+    await page.keyboard.press("Enter");
+    await settle(page, 500);
+    await expect(slideover(page)).toHaveAttribute("data-state", "open");
+
+    await page.keyboard.press("Escape");
+    await settle(page, 300);
+    await expect(slideover(page)).toHaveAttribute("data-state", "closed");
+    await expect(toggle).toBeFocused();
+  });
+
+  test("the toolbar under the open panel keeps its layout (no shift, no overflow)", async ({ app }) => {
+    const page = await app();
+    await openDemo(page);
+    const chrome = page.locator(".rf-reader-chrome");
+    const layout = () => chrome.evaluate((el) => ({
+      fits: el.scrollWidth <= el.clientWidth,
+      children: [...el.children].map((c) => {
+        const r = c.getBoundingClientRect();
+        return [Math.round(r.x), Math.round(r.width)];
+      }),
+    }));
+    const closed = await layout();
+    await openPanelTouch(page);
+    const opened = await layout();
+    expect(opened).toEqual(closed);
+    expect(opened.fits).toBe(true);
+    await expectNoHorizontalOverflow(page);
+  });
+});
+
+test.describe("slide-over focus (phone 390 touch)", () => {
+  test.use({ viewport: { width: 390, height: 844 }, ...TOUCH });
+
+  async function tapOpen(page) {
+    await panelButton(page).tap();
+    await settle(page, 500);
+    await expect(slideover(page)).toHaveAttribute("data-state", "open");
+  }
+
+  async function expectClosedWithoutTooltip(page) {
+    await settle(page, 1000);
+    await expect(slideover(page)).toHaveAttribute("data-state", "closed");
+    await expect(page.locator('[role="tooltip"]')).toHaveCount(0);
+  }
+
+  test("tapping the backdrop closes the panel without leaving a tooltip open", async ({ app }) => {
+    const page = await app();
+    await openDemo(page);
+    await tapOpen(page);
+    await page.getByTestId("slideover-backdrop").tap({ position: { x: 370, y: 600 } });
+    await expectClosedWithoutTooltip(page);
+  });
+
+  test("tapping Close panel closes the panel without leaving a tooltip open", async ({ app }) => {
+    const page = await app();
+    await openDemo(page);
+    await tapOpen(page);
+    await page.getByRole("button", { name: "Close panel", exact: true }).tap();
+    await expectClosedWithoutTooltip(page);
   });
 });
