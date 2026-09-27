@@ -140,8 +140,8 @@
      exactly fills the root's own 44px height top-to-bottom (no overlap
      with the next/previous slider's row) and is centered on the thumb
      horizontally regardless of the thumb's current position along the
-     track. See SLIDER_THUMB_TOUCH_PAD in mobile.spec.js — that test
-     constant must match this inset, and mobile.spec.js's
+     track. See SLIDER_THUMB_TOUCH_PAD in tests/visual/touch.js — that test
+     constant must match this inset, and mobile-panel-touch.spec.js's
      "the slider thumb's padded touch hit area actually resolves to the
      thumb" test hit-tests real points in this padded area with
      elementFromPoint to prove it, not just arithmetic on a rectangle. */
@@ -221,7 +221,9 @@
   }
   .tmt-m-cards { grid-template-columns: 1fr !important; }
   .tmt-m-shelf { gap: 2px !important; padding: 0 !important; }
-  .tmt-m-shelf > * { flex-shrink: 1 !important; min-width: 0 !important; }
+  /* flex-shrink beats each spine's inline flexShrink: 0; min-width has no
+     inline or stylesheet counterpart, so it needs no !important. */
+  .tmt-m-shelf > * { flex-shrink: 1 !important; min-width: 0; }
 }
 
 /* Installed (standalone) mode: keep the landing and its sign-in button out
@@ -243,9 +245,10 @@
      reports an oversized floor to the ancestor grid. On the 1-column phone
      grid that stretches BOTH cards to the wider card's floor, past the
      dialog's right edge. min-width: 0 removes that floor; real (definite-
-     width) layout doesn't need it — the CTA text still fits on one line. */
+     width) layout doesn't need it — the CTA text still fits on one line.
+     No inline or stylesheet min-width competes, so no !important. */
   .tmt-m-plan-card {
-    min-width: 0 !important;
+    min-width: 0;
   }
   .tmt-m-dialog-full {
     top: 0 !important; left: 0 !important; transform: none !important;
