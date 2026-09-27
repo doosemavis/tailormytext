@@ -96,25 +96,26 @@
   }
 
   /* Slider (Primitives.jsx) — root grows 24px -> 44px tall. Thumb grows
-     14px -> 24px, radius scaled to match.
-     Amendment (bug fix): a vertical swipe that started anywhere on a
-     slider — including the plain track — used to jump its value instead
-     of scrolling the panel, because Radix's Slider grabs pointerdown on
-     the ROOT and computes the value from the root's own bounding rect
-     (see node_modules/@radix-ui/react-slider SliderImpl/SliderHorizontal).
-     On touch only, the root becomes non-interactive (pointer-events:none,
-     touch-action:pan-y so a swipe scrolls .rf-slideover like empty space)
-     and only the thumb opts back in (pointer-events:auto, touch-action:
-     none so Radix's own drag handling — not native scrolling — runs). The
-     thumb's pointerdown still bubbles to Radix's root-level handler
-     (pointer-events:none on an ancestor blocks HIT-TESTING, not event
-     bubbling through it once a pointer-events:auto descendant is hit), so
-     dragging the thumb still works exactly like a mouse drag. Tap-to-jump
-     on the bare track is intentionally lost on touch — there's no way to
-     keep it without reintroducing the swipe-hijack bug. */
+     14px -> 24px, radius scaled to match. On touch, only the thumb is
+     interactive: the root is pointer-events:none, so a touch that lands
+     anywhere on the root/track (including the thin visible line) is
+     invisible to hit-testing and falls through to whatever's underneath —
+     here, .rf-slideover's own native scroll, exactly as if the slider
+     weren't there. Radix's Slider computes its dragged value from the
+     ROOT's own bounding rect on pointerdown
+     (node_modules/@radix-ui/react-slider SliderImpl/SliderHorizontal), so
+     without this, any touch on the track — including one meant to scroll
+     the panel — would jump the value instead. The thumb opts back in
+     (pointer-events:auto, touch-action:none) so Radix's own drag handling
+     runs there instead of native scrolling; its pointerdown still bubbles
+     to the root's listener (pointer-events:none on an ancestor blocks
+     HIT-TESTING, not event propagation through it once a
+     pointer-events:auto descendant is the hit target), so dragging the
+     thumb works exactly like a mouse drag. Tap-to-jump on the bare track
+     is intentionally unavailable on touch — there's no way to keep it
+     without reintroducing the swipe-hijack. */
   .rf-slideover .rf-m-slider-root {
     min-height: 44px;
-    touch-action: pan-y !important;
     pointer-events: none;
   }
   .rf-slideover .rf-m-slider-thumb {
@@ -133,8 +134,11 @@
      exactly fills the root's own 44px height top-to-bottom (no overlap
      with the next/previous slider's row) and is centered on the thumb
      horizontally regardless of the thumb's current position along the
-     track. See PANEL_SLIDER_THUMB_TOUCH_PAD in mobile.spec.js — that test
-     constant must match this inset. */
+     track. See SLIDER_THUMB_TOUCH_PAD in mobile.spec.js — that test
+     constant must match this inset, and mobile.spec.js's
+     "the slider thumb's padded touch hit area actually resolves to the
+     thumb" test hit-tests real points in this padded area with
+     elementFromPoint to prove it, not just arithmetic on a rectangle. */
   .rf-slideover .rf-m-slider-thumb::before {
     content: "";
     position: absolute;
@@ -148,15 +152,26 @@
     min-height: 44px !important;
   }
 
-  /* PacerWpmSlider's Pro-lock marker (App.jsx via PacerWpmSlider.jsx) computes
-     its `left` from the slider's 12px padding + half the THUMB width, so the
-     marker's dot lines up exactly over the free/Pro boundary on the track.
-     The base inline style assumes the desktop thumb (14px, half=7 -> 19/38).
-     On touch the thumb is 24px (half=12 -> 24/48); recompute with the same
-     fraction (passed through as --rf-pacer-cap-fraction) so the marker still
-     lines up. Same property as the inline `left`, so needs !important. */
+  /* PacerWpmSlider's Pro-lock marker (rendered from PacerSettings.jsx:14)
+     computes its `left` from the slider's 12px padding + half the THUMB
+     width, so the marker's dot lines up exactly over the free/Pro boundary
+     on the track. The base inline style assumes the desktop thumb (14px,
+     half=7 -> 19/38). On touch the thumb is 24px (half=12 -> 24/48);
+     recompute with the same fraction (passed through as
+     --rf-pacer-cap-fraction) so the marker still lines up horizontally.
+     Same property as the inline `left`, so needs !important.
+     Vertically, the inline `bottom: 2` is measured from the wrapper div's
+     bottom edge — 6px below the slider ROOT via the Slider component's own
+     padding-bottom, not from the root itself — so it doesn't automatically
+     track the root's height. On desktop (root 24px) that places the marker
+     9px below the root's vertical center; growing the root to 44px without
+     adjusting `bottom` would drift that to ~19px, sitting on top of the
+     thumb. Growing `bottom` by half of the root's height increase (24px ->
+     44px is +20, so bottom 2px -> 12px) keeps the same 9px-below-center
+     relative position touch has on desktop. */
   .rf-slideover .rf-m-pacer-cap-marker {
     left: calc(24px + (100% - 48px) * var(--rf-pacer-cap-fraction)) !important;
+    bottom: 12px !important;
   }
 }
 

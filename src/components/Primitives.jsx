@@ -233,11 +233,15 @@ export function FontPicker({ value, onChange, t }) {
         <DropdownMenu.Trigger asChild>
           <button
             className="rf-static rf-m-tap44h"
+            data-testid="fontpicker-trigger"
             onPointerDown={e => {
-              if (e.pointerType === "touch") {
-                touchOpenRef.current = true;
-                e.preventDefault();
-              }
+              // Set on EVERY pointerdown (not just touch ones) so a mouse
+              // press after a touch press can't see a stale `true` left
+              // over from that earlier touch — relevant if this ever runs
+              // with modal={false}, where a stray pointerdown elsewhere
+              // wouldn't otherwise reset it.
+              touchOpenRef.current = e.pointerType === "touch";
+              if (touchOpenRef.current) e.preventDefault();
             }}
             onClick={() => {
               if (touchOpenRef.current) {
