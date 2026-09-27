@@ -319,7 +319,7 @@ export default function App() {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="${accent}"/><g transform="translate(14 15)" fill="none" stroke="${iconColor}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><g transform="scale(1.5)"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></g></g></svg>`;
     const dataUri = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 
-    const links = document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]');
+    const links = document.querySelectorAll('link[rel="icon"]');
     links.forEach(link => { link.href = dataUri; });
 
     const meta = document.querySelector('meta[name="theme-color"]');

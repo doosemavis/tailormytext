@@ -272,3 +272,40 @@ for (const [w, h] of SWEEP) {
     }
   });
 }
+
+// iOS reads link[rel="apple-touch-icon"] when the page is added to the home
+// screen. The theme-favicon effect in App.jsx restyles the TAB favicon per
+// theme and must leave the home-screen PNG alone.
+test.describe("home-screen icon (phone 390)", () => {
+  test.use({ viewport: { width: 390, height: 844 }, ...TOUCH });
+
+  const iconHrefs = (page) => page.evaluate(() => ({
+    apple: document.querySelector('link[rel="apple-touch-icon"]')?.getAttribute("href"),
+    tab: [...document.querySelectorAll('link[rel="icon"]')].map((l) => l.getAttribute("href")),
+  }));
+
+  test("theme changes restyle the tab favicon but never the apple-touch-icon", async ({ app }) => {
+    const page = await app();
+    const initial = await iconHrefs(page);
+    expect(initial.apple).toMatch(/\/apple-touch-icon-180\.png$/);
+    expect(initial.tab.length).toBeGreaterThan(0);
+    for (const href of initial.tab) expect(href).toMatch(/^data:image\/svg\+xml/);
+
+    await openDemo(page);
+    await openPanelTouch(page);
+    await openPanelSection(page, "Theme");
+    const label = await page
+      .locator('.rf-slideover [aria-label^="Theme: "][aria-pressed="false"]:not([aria-label$="(Pro)"])')
+      .first()
+      .getAttribute("aria-label");
+    const otherFreeTheme = page.locator(".rf-slideover").getByRole("button", { name: label, exact: true });
+    await otherFreeTheme.click();
+    await settle(page);
+    await expect(otherFreeTheme).toHaveAttribute("aria-pressed", "true");
+
+    const after = await iconHrefs(page);
+    expect(after.apple).toMatch(/\/apple-touch-icon-180\.png$/);
+    for (const href of after.tab) expect(href).toMatch(/^data:image\/svg\+xml/);
+    expect(after.tab[0]).not.toBe(initial.tab[0]);
+  });
+});
