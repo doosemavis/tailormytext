@@ -362,7 +362,20 @@ a.rf-link-btn:active {
 .rf-pace-trail-1 { background: color-mix(in oklab, var(--rf-pace-color, currentColor) 18%, transparent); }
 .rf-pace-trail-2 { background: color-mix(in oklab, var(--rf-pace-color, currentColor) 11%, transparent); }
 .rf-pace-trail-3 { background: color-mix(in oklab, var(--rf-pace-color, currentColor) 5%, transparent); }
-.rf-pace-cursor  { outline: 2px solid var(--rf-pace-color, currentColor); outline-offset: 1px; }
+/* Cursor ring: same 2px ring 1px off the word as the old outline, drawn as a
+   box so its right edge can skip the span's trailing space. --rf-cursor-trim
+   is that space's measured width (utils/pacer/cursorRing.js), so the ring sits
+   as close to the last letter as it does to the first. */
+.rf-pace-cursor { position: relative; }
+.rf-pace-cursor::after {
+  content: "";
+  position: absolute;
+  top: -3px; bottom: -3px; left: -3px;
+  right: calc(var(--rf-cursor-trim, 0px) - 3px);
+  border: 2px solid var(--rf-pace-color, currentColor);
+  border-radius: 6px;
+  pointer-events: none;
+}
 
 /* Ring clip room. content-visibility:auto on .rf-para / .rf-section implies
    paint containment, which clips at their padding box, so a ring on a word
