@@ -81,9 +81,32 @@ const PAGES = [
   },
 ];
 
-const FLIP_DURATION_MS = 850;
+export const FLIP_DURATION_MS = 850;
+export const FLIP_EASE = [0.45, 0.04, 0.15, 1]; // cubic-bezier control points
 const AUTO_ADVANCE_MS  = 6000;
 const CARD_HEIGHT      = 286;
+
+// When, within a flip, the rotation reaches 90° (edge-on). The easing is
+// ease-in-out, so that is well before half the duration (~293ms of 850ms).
+// Solved from the curve rather than hard-coded, so it tracks FLIP_EASE.
+function edgeOnMs() {
+  const [x1, y1, x2, y2] = FLIP_EASE;
+  const bezier = (s, a, b) => 3 * (1 - s) ** 2 * s * a + 3 * (1 - s) * s ** 2 * b + s ** 3;
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (bezier(mid, y1, y2) < 0.5) lo = mid; else hi = mid;
+  }
+  return Math.round(bezier((lo + hi) / 2, x1, x2) * FLIP_DURATION_MS);
+}
+export const EDGE_ON_MS = edgeOnMs();
+// The rotation runs on the compositor and the visibility swap on the main
+// thread, so an exact swap at EDGE_ON_MS can land a frame early or late and
+// leave no face on screen. The faces overlap by this much on each side instead
+// (~70°–108°): normal rendering still culls the turned-away face there, and in
+// Safari's flattened View Transition snapshot the card is too thin to read.
+export const SWAP_OVERLAP_MS = 35;
 
 export default function HeroFeatureFlip() {
   const [pageIndex, setPageIndex] = useState(0);
@@ -142,11 +165,11 @@ export default function HeroFeatureFlip() {
         <div style={{
           position: "relative", width: "100%", height: "100%",
           transformStyle: "preserve-3d",
-          transition: `transform ${FLIP_DURATION_MS}ms cubic-bezier(.45, .04, .15, 1)`,
+          transition: `transform ${FLIP_DURATION_MS}ms cubic-bezier(${FLIP_EASE.join(", ")})`,
           transform: `rotateY(${tickCount * -180}deg)`,
         }}>
-          <Face content={faceA} rotation={0} />
-          <Face content={faceB} rotation={180} />
+          <Face content={faceA} rotation={0}   isFront={tickCount % 2 === 0} />
+          <Face content={faceB} rotation={180} isFront={tickCount % 2 === 1} />
         </div>
       </div>
 
@@ -177,10 +200,21 @@ export default function HeroFeatureFlip() {
   );
 }
 
-function Face({ content, rotation }) {
+// The turned-away face is hidden explicitly, not just by backface-visibility:
+// during a View Transition (the theme wipe) Safari draws the page from
+// flattened snapshots, which ignore backface-visibility, so the away face —
+// rotated 180°, i.e. mirrored — painted over the card until the wipe ended.
+// The swap is timed around EDGE_ON_MS, when the card is edge-on, so it can't
+// be seen: the incoming face appears just before and the outgoing one hides
+// just after (SWAP_OVERLAP_MS). It also stops screen readers reading both
+// pages at once.
+function Face({ content, rotation, isFront }) {
+  const swapAt = isFront ? EDGE_ON_MS - SWAP_OVERLAP_MS : EDGE_ON_MS + SWAP_OVERLAP_MS;
   return (
-    <div style={{
+    <div data-flip-face style={{
       position: "absolute", inset: 0,
+      visibility: isFront ? "visible" : "hidden",
+      transition: `visibility 0s linear ${swapAt}ms`,
       background: "var(--tmt-paper-card)",
       border: "1px solid var(--tmt-rule)",
       borderRadius: 22,
