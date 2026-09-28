@@ -535,3 +535,25 @@ for (const [w, h] of [[390, 844], [820, 1180]]) {
     });
   });
 }
+
+// Owner-reported on the live site (pre-responsive production): in a narrow
+// desktop window the reader toolbar squeezed the panel toggle to ~16×34px, a
+// pill instead of a square. Below 1024 the tier layouts must keep it square
+// and full-size, whether driven by mouse or touch.
+test.describe("panel toggle keeps its shape in narrow windows", () => {
+  for (const width of [360, 500, 700, 800, 1000]) {
+    for (const [input, extra] of [["mouse", {}], ["touch", TOUCH]]) {
+      test.describe(`${width}px ${input}`, () => {
+        test.use({ viewport: { width, height: 800 }, ...extra });
+
+        test("the panel toggle is square and at least 34px", async ({ app }) => {
+          const page = await app();
+          await openDemo(page);
+          const box = await panelButton(page).boundingBox();
+          expect(box.width).toBeGreaterThanOrEqual(34);
+          expect(Math.abs(box.width - box.height)).toBeLessThanOrEqual(0.5);
+        });
+      });
+    }
+  }
+});
